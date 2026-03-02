@@ -3,6 +3,8 @@ import WorldMap from './components/WorldMap';
 import Level1 from './levels/Level1';
 import Level2 from './levels/Level2';
 import Level3 from './levels/Level3';
+import Level4 from './levels/Level4';
+import Level5 from './levels/Level5';
 import LevelSelector from './components/LevelSelector';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 
@@ -60,6 +62,8 @@ function GameRunner() {
             {currentLevel === 1 && <Level1 />}
             {currentLevel === 2 && <Level2 />}
             {currentLevel === 3 && <Level3 />}
+            {currentLevel === 4 && <Level4 />}
+            {currentLevel === 5 && <Level5 />}
 
         </div>
     );

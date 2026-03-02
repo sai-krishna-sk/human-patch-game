@@ -4,7 +4,7 @@ import { useGameState } from '../context/GameStateContext';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
-const SPEED = 6;
+const SPEED = 16;
 const PLAYER_SIZE = 40;
 
 const DESK_ZONE = { x: 500, y: 300, w: 200, h: 100 };

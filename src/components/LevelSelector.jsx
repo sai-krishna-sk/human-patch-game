@@ -4,23 +4,24 @@ import { useGameState } from '../context/GameStateContext';
 const levelNames = {
     1: 'The OTP Trap',
     2: 'Phishing Net',
-    3: 'Dark Patterns',
-    4: 'The Fake App',
-    5: 'SIM Swap',
-    6: 'Ransomware',
-    7: 'Deep Fake',
-    8: 'QR Scam',
-    9: 'Crypto Rug',
-    10: 'Dark Web',
-    11: 'Zero Day',
-    12: 'APT Attack',
-    13: 'Final Boss'
+    3: 'The Fake App',
+    4: 'QR Code Scam',
+    5: 'Ghost Profile',
+    6: 'SIM Swap',
+    7: 'Ransomware',
+    8: 'Deep Fake',
+    9: 'Data Broker',
+    10: 'Crypto Rug',
+    11: 'Dark Web',
+    12: 'Zero Day',
+    13: 'APT Attack',
+    14: 'Final Boss'
 };
 
 const levelDifficulty = {
     1: 'EASY', 2: 'EASY', 3: 'MEDIUM', 4: 'MEDIUM', 5: 'MEDIUM',
     6: 'HARD', 7: 'HARD', 8: 'HARD', 9: 'EXPERT', 10: 'EXPERT',
-    11: 'EXPERT', 12: 'EXTREME', 13: 'EXTREME'
+    11: 'EXPERT', 12: 'EXTREME', 13: 'EXTREME', 14: 'EXTREME'
 };
 
 const difficultyColor = {
@@ -78,9 +79,9 @@ const LevelSelector = () => {
 
                 {/* Levels Grid */}
                 <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-5 pr-2 relative z-10 custom-scrollbar">
-                    {[...Array(13)].map((_, i) => {
+                    {[...Array(14)].map((_, i) => {
                         const levelNum = i + 1;
-                        const isUnlocked = levelNum <= 3;
+                        const isUnlocked = levelNum <= 5;
                         const difficulty = levelDifficulty[levelNum];
 
                         return (
