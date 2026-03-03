@@ -11,7 +11,7 @@ import BrowserSentry from './minigames/BrowserSentry';
 
 const CyberDefenseLab = () => {
     const { enterLevel } = useGameState();
-    const [view, setView] = useState('hub'); // 'hub', 'minigames', 'quiz', 'playing'
+    const [view, setView] = useState('hub'); // 'hub', 'minigames', 'arcade', 'quiz', 'playing'
     const [activeGame, setActiveGame] = useState(null);
 
     const cardStyle = "group relative p-8 bg-slate-900 border border-slate-800 rounded-2xl hover:border-cyan-500/50 transition-all duration-500 overflow-hidden cursor-pointer";
@@ -25,7 +25,7 @@ const CyberDefenseLab = () => {
                 <p className="text-slate-500 font-mono text-sm tracking-widest">ADVANCED SECURITY CALIBRATION & TRAINING</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl px-6">
                 {/* Mini Games Option */}
                 <div
                     onClick={() => setView('minigames')}
@@ -42,6 +42,26 @@ const CyberDefenseLab = () => {
                         </p>
                         <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs uppercase tracking-widest">
                             Initialize Sequence <span className="group-hover:translate-x-2 transition-transform">→</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Cyber Arcade Option */}
+                <div
+                    onClick={() => setView('arcade')}
+                    className={cardStyle}
+                >
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
+                        <span className="text-8xl">🕹️</span>
+                    </div>
+                    <div className="relative z-10">
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2 block">Themed Missions</span>
+                        <h2 className="text-3xl font-black text-white uppercase mb-4">Cyber Arcade</h2>
+                        <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                            Direct, action-oriented games that combine classic arcade mechanics with security concepts.
+                        </p>
+                        <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs uppercase tracking-widest">
+                            Enter Arcade <span className="group-hover:translate-x-2 transition-transform">→</span>
                         </div>
                     </div>
                 </div>
@@ -250,6 +270,36 @@ const CyberDefenseLab = () => {
         </div>
     );
 
+    const renderArcadeSelection = () => (
+        <div className="flex flex-col items-center w-full max-w-6xl px-6 animate-fade-in h-full py-12">
+            <div className="flex justify-between items-center w-full mb-12">
+                <div>
+                    <h2 className="text-3xl font-black text-white uppercase tracking-tight">Cyber Arcade</h2>
+                    <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">Direct Mission Protocols</p>
+                </div>
+                <button
+                    onClick={() => setView('hub')}
+                    className="px-6 py-2 border border-slate-700 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-all font-mono text-xs"
+                >
+                    BACK
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                {/* Placeholders */}
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="bg-slate-900/20 border border-slate-800/50 p-6 rounded-xl relative grayscale opacity-40 group overflow-hidden">
+                        <div className="absolute inset-0 flex items-center justify-center rotate-12">
+                            <span className="text-slate-700 font-black text-4xl opacity-10">CLASSIFIED</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic uppercase">Mission_{i + 1}</h3>
+                        <p className="text-slate-600 text-sm">Awaiting mission parameters...</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <div className="relative w-screen h-screen overflow-x-hidden overflow-y-auto bg-slate-950 flex flex-col items-center justify-center font-mono text-slate-300">
             {/* Background elements */}
@@ -265,6 +315,7 @@ const CyberDefenseLab = () => {
             <div className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center">
                 {view === 'hub' && renderHub()}
                 {view === 'minigames' && renderGameSelection()}
+                {view === 'arcade' && renderArcadeSelection()}
                 {view === 'quiz' && renderQuizPlaceholder()}
                 {view === 'playing' && activeGame === 'SpotThePhish' && (
                     <SpotThePhish onBack={() => { setView('minigames'); setActiveGame(null); }} />

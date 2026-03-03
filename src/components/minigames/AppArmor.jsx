@@ -539,7 +539,7 @@ const AppArmor = ({ onBack }) => {
 
     return (
         <div className="w-full h-full flex items-center justify-center font-sans overflow-hidden">
-            <style jsx>{`
+            <style>{`
                 .custom-scrollbar-light::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar-light::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar-light::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }

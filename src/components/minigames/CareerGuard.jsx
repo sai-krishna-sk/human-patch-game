@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const JOB_OFFERS = [
     {
@@ -590,7 +590,7 @@ const CareerGuard = ({ onBack }) => {
 
     return (
         <div className="w-full h-full flex items-center justify-center font-sans overflow-hidden bg-transparent">
-            <style jsx>{`
+            <style>{`
                 .custom-scrollbar-cyber::-webkit-scrollbar { width: 10px; }
                 .custom-scrollbar-cyber::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
                 .custom-scrollbar-cyber::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 20px; border: 3px solid #070b14; }

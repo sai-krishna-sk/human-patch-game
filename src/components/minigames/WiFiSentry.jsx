@@ -361,7 +361,7 @@ const WiFiSentry = ({ onBack }) => {
                 </div>
             </div>
 
-            <style jsx>{`
+            <style>{`
                 .animate-fade-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1); }
                 .animate-bounce-subtle { animation: bounceSubtle 2s infinite ease-in-out; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
