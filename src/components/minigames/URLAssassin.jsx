@@ -113,6 +113,7 @@ const URLAssassin = ({ onBack }) => {
     const [elapsed, setElapsed] = useState(0);
     const [feedback, setFeedback] = useState(null);
     const [history, setHistory] = useState([]);
+    const [expandedResult, setExpandedResult] = useState(null);
     const timerRef = useRef(null);
 
     // Shuffle URLs on start
@@ -121,6 +122,7 @@ const URLAssassin = ({ onBack }) => {
         setShuffledUrls(shuffled);
         setGameState('playing');
         setElapsed(0);
+        setExpandedResult(null);
         timerRef.current = setInterval(() => {
             setElapsed(prev => prev + 1);
         }, 1000);
@@ -315,93 +317,98 @@ const URLAssassin = ({ onBack }) => {
     };
 
     const renderResult = () => {
-        const accuracy = Math.round((history.filter(h => h.userCorrect).length / shuffledUrls.length) * 100);
-        let grade = 'F';
-        if (accuracy === 100) grade = 'S';
-        else if (accuracy >= 80) grade = 'A';
-        else if (accuracy >= 60) grade = 'B';
-        else if (accuracy >= 40) grade = 'C';
+        const correctCount = history.filter(h => h.userCorrect).length;
+        const accuracy = Math.round((correctCount / shuffledUrls.length) * 100);
+
+        const getGrade = () => {
+            if (accuracy >= 100) return { grade: 'S', color: '#ef4444', label: 'ELITE ASSASSIN' };
+            if (accuracy >= 80) return { grade: 'A', color: '#f97316', label: 'SHARPSHOOTER' };
+            if (accuracy >= 60) return { grade: 'B', color: '#eab308', label: 'OPERATIVE' };
+            if (accuracy >= 40) return { grade: 'C', color: '#8b5cf6', label: 'RECRUIT' };
+            return { grade: 'F', color: '#64748b', label: 'NEUTRALIZED' };
+        };
+
+        const resultGrade = getGrade();
 
         return (
-            <div className="flex flex-col items-center w-full max-w-4xl px-6 py-12 animate-fade-in">
-                <div className="text-center mb-12">
-                    <h2 className="text-5xl font-black text-white uppercase tracking-widest mb-2">Drill Complete</h2>
-                    <p className="text-slate-500 font-mono text-sm uppercase">Agent Performance Analysis Report</p>
+            <div className="w-full max-w-5xl px-6 py-8 flex flex-col items-center animate-fade-in overflow-y-auto" style={{ maxHeight: '92vh' }}>
+                <div className="text-center mb-8">
+                    <div className="inline-flex items-center justify-center w-24 h-24 rounded-full border-4 mb-4 shadow-lg"
+                        style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
+                        <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
+                    </div>
+                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Training Complete — Target Engagement Report</p>
                 </div>
 
-                <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-                    {/* Grade Card */}
-                    <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl flex items-center gap-8 shadow-2xl relative overflow-hidden group">
-                        <div className={`absolute top-0 right-0 w-32 h-32 blur-[80px] opacity-20 transition-colors ${grade === 'S' || grade === 'A' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                        <div className={`text-8xl font-black italic tracking-tighter ${grade === 'S' || grade === 'A' ? 'text-emerald-400' : 'text-red-400'} animate-pulse`}>
-                            {grade}
+                <div className="grid grid-cols-4 gap-4 w-full max-w-2xl mb-10">
+                    {[
+                        { label: 'Score', value: score.toLocaleString(), color: 'text-red-400' },
+                        { label: 'Accuracy', value: `${accuracy}%`, color: accuracy >= 70 ? 'text-emerald-400' : 'text-red-400' },
+                        { label: 'Time Taken', value: formatTime(elapsed), color: 'text-amber-400' },
+                        { label: 'Max Combo', value: `×${maxCombo}`, color: 'text-indigo-400' },
+                    ].map((stat, i) => (
+                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                            <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
-                        <div>
-                            <span className="text-slate-500 text-xs font-mono uppercase tracking-widest block mb-1">Final Grade</span>
-                            <div className="text-2xl font-bold text-white uppercase tracking-tight">
-                                {grade === 'S' ? 'Perfect Sweep' : grade === 'A' ? 'Expert Rank' : 'Needs Recalibration'}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                            <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Accuracy</span>
-                            <span className="text-2xl font-bold text-white">{accuracy}%</span>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                            <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Max Combo</span>
-                            <span className="text-2xl font-bold text-amber-400">×{maxCombo}</span>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                            <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Total Score</span>
-                            <span className="text-2xl font-bold text-cyan-400">{score.toLocaleString()}</span>
-                        </div>
-                        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                            <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Drill Time</span>
-                            <span className="text-2xl font-bold text-indigo-400">{formatTime(elapsed)}</span>
-                        </div>
-                    </div>
+                    ))}
                 </div>
 
-                {/* History list */}
-                <div className="w-full space-y-4 mb-12 h-64 overflow-y-auto pr-4 custom-scrollbar">
-                    {history.map((h, i) => (
-                        <div key={i} className={`p-4 rounded-xl border flex items-center justify-between transition-all ${h.userCorrect ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                            <div className="flex flex-col gap-1">
-                                <span className="text-xs font-bold text-white opacity-40 uppercase tracking-widest font-mono">#{i + 1} Target: {h.brand}</span>
-                                <span className="text-sm font-medium text-white truncate max-w-md">{h.fullUrl}</span>
-                                <p className="text-[10px] text-slate-500 italic mt-1">{h.explanation}</p>
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 self-start">Kill Ledger</h3>
+                <div className="w-full space-y-3 mb-10">
+                    {history.map((item, idx) => (
+                        <div
+                            key={idx}
+                            className={`rounded-xl border overflow-hidden transition-all cursor-pointer ${item.userCorrect
+                                ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40'
+                                : 'bg-red-500/5 border-red-500/20 hover:border-red-500/40'
+                                }`}
+                            onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
+                        >
+                            <div className="flex items-center gap-4 px-5 py-4">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                    {item.brand[0]}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                        <span className="text-sm font-bold text-white truncate">{item.brand} Engagement</span>
+                                        <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isPhish ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                            {item.isPhish ? 'PHISH' : 'LEGIT'}
+                                        </span>
+                                    </div>
+                                    <span className="text-xs text-slate-500 truncate block font-mono">{item.displayUrl}</span>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <span className={`text-sm font-bold ${item.userCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {item.userCorrect ? '✓' : '✗'}
+                                    </span>
+                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                </div>
                             </div>
-                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full border ${h.userCorrect ? 'text-emerald-400 border-emerald-500/30' : 'text-red-400 border-red-500/30'}`}>
-                                {h.userCorrect ? 'PASS' : 'FAIL'}
-                            </span>
+
+                            {expandedResult === idx && (
+                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Ballistics Report</span>
+                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-red-500 pl-4 py-1">
+                                        "{item.explanation}"
+                                    </p>
+                                    <div className="flex items-start gap-2 text-xs text-red-400/80 mt-3 font-mono">
+                                        <span className="text-red-500 font-bold">Full URL:</span>
+                                        <span className="break-all">{item.fullUrl}</span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
 
                 <div className="flex gap-4">
-                    <button
-                        onClick={onBack}
-                        className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-all uppercase tracking-widest text-xs"
-                    >
-                        Exit Lab
+                    <button onClick={startGame} className="px-12 py-4 bg-red-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-red-600 shadow-lg text-sm">
+                        RE-RUN SIM
                     </button>
-                    <button
-                        onClick={() => {
-                            setGameState('intro');
-                            setCurrentIndex(0);
-                            setScore(0);
-                            setCombo(0);
-                            setMaxCombo(0);
-                            setElapsed(0);
-                            setHistory([]);
-                            setFeedback(null);
-                        }}
-                        className="px-12 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-lg shadow-lg shadow-cyan-900/20 transition-all uppercase tracking-widest text-sm"
-                    >
-                        Re-run Simulation
+                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                        BACK TO LAB
                     </button>
                 </div>
             </div>

@@ -2,6 +2,12 @@ import React, { useState } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import SpotThePhish from './minigames/SpotThePhish';
 import URLAssassin from './minigames/URLAssassin';
+import ImpersonationHunt from './minigames/ImpersonationHunt';
+import AppArmor from './minigames/AppArmor';
+import CareerGuard from './minigames/CareerGuard';
+import FileFortress from './minigames/FileFortress';
+import WiFiSentry from './minigames/WiFiSentry';
+import BrowserSentry from './minigames/BrowserSentry';
 
 const CyberDefenseLab = () => {
     const { enterLevel } = useGameState();
@@ -118,13 +124,109 @@ const CyberDefenseLab = () => {
                     </div>
                 </div>
 
+                {/* 3. Impersonation Hunt */}
+                <div
+                    onClick={() => { setActiveGame('ImpersonationHunt'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-purple-500/30 hover:bg-purple-500/5 transition-all cursor-pointer"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">🕵️</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">LEVEL_03</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Impersonation Hunt</h3>
+                    <p className="text-slate-400 text-sm mb-4">Detect fake social media profiles. Analyze verification, followers, and bio links.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-purple-500 w-full"></div>
+                    </div>
+                </div>
+
+                {/* 4. App Armor */}
+                <div
+                    onClick={() => { setActiveGame('AppArmor'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all cursor-pointer"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">🛡️</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">LEVEL_04</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">App Armor</h3>
+                    <p className="text-slate-400 text-sm mb-4">Analyze Play Store listings. Detect clones, permission abuse, and malware red flags.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-cyan-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
+                {/* 5. Career Guard */}
+                <div
+                    onClick={() => { setActiveGame('CareerGuard'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all cursor-pointer"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">👔</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">LEVEL_05</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Career Guard</h3>
+                    <p className="text-slate-400 text-sm mb-4">Identify fraudulent job offers. Scan for unofficial domains, payment requests, and social engineering.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-indigo-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
+                {/* 6. File Fortress */}
+                <div
+                    onClick={() => { setActiveGame('FileFortress'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-red-500/30 hover:bg-red-500/5 transition-all cursor-pointer"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">📁</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">LEVEL_06</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">File Fortress</h3>
+                    <p className="text-slate-400 text-sm mb-4">Evaluate email attachments for malware. Scan and shred suspicious payloads.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-red-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
+                {/* 7. WiFi Sentry */}
+                <div
+                    onClick={() => { setActiveGame('WiFiSentry'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all cursor-pointer"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">📡</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">LEVEL_07</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">WiFi Sentry</h3>
+                    <p className="text-slate-400 text-sm mb-4">Analyze available Wi-Fi networks. Detect Evil Twins, certificate issues, and insecure hotspots.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-cyan-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
+                {/* 8. Browser Sentry */}
+                <div
+                    onClick={() => { setActiveGame('BrowserSentry'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-indigo-500/30 hover:bg-indigo-500/5 transition-all cursor-pointer"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">🌐</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">LEVEL_08</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Browser Sentry</h3>
+                    <p className="text-slate-400 text-sm mb-4">Evaluate browser page safety. Inspect URLs, SSL status, and suspicious forms in high-fidelity mockups.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-indigo-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
                 {/* Placeholders for others */}
-                {[...Array(8)].map((_, i) => (
+                {[...Array(1)].map((_, i) => (
                     <div key={i} className="bg-slate-900/20 border border-slate-800/50 p-6 rounded-xl relative grayscale opacity-40 group overflow-hidden">
                         <div className="absolute inset-0 flex items-center justify-center rotate-12">
                             <span className="text-slate-700 font-black text-4xl opacity-10">LOCKED</span>
                         </div>
-                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic">Module_{i + 3}</h3>
+                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic">Module_{i + 9}</h3>
                         <p className="text-slate-600 text-sm">Calibration required...</p>
                     </div>
                 ))}
@@ -170,21 +272,26 @@ const CyberDefenseLab = () => {
                 {view === 'playing' && activeGame === 'URLAssassin' && (
                     <URLAssassin onBack={() => { setView('minigames'); setActiveGame(null); }} />
                 )}
+                {view === 'playing' && activeGame === 'ImpersonationHunt' && (
+                    <ImpersonationHunt onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'AppArmor' && (
+                    <AppArmor onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'CareerGuard' && (
+                    <CareerGuard onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'FileFortress' && (
+                    <FileFortress onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'WiFiSentry' && (
+                    <WiFiSentry onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'BrowserSentry' && (
+                    <BrowserSentry onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
             </div>
 
-            {/* Scanning Line Effect */}
-            <div className="fixed top-0 left-0 w-full h-[2px] bg-cyan-500/10 shadow-[0_0_15px_rgba(34,211,238,0.2)] animate-scan pointer-events-none z-[100]" />
-            <style jsx>{`
-                @keyframes scan {
-                    0% { top: 0%; opacity: 0; }
-                    5% { opacity: 1; }
-                    95% { opacity: 1; }
-                    100% { top: 100%; opacity: 0; }
-                }
-                .animate-scan {
-                    animation: scan 8s linear infinite;
-                }
-            `}</style>
         </div>
     );
 };
