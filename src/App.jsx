@@ -5,6 +5,8 @@ import Level2 from './levels/Level2';
 import Level3 from './levels/Level3';
 import Level4 from './levels/Level4';
 import Level5 from './levels/Level5';
+import Level6 from './levels/Level6';
+import Level7 from './levels/Level7';
 import LevelSelector from './components/LevelSelector';
 import MainMenu from './components/MainMenu';
 import Prologue from './levels/Prologue';
@@ -72,6 +74,8 @@ function GameRunner() {
             {currentLevel === 3 && <Level3 />}
             {currentLevel === 4 && <Level4 />}
             {currentLevel === 5 && <Level5 />}
+            {currentLevel === 6 && <Level6 />}
+            {currentLevel === 7 && <Level7 />}
 
         </div>
     );

@@ -8,7 +8,7 @@ const levelNames = {
     4: 'QR Code Scam',
     5: 'Ghost Profile',
     6: 'SIM Swap',
-    7: 'Ransomware',
+    7: 'The Open Network',
     8: 'Deep Fake',
     9: 'Data Broker',
     10: 'Crypto Rug',
@@ -20,7 +20,7 @@ const levelNames = {
 
 const levelDifficulty = {
     1: 'EASY', 2: 'EASY', 3: 'MEDIUM', 4: 'MEDIUM', 5: 'MEDIUM',
-    6: 'HARD', 7: 'HARD', 8: 'HARD', 9: 'EXPERT', 10: 'EXPERT',
+    6: 'HARD', 7: 'EXPERT', 8: 'HARD', 9: 'EXPERT', 10: 'EXPERT',
     11: 'EXPERT', 12: 'EXTREME', 13: 'EXTREME', 14: 'EXTREME'
 };
 
@@ -81,7 +81,7 @@ const LevelSelector = () => {
                 <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-5 pr-2 relative z-10 custom-scrollbar">
                     {[...Array(14)].map((_, i) => {
                         const levelNum = i + 1;
-                        const isUnlocked = levelNum <= 5;
+                        const isUnlocked = levelNum <= 7;
                         const difficulty = levelDifficulty[levelNum];
 
                         return (

@@ -45,6 +45,16 @@ const Level4 = () => {
     const [stickerPeeled, setStickerPeeled] = useState(false);
     const [inspectedZones, setInspectedZones] = useState([]);
     const [scamReported, setScamReported] = useState(false);
+    const [complaintSubmitted, setComplaintSubmitted] = useState(false);
+    const [peelProgress, setPeelProgress] = useState(0);
+    const [isDraggingPeel, setIsDraggingPeel] = useState(false);
+    const [evidence, setEvidence] = useState([]);
+    const [isBinderOpen, setIsBinderOpen] = useState(false);
+
+    // Room walk state (post-payment room scene)
+    const ROOM_DESK_ZONE = { x: 500, y: 300, w: 200, h: 100 };
+    const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 580, y: 700 });
+    const [canInteractLaptop, setCanInteractLaptop] = useState(false);
 
     // Mini-game state
     const [safeBucket, setSafeBucket] = useState([]);
@@ -52,10 +62,17 @@ const Level4 = () => {
     const [draggedQR, setDraggedQR] = useState(null);
     const [miniGameOver, setMiniGameOver] = useState(false);
 
-    // Stable QR pattern (avoid Math.random in render)
+    // Stable QR pattern for the FAKE sticker
     const qrPattern = useMemo(() => {
         return Array.from({ length: 12 }, () =>
             Array.from({ length: 12 }, () => Math.random() > 0.4)
+        );
+    }, []);
+
+    // Different QR pattern for Selvi's ORIGINAL real QR underneath
+    const originalQrPattern = useMemo(() => {
+        return Array.from({ length: 12 }, (_, i) =>
+            Array.from({ length: 12 }, (_, j) => ((i * 7 + j * 13 + 3) % 5) > 1)
         );
     }, []);
 
@@ -67,7 +84,7 @@ const Level4 = () => {
         return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
     }, []);
 
-    // E key to interact
+    // E key to interact (market)
     useEffect(() => {
         const handleKey = (e) => {
             if (e.key.toLowerCase() === 'e' && canInteract && gameState === 'market_walk') {
@@ -77,6 +94,48 @@ const Level4 = () => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [canInteract, gameState]);
+
+    // Room walk movement loop
+    useEffect(() => {
+        if (gameState !== 'room_walk') return;
+        const ROOM_W = 1200;
+        const ROOM_H = 800;
+        const RM_SPEED = 9;
+        let frameId;
+        const loop = () => {
+            setRoomPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= RM_SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += RM_SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= RM_SPEED;
+                if (keys['d'] || keys['arrowright']) nx += RM_SPEED;
+                nx = Math.max(0, Math.min(nx, ROOM_W - PLAYER_SIZE));
+                ny = Math.max(0, Math.min(ny, ROOM_H - PLAYER_SIZE));
+                // Desk collision
+                if (checkCollision(nx, ny, ROOM_DESK_ZONE)) {
+                    if (p.x + PLAYER_SIZE <= ROOM_DESK_ZONE.x || p.x >= ROOM_DESK_ZONE.x + ROOM_DESK_ZONE.w) nx = p.x;
+                    if (p.y + PLAYER_SIZE <= ROOM_DESK_ZONE.y || p.y >= ROOM_DESK_ZONE.y + ROOM_DESK_ZONE.h) ny = p.y;
+                }
+                const interactArea = { x: ROOM_DESK_ZONE.x - 40, y: ROOM_DESK_ZONE.y - 40, w: ROOM_DESK_ZONE.w + 80, h: ROOM_DESK_ZONE.h + 80 };
+                setCanInteractLaptop(checkCollision(nx, ny, interactArea));
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState]);
+
+    // E key to pick laptop (room)
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (e.key.toLowerCase() === 'e' && canInteractLaptop && gameState === 'room_walk') {
+                setGameState('incident_report');
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [canInteractLaptop, gameState]);
 
     useEffect(() => {
         if (gameState !== 'market_walk') return;
@@ -125,10 +184,92 @@ const Level4 = () => {
     };
 
     const FeedbackToast = () => feedbackMsg ? (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] bg-amber-500 text-black font-black px-10 py-4 rounded-full shadow-[0_0_30px_rgba(245,158,11,0.5)] animate-bounce text-xl border-4 border-black">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] bg-slate-900/95 backdrop-blur-xl text-white font-bold px-8 py-4 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.6),0_0_40px_rgba(6,182,212,0.2)] animate-bounce text-lg border border-cyan-500/30 flex items-center gap-3">
+            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
             {feedbackMsg}
         </div>
     ) : null;
+
+    const EvidenceBinder = () => (
+        <>
+            <div className="fixed top-[220px] right-8 z-[400] group">
+                <button className="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-cyan-500/40 w-16 h-16 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.2)] flex items-center justify-center text-3xl hover:scale-110 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all relative backdrop-blur-sm" onClick={() => setIsBinderOpen(true)}>
+                    📁
+                    {evidence.length > 0 && !scamReported && (
+                        <div className="absolute -top-2 -right-2 bg-red-500 text-white w-7 h-7 rounded-full border-2 border-slate-900 flex items-center justify-center font-black text-xs shadow-[0_0_12px_rgba(239,68,68,0.8)] animate-pulse">
+                            {evidence.length}
+                        </div>
+                    )}
+                </button>
+                <span className="absolute right-0 top-full mt-2 bg-black/80 text-cyan-300 text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap uppercase tracking-wider">Evidence Folder</span>
+            </div>
+
+            {isBinderOpen && (
+                <div className="fixed inset-0 z-[500] flex items-start justify-end p-8 pointer-events-none animate-in fade-in duration-300">
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm pointer-events-auto" onClick={() => setIsBinderOpen(false)}></div>
+
+                    <div className="w-full max-w-sm relative pointer-events-auto mt-12 mr-2 z-10">
+                        {/* Main Panel */}
+                        <div className="bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,0.6)] border border-cyan-500/20 overflow-hidden">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 px-6 py-4 border-b border-cyan-500/20 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                                        <span className="text-lg">🗂️</span>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-white font-black text-sm uppercase tracking-wider">Evidence Folder</h2>
+                                        <p className="text-cyan-400/60 text-[10px] font-mono">{evidence.length} ITEM{evidence.length !== 1 ? 'S' : ''} COLLECTED</p>
+                                    </div>
+                                </div>
+                                <button className="w-8 h-8 bg-white/5 hover:bg-white/10 rounded-lg flex items-center justify-center text-white/60 hover:text-white font-bold transition-all" onClick={() => setIsBinderOpen(false)}>✕</button>
+                            </div>
+
+                            {/* Evidence List */}
+                            <div className="p-4 max-h-[400px] overflow-y-auto custom-scrollbar space-y-3">
+                                {evidence.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center text-3xl mb-4 animate-pulse border border-slate-700">📭</div>
+                                        <p className="text-slate-400 font-bold text-sm uppercase tracking-wider">No Evidence</p>
+                                        <p className="text-slate-500 text-xs mt-1">Investigate the scene to collect evidence</p>
+                                    </div>
+                                ) : evidence.map((ev, i) => (
+                                    <div key={i} draggable onDragStart={(e) => {
+                                        e.dataTransfer.setData('text/plain', ev.id);
+                                        e.dataTransfer.effectAllowed = 'move';
+                                        // Auto-close binder so backdrop doesn't block the drop zone
+                                        setTimeout(() => setIsBinderOpen(false), 100);
+                                    }} className="bg-slate-800/80 p-4 rounded-xl border border-slate-700/50 hover:border-cyan-500/30 transition-all cursor-grab active:cursor-grabbing group hover:shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0 border border-red-500/20 group-hover:border-red-500/40 transition-colors">
+                                                {ev.id === 'fake_qr' ? (
+                                                    <span className="text-2xl">🏷️</span>
+                                                ) : (
+                                                    <span className="text-2xl">📄</span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="font-bold text-white text-xs uppercase tracking-wide">{ev.title}</h4>
+                                                    <span className="bg-red-500/20 text-red-400 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Evidence</span>
+                                                </div>
+                                                <p className="text-slate-400 text-[11px] leading-relaxed break-all">{ev.desc}</p>
+                                            </div>
+                                        </div>
+                                        {/* Drag hint */}
+                                        <div className="mt-2 pt-2 border-t border-slate-700/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <p className="text-cyan-400/60 text-[9px] font-mono uppercase tracking-wider text-center">↕ Drag to Cybercrime Portal</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
     // MARKET WALK STATE
     // ═══════════════════════════════════════════
@@ -138,6 +279,7 @@ const Level4 = () => {
         return (
             <div className="w-full h-full flex flex-col bg-[#7fc2ed] overflow-hidden relative font-sans">
                 <FeedbackToast />
+                <EvidenceBinder />
 
                 <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
 
@@ -155,6 +297,22 @@ const Level4 = () => {
                     </div>
 
                     {/* Interactive Overlay Zones on top of image (Optional / if needed for clicks) */}
+                    {/* The Sound Box */}
+                    <div className="absolute z-20 group cursor-pointer" style={{ left: 850, bottom: 350 }}>
+                        <div className="absolute -top-12 -left-20 bg-slate-800 text-white font-black text-[10px] px-3 py-2 rounded-xl border border-slate-600 shadow-md z-[60] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            Selvi's Payment Box. Linked to: Selvi_vegetables@bank
+                            <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 transform rotate-45 border-b border-r border-slate-600"></div>
+                        </div>
+                        {/* Sound Box Graphic */}
+                        <div className="w-10 h-14 bg-blue-600 rounded-md border-2 border-slate-800 shadow-xl flex flex-col items-center pt-1 hover:scale-110 transition-transform">
+                            <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center border border-slate-900 shadow-inner">
+                            </div>
+                            <div className="mt-auto mb-1 w-full flex justify-end px-1">
+                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* (Seafood stall area based on image) */}
                     <div className="absolute w-[400px] h-[300px] right-[100px] bottom-[100px] z-10 group cursor-pointer">
                         <div className="absolute -top-12 left-12 bg-white text-black font-black text-[12px] px-3 py-2 rounded-[20px] border-2 border-slate-700 shadow-md z-50 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
@@ -229,9 +387,79 @@ const Level4 = () => {
                         </div>
                         <div className="flex justify-end gap-6 mt-12">
                             <button className="bg-white/10 hover:bg-white/20 text-white/60 px-10 py-5 rounded-2xl font-black text-xl transition-all" onClick={() => setGameState('market_walk')}>MAYBE LATER</button>
-                            <button className="bg-amber-500 hover:bg-amber-400 text-black px-16 py-5 rounded-2xl font-black text-2xl shadow-[0_15px_40px_rgba(245,158,11,0.4)] transition-transform hover:scale-105 active:scale-95" onClick={() => setGameState('qr_scan')}>
+                            <button className="bg-amber-500 hover:bg-amber-400 text-black px-16 py-5 rounded-2xl font-black text-2xl shadow-[0_15px_40px_rgba(245,158,11,0.4)] transition-transform hover:scale-105 active:scale-95" onClick={() => setGameState('phone_home')}>
                                 OK, SCAN QR 📱
                             </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
+    // PHONE HOME SCREEN (App selection)
+    // ═══════════════════════════════════════════
+    if (gameState === 'phone_home') {
+        const apps = [
+            { name: 'WhatsApp', icon: '💬', color: 'bg-green-500' },
+            { name: 'Gallery', icon: '🖼️', color: 'bg-purple-500' },
+            { name: 'Settings', icon: '⚙️', color: 'bg-slate-500' },
+            { name: 'Camera', icon: '📷', color: 'bg-slate-700' },
+            { name: 'Messages', icon: '📬', color: 'bg-blue-500' },
+            { name: 'Chrome', icon: '🌐', color: 'bg-amber-500' },
+            { name: 'Phone', icon: '📞', color: 'bg-green-600' },
+            { name: 'Gmail', icon: '✉️', color: 'bg-red-500' },
+            { name: 'UPI Pay', icon: '💳', color: 'bg-indigo-500' },
+            { name: 'Clock', icon: '⏰', color: 'bg-teal-500' },
+            { name: 'Maps', icon: '🗺️', color: 'bg-green-400' },
+            { name: 'QR Scanner', icon: '📱', color: 'bg-cyan-500', action: 'qr_scan', highlight: true },
+        ];
+        return (
+            <div className="w-full h-full bg-[#1a1c1e] flex items-center justify-center p-4">
+                <FeedbackToast />
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
+
+                {/* Phone Container */}
+                <div className="w-[360px] h-[700px] bg-black rounded-[3rem] p-3 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[6px] border-zinc-800">
+                    {/* Notch */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-black rounded-b-2xl z-50"></div>
+                    {/* Home Bar */}
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/30 rounded-full z-50"></div>
+
+                    {/* Screen */}
+                    <div className="w-full h-full bg-gradient-to-b from-slate-800 to-slate-900 rounded-[2.5rem] overflow-hidden flex flex-col relative">
+                        {/* Status Bar */}
+                        <div className="px-6 pt-10 pb-4 flex justify-between text-white/40 text-xs font-black">
+                            <span>8:15 AM</span>
+                            <div className="flex gap-2 font-mono"><span>5G</span><span>🔋 88%</span></div>
+                        </div>
+
+                        {/* Date & Greeting */}
+                        <div className="px-6 pb-6">
+                            <p className="text-white/30 text-xs font-mono uppercase tracking-widest">Monday, March 3</p>
+                            <h3 className="text-white/80 font-bold text-lg mt-1">Select an app</h3>
+                        </div>
+
+                        {/* App Grid */}
+                        <div className="flex-1 px-6 pb-6">
+                            <div className="grid grid-cols-4 gap-4">
+                                {apps.map((app, i) => (
+                                    <button key={i}
+                                        onClick={() => app.action ? setGameState(app.action) : showFeedback(`📱 ${app.name} is not needed now`)}
+                                        className={`flex flex-col items-center gap-1.5 group transition-all ${app.highlight ? 'animate-pulse' : ''}`}>
+                                        <div className={`w-14 h-14 ${app.color} rounded-2xl flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform ${app.highlight ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(6,182,212,0.5)]' : ''}`}>
+                                            {app.icon}
+                                        </div>
+                                        <span className={`text-[10px] font-bold ${app.highlight ? 'text-cyan-400' : 'text-white/50'}`}>{app.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Hint at bottom */}
+                        <div className="px-6 pb-8 text-center">
+                            <p className="text-cyan-400/60 text-[10px] font-mono uppercase tracking-wider animate-bounce">↑ Tap QR Scanner to scan the payment code</p>
                         </div>
                     </div>
                 </div>
@@ -252,19 +480,22 @@ const Level4 = () => {
                 {/* Background market elements */}
                 <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
 
-                {/* iPhone Shape Container */}
-                <div className="w-[420px] h-[860px] bg-black rounded-[4rem] p-4 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[8px] border-zinc-800">
+                {/* iPhone Shape Container — sized to fit viewport */}
+                <div className="w-[360px] h-[700px] bg-black rounded-[3rem] p-3 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[6px] border-zinc-800">
                     {/* Notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-3xl z-50"></div>
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-black rounded-b-2xl z-50"></div>
+
+                    {/* Home Bar */}
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/30 rounded-full z-50"></div>
 
                     {/* Phone Screen */}
-                    <div className="w-full h-full bg-zinc-900 rounded-[3rem] overflow-hidden flex flex-col relative">
+                    <div className="w-full h-full bg-zinc-900 rounded-[2.5rem] overflow-hidden flex flex-col relative">
                         <div className="flex-1 bg-slate-900 flex flex-col">
-                            <div className="p-8 pt-12 flex justify-between text-white/40 text-xs font-black">
+                            <div className="px-6 pt-10 pb-2 flex justify-between text-white/40 text-xs font-black">
                                 <span>8:15 AM</span>
                                 <div className="flex gap-2 font-mono"><span>5G</span><span>🔋 88%</span></div>
                             </div>
-                            <div className="flex-1 flex flex-col items-center justify-center p-12">
+                            <div className="flex-1 flex flex-col items-center justify-center px-8 pb-16">
                                 <div className="w-full aspect-square border-4 border-white/20 rounded-3xl relative overflow-hidden group cursor-pointer" onClick={() => setGameState('scan_result')}>
                                     <div className="absolute inset-0 flex flex-col gap-1 p-4 bg-white">
                                         {qrPattern.map((row, i) => (
@@ -278,10 +509,10 @@ const Level4 = () => {
                                     <div className="absolute inset-0 bg-blue-500/20 group-hover:bg-blue-500/0 transition-colors"></div>
                                     <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] animate-scan"></div>
                                 </div>
-                                <p className="text-white font-black text-center mt-8 uppercase tracking-widest text-sm opacity-60">Focus on the QR code</p>
+                                <p className="text-white font-black text-center mt-6 uppercase tracking-widest text-sm opacity-60">Focus on the QR code</p>
                             </div>
-                            <button className="absolute bottom-12 left-1/2 -translate-x-1/2 w-20 h-20 bg-white/20 border-4 border-white/40 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-transform" onClick={() => setGameState('scan_result')}>
-                                <div className="w-16 h-16 bg-white rounded-full"></div>
+                            <button className="absolute bottom-8 left-1/2 -translate-x-1/2 w-16 h-16 bg-white/20 border-4 border-white/40 rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-transform" onClick={() => setGameState('scan_result')}>
+                                <div className="w-12 h-12 bg-white rounded-full"></div>
                             </button>
                         </div>
                     </div>
@@ -323,13 +554,14 @@ const Level4 = () => {
                  * (Scaled down significantly to be less intrusive)
                  * ==========================================
                  */}
-                <div className="w-[336px] h-[688px] relative flex-shrink-0 animate-in slide-in-from-left duration-500">
-                    <div className="w-[420px] h-[860px] bg-black rounded-[4rem] p-4 relative shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[8px] border-zinc-800 origin-top-left scale-[0.8]">
+                <div className="w-[320px] h-[640px] relative flex-shrink-0 animate-in slide-in-from-left duration-500">
+                    <div className="w-[400px] h-[800px] bg-black rounded-[3.5rem] p-3 relative shadow-[0_20px_50px_rgba(0,0,0,0.5)] border-[6px] border-zinc-800 origin-top-left scale-[0.8]">
                         {/* Notch */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-3xl z-50"></div>
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-black rounded-b-2xl z-50"></div>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/30 rounded-full z-50"></div>
 
                         {/* Screen */}
-                        <div className="w-full h-full bg-slate-50 rounded-[3rem] overflow-hidden flex flex-col relative pt-8">
+                        <div className="w-full h-full bg-slate-50 rounded-[2.5rem] overflow-hidden flex flex-col relative pt-8">
 
                             {/* Status Bar */}
                             <div className="px-8 pb-4 flex justify-between text-slate-400 text-xs font-black">
@@ -349,43 +581,43 @@ const Level4 = () => {
                                 </div>
                             </div>
 
-                            {/* Main Interaction Area */}
-                            <div className="flex-1 p-6 flex flex-col gap-6 relative">
+                            {/* Main Interaction Area — scrollable so Decline button is visible */}
+                            <div className="flex-1 px-4 py-3 flex flex-col gap-3 relative overflow-y-auto custom-scrollbar">
                                 {/* Clue 1: COLLECT REQUEST warning */}
                                 <div onClick={() => { if (!cluesFound.includes(1)) { setCluesFound(p => [...p, 1]); showFeedback("🔍 Collect Request Found!") } }}
                                     className="relative group cursor-pointer transition-transform hover:scale-[1.02]">
-                                    <div className="bg-red-500 text-white p-5 rounded-3xl shadow-lg border-b-4 border-red-700">
-                                        <h5 className="font-black text-[10px] uppercase tracking-widest opacity-80 decoration-white/20 underline underline-offset-4">Alert!</h5>
-                                        <p className="text-xl font-bold mt-1">COLLECT REQUEST</p>
-                                        <p className="text-[10px] font-medium opacity-80 mt-1 italic">Authorized money will be DEBITED from your account</p>
+                                    <div className="bg-red-500 text-white p-3 rounded-2xl shadow-lg border-b-4 border-red-700">
+                                        <h5 className="font-black text-[9px] uppercase tracking-widest opacity-80">Alert!</h5>
+                                        <p className="text-base font-bold mt-0.5">COLLECT REQUEST</p>
+                                        <p className="text-[9px] font-medium opacity-80 mt-0.5 italic">Authorized money will be DEBITED from your account</p>
                                     </div>
                                     {cluesFound.includes(1) && <RedCircle />}
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-3">
                                     {/* Clue 4: Unknown UPI ID */}
                                     <div onClick={() => { if (!cluesFound.includes(4)) { setCluesFound(p => [...p, 4]); showFeedback("🔍 Unknown UPI ID!") } }}
-                                        className="relative p-4 rounded-2xl border-2 bg-white border-slate-100 hover:border-slate-300 cursor-pointer transition-transform hover:scale-[1.02] group">
-                                        <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-1">Requested From</p>
-                                        <p className="text-slate-900 font-mono font-bold">9944XXXXX@paytm</p>
+                                        className="relative p-3 rounded-xl border-2 bg-white border-slate-100 hover:border-slate-300 cursor-pointer transition-transform hover:scale-[1.02] group">
+                                        <p className="text-slate-400 text-[8px] font-black uppercase tracking-widest mb-0.5">Requested From</p>
+                                        <p className="text-slate-900 font-mono font-bold text-sm">9944XXXXX@paytm</p>
                                         {cluesFound.includes(4) && <RedCircle />}
                                     </div>
 
                                     {/* Clue 5: Missing Name / Suspicious Merchant details */}
                                     <div onClick={() => { if (!cluesFound.includes(5)) { setCluesFound(p => [...p, 5]); showFeedback("🔍 Suspicious Merchant!") } }}
-                                        className="relative p-4 rounded-2xl border-2 bg-white border-slate-100 hover:border-slate-300 cursor-pointer transition-transform hover:scale-[1.02] group">
-                                        <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest mb-1">Merchant Details</p>
-                                        <p className="text-slate-900 font-mono font-bold">unknown_collector@oksbi</p>
+                                        className="relative p-3 rounded-xl border-2 bg-white border-slate-100 hover:border-slate-300 cursor-pointer transition-transform hover:scale-[1.02] group">
+                                        <p className="text-slate-400 text-[8px] font-black uppercase tracking-widest mb-0.5">Merchant Details</p>
+                                        <p className="text-slate-900 font-mono font-bold text-sm">unknown_collector@oksbi</p>
                                         {cluesFound.includes(5) && <RedCircle />}
                                     </div>
                                 </div>
 
                                 {/* Clue 3: The ₹1 Trap (Amount) */}
-                                <div className="flex-1 flex flex-col items-center justify-center border-y-2 border-dashed border-slate-200 py-6 relative">
-                                    <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-2">Amount Request</p>
+                                <div className="flex flex-col items-center justify-center border-y-2 border-dashed border-slate-200 py-3 relative">
+                                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-1">Amount Request</p>
                                     <div onClick={() => { if (!cluesFound.includes(3)) { setCluesFound(p => [...p, 3]); showFeedback("🔍 The ₹1 Trap Spotted!") } }}
-                                        className="relative cursor-pointer transition-transform hover:scale-110 group p-2">
-                                        <div className="text-6xl font-black text-slate-900 font-mono">
+                                        className="relative cursor-pointer transition-transform hover:scale-110 group p-1">
+                                        <div className="text-5xl font-black text-slate-900 font-mono">
                                             ₹1.00
                                         </div>
                                         {cluesFound.includes(3) && <RedCircle />}
@@ -394,18 +626,18 @@ const Level4 = () => {
 
                                 {/* Safe/Danger Actions (Shown only after clues found) */}
                                 {allCluesCollected ? (
-                                    <div className="space-y-3 pt-4 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-black py-4 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-xl" onClick={() => setGameState('correct_path')}>
-                                            DECLINE PAYMENT (SAFE)
+                                    <div className="space-y-2 pb-4 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500 flex-shrink-0">
+                                        <button className="w-full bg-[#1c2128] hover:bg-slate-800 text-white py-3 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-base border border-white/10" onClick={() => setGameState('correct_path')}>
+                                            DECLINE PAYMENT
                                         </button>
-                                        <button className="w-full bg-[#1c2128] hover:bg-black text-white py-4 rounded-2xl font-black transition-all shadow-xl active:scale-95" onClick={() => setGameState('pin_entry')}>
+                                        <button className="w-full bg-[#1c2128] hover:bg-slate-800 text-white py-3 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-base border border-white/10" onClick={() => setGameState('pin_entry')}>
                                             APPROVE & ENTER PIN
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-3 pt-4 relative z-10 flex flex-col">
-                                        <div className="w-full border-2 border-dashed border-slate-400 text-slate-400 py-4 rounded-2xl font-black text-center text-sm animate-pulse bg-slate-100">
-                                            COLLECT ALL 4 CLUES ON SCREEN TO DECIDE
+                                    <div className="space-y-2 pb-4 relative z-10 flex flex-col flex-shrink-0">
+                                        <div className="w-full border-2 border-dashed border-slate-400 text-slate-400 py-3 rounded-2xl font-black text-center text-xs animate-pulse bg-slate-100">
+                                            COLLECT ALL 4 CLUES TO DECIDE
                                         </div>
                                     </div>
                                 )}
@@ -501,7 +733,7 @@ const Level4 = () => {
             if (next.length >= 4) {
                 setTimeout(() => {
                     setPinInput('');
-                    setGameState('scam_sequence');
+                    setGameState('scam_dialogue');
                 }, 400);
             }
         };
@@ -546,6 +778,54 @@ const Level4 = () => {
     }
 
     // ═══════════════════════════════════════════
+    // SCAM DIALOGUE (Failed Sound Box)
+    // ═══════════════════════════════════════════
+    if (gameState === 'scam_dialogue') {
+        return (
+            <div className="w-full h-full flex items-center justify-center p-12 relative overflow-hidden bg-black/90">
+                <div className="z-10 w-full max-w-6xl flex gap-12 items-start animate-in slide-in-from-bottom-20 duration-500">
+                    <div className="w-[400px] h-[500px] flex-shrink-0 relative flex flex-col items-center justify-start">
+                        <img src="/assets/selvi_portrait.png" alt="Selvi" className="w-[80%] h-auto object-contain object-top drop-shadow-2xl" />
+                    </div>
+
+                    <div className="flex-1 bg-red-950/40 backdrop-blur-2xl border-4 border-red-500/30 rounded-[3rem] p-12 shadow-[0_0_50px_rgba(220,38,38,0.2)] mb-12 flex flex-col justify-between">
+                        <div>
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-4">
+                                    <h2 className="text-amber-500 font-black text-4xl uppercase italic tracking-tighter">Selvi</h2>
+                                </div>
+                                {/* The Silent Sound Box */}
+                                <div className="bg-blue-600 w-32 h-40 rounded-2xl border-4 border-slate-800 shadow-xl flex flex-col items-center p-3 relative overflow-hidden">
+                                    <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mt-2 border-2 border-slate-900 shadow-inner">
+                                        <div className="w-12 h-12 bg-slate-700/50 rounded-full flex gap-1 items-center justify-center">
+                                            <div className="w-1 h-3 bg-red-500/20 rounded-full"></div>
+                                            <div className="w-1 h-5 bg-red-500/20 rounded-full"></div>
+                                            <div className="w-1 h-3 bg-red-500/20 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-auto w-full flex justify-between items-center px-1">
+                                        <span className="text-white text-[8px] font-black uppercase">PAY-BOX</span>
+                                        <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                                    </div>
+                                    <div className="absolute inset-0 bg-red-500/10 pointer-events-none"></div>
+                                </div>
+                            </div>
+                            <p className="text-red-200 text-3xl leading-snug font-serif italic">
+                                "Thambi, my box didn't speak. Did you really send it? My phone didn't beep either."
+                            </p>
+                        </div>
+                        <div className="flex justify-end gap-6 mt-12">
+                            <button className="bg-red-600 hover:bg-red-500 text-white px-10 py-5 rounded-2xl font-black text-xl transition-all shadow-[0_10px_30px_rgba(220,38,38,0.4)]" onClick={() => setGameState('scam_sequence')}>
+                                Uh oh...
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
     // SCAM SEQUENCE (If Player Enters PIN)
     // ═══════════════════════════════════════════
 
@@ -559,6 +839,7 @@ const Level4 = () => {
         return (
             <div className="w-full h-full bg-[#0a0c10] flex items-center justify-center p-10 overflow-hidden relative">
                 <FeedbackToast />
+                <EvidenceBinder />
                 {/* Background market elements */}
                 <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
 
@@ -573,9 +854,9 @@ const Level4 = () => {
                         </div>
                     </div>
 
-                    <div className="flex-1 grid grid-cols-2 gap-12 overflow-y-auto pr-4 custom-scrollbar">
-                        {/* Action Steps */}
-                        <div className="space-y-6">
+                    <div className="flex-1 grid grid-cols-2 gap-12 min-h-0">
+                        {/* Action Steps - scrollable */}
+                        <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
                             {/* Step 1: Cancel */}
                             <div className="p-6 rounded-[2rem] bg-emerald-900/20 border-2 border-emerald-500/50">
                                 <h4 className="font-black text-xl mb-2 uppercase tracking-tighter text-emerald-400">✓ Step 1: Cancel & Question</h4>
@@ -595,9 +876,7 @@ const Level4 = () => {
                                 {!hasVerifiedBoard && (
                                     <button className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-4 rounded-xl mt-4 text-sm shadow-xl transition-all active:scale-95"
                                         onClick={() => {
-                                            setInspectedZones(prev => [...prev, 20]);
-                                            setCluesFound(prev => [...new Set([...prev, 2, 6])]);
-                                            showFeedback("🔍 Fake Sticker Found & Removed!")
+                                            setGameState('peeling_minigame');
                                         }}>
                                         PHYSICALLY EXAMINE SELVI'S BOARD 🔍
                                     </button>
@@ -616,7 +895,9 @@ const Level4 = () => {
                                     <button className="w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-4 rounded-xl mt-4 text-sm shadow-xl transition-all active:scale-95"
                                         onClick={() => {
                                             setStickerPeeled(true);
-                                            showFeedback("💸 ₹150 Sent Safely!")
+                                            showFeedback("💸 ₹150 Sent Safely!");
+                                            const msg = new SpeechSynthesisUtterance("Received one hundred and fifty rupees!");
+                                            window.speechSynthesis.speak(msg);
                                         }}>
                                         MANUALLY PAY IN BHIM APP ✨
                                     </button>
@@ -624,11 +905,11 @@ const Level4 = () => {
                             </div>
                         </div>
 
-                        {/* Dialogue/Scene Overlay */}
-                        <div className="bg-black/40 border-4 border-white/5 rounded-[2.5rem] p-8 relative flex flex-col justify-between overflow-hidden">
+                        {/* Dialogue/Scene Overlay - scrollable */}
+                        <div className="bg-black/40 border-4 border-white/5 rounded-[2.5rem] p-8 relative flex flex-col overflow-hidden">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
-                            <div className="space-y-6 relative z-10 w-full">
-                                <p className="text-white/30 font-black text-[10px] uppercase tracking-[0.4em] mb-2 border-b border-white/10 pb-2">Dialogue Log</p>
+                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar relative z-10 w-full">
+                                <p className="text-white/30 font-black text-[10px] uppercase tracking-[0.4em] mb-4 border-b border-white/10 pb-2 sticky top-0 bg-black/40 backdrop-blur-sm">Dialogue Log</p>
                                 <div className="space-y-4">
                                     <div className="flex gap-4">
                                         <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0 animate-pulse"></div>
@@ -649,27 +930,685 @@ const Level4 = () => {
                                     )}
 
                                     {stickerPeeled && (
-                                        <div className="flex gap-4 animate-in slide-in-from-left duration-500">
-                                            <div className="w-10 h-10 border-2 border-amber-500/50 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 bg-amber-900/30">
-                                                <img src="/assets/selvi_portrait.png" className="w-full h-full object-cover opacity-80" alt="Selvi" />
+                                        <div className="flex flex-col gap-4 animate-in slide-in-from-left duration-500">
+                                            <div className="flex items-center gap-4 bg-emerald-950/40 p-3 rounded-2xl border border-emerald-500/20 w-max">
+                                                {/* Happy Sound Box */}
+                                                <div className="w-8 h-10 bg-blue-600 rounded flex flex-col items-center pt-1 border border-slate-800 drop-shadow-lg">
+                                                    <div className="w-4 h-4 bg-slate-800 rounded-full border border-slate-900 flex justify-center items-center">
+                                                        <div className="w-2 h-2 bg-emerald-500/30 rounded-full animate-ping"></div>
+                                                    </div>
+                                                    <div className="mt-auto mb-0.5 w-full flex justify-end px-1">
+                                                        <div className="w-1 h-1 rounded-full bg-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="text-emerald-400 font-mono text-[10px] uppercase tracking-widest mb-1">Sound Box Verification</p>
+                                                    <p className="text-emerald-300 font-black text-xs italic">"Received one hundred and fifty rupees!"</p>
+                                                </div>
                                             </div>
-                                            <p className="text-amber-500 text-lg font-serif italic font-bold">"Aiyo! Thank you, grandson! I will share a photo of this fake sticker on the market WhatsApp group immediately to warn others!"</p>
+                                            <div className="flex gap-4 mt-2">
+                                                <div className="w-10 h-10 border-2 border-amber-500/50 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 bg-amber-900/30">
+                                                    <img src="/assets/selvi_portrait.png" className="w-full h-full object-cover opacity-80" alt="Selvi" />
+                                                </div>
+                                                <p className="text-amber-500 text-lg font-serif italic font-bold">"Aiyo! Thank you, grandson! I heard the box. The sticker is fake! I will share a photo on the WhatsApp group to warn others!"</p>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            {stickerPeeled && (
-                                <div className="mt-8 animate-in fade-in duration-500">
-                                    <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-4 mb-4 text-center">
-                                        <p className="text-emerald-400 font-black text-sm uppercase tracking-widest">🎖️ Cyber Safety Score: +30</p>
-                                        <p className="text-emerald-200 text-xs mt-1">Market Sentinel Achievement Unlocked</p>
-                                    </div>
-                                    <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] animate-pulse"
-                                        onClick={() => completeLevel(4, 30)}>
-                                        COMPLETE LEVEL ➔
-                                    </button>
+                    {/* BACK button - always visible at bottom, outside the grid */}
+                    {stickerPeeled && (
+                        <div className="mt-6 flex-shrink-0 animate-in fade-in slide-in-from-bottom duration-500">
+                            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-3 mb-3 text-center">
+                                <p className="text-emerald-400 font-black text-sm uppercase tracking-widest">🎖️ Cyber Safety Score: +30</p>
+                                <p className="text-emerald-200 text-xs mt-1">Go back to your room and report this scam on the Cyber Crime Portal!</p>
+                            </div>
+                            <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] animate-pulse flex items-center justify-center gap-3 transition-all active:scale-95"
+                                onClick={() => { setRoomPlayerPos({ x: 580, y: 700 }); setGameState('room_walk'); }}>
+                                ⬅ BACK — Go to Room & Report Scam
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
+    // PEELING EDGE MINI GAME (Peel from LEFT)
+    // ═══════════════════════════════════════════
+    if (gameState === 'peeling_minigame') {
+        const handlePointerMove = (e) => {
+            if (!isDraggingPeel) return;
+            const bound = e.currentTarget.getBoundingClientRect();
+            const y = e.clientY - bound.top;
+            const x = e.clientX - bound.left;
+
+            // Peel from LEFT: distance from top-left corner
+            const maxDist = 350;
+            const dist = Math.sqrt(Math.pow(y, 2) + Math.pow(x, 2));
+            const progress = Math.min(100, Math.max(0, (dist / maxDist) * 100));
+            setPeelProgress(progress);
+        };
+
+        const handlePointerUp = () => {
+            if (!isDraggingPeel) return;
+            setIsDraggingPeel(false);
+            if (peelProgress > 80) {
+                try {
+                    const bgSynth = new window.AudioContext();
+                    const o = bgSynth.createOscillator();
+                    const g = bgSynth.createGain();
+                    o.type = 'sawtooth';
+                    o.frequency.exponentialRampToValueAtTime(800, bgSynth.currentTime + 0.5);
+                    g.gain.setValueAtTime(0.1, bgSynth.currentTime);
+                    g.gain.exponentialRampToValueAtTime(0.01, bgSynth.currentTime + 0.5);
+                    o.connect(g);
+                    g.connect(bgSynth.destination);
+                    o.start();
+                    o.stop(bgSynth.currentTime + 0.5);
+                } catch (e) { }
+
+                setEvidence(prev => {
+                    if (!prev.find(e => e.id === 'fake_qr')) {
+                        return [...prev, { id: 'fake_qr', title: 'Fraudulent QR Overlay', desc: 'Scans to: unknown_collector@okSbi. Recovered from: Selvi\'s Vegetable Stall.' }];
+                    }
+                    return prev;
+                });
+
+                showFeedback("📁 Evidence auto-filed to Incident Folder!");
+                setIsBinderOpen(true);
+                setTimeout(() => setIsBinderOpen(false), 2000);
+
+                setTimeout(() => {
+                    setGameState('correct_path');
+                    setInspectedZones(prev => [...prev, 20]);
+                    setCluesFound(prev => [...new Set([...prev, 2, 6])]);
+                    showFeedback("🔍 Fake Sticker Found & Removed!");
+                }, 2500);
+            } else {
+                setPeelProgress(0);
+            }
+        };
+
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden"
+                style={{ touchAction: 'none', background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%)' }}>
+                <FeedbackToast />
+                <EvidenceBinder />
+
+                {/* Ambient particles */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="absolute w-1 h-1 bg-cyan-400/30 rounded-full animate-ping"
+                            style={{ left: `${15 + i * 15}%`, top: `${20 + i * 10}%`, animationDelay: `${i * 0.5}s`, animationDuration: '3s' }}></div>
+                    ))}
+                </div>
+
+                {/* QR Board Container — significantly redesigned */}
+                <div className="w-[420px] h-[480px] bg-gradient-to-b from-slate-200 to-slate-100 p-5 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.8),0_0_60px_rgba(59,130,246,0.1)] relative select-none border-2 border-white/50"
+                    onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
+
+                    {/* Board clip at top */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-24 h-8 bg-gradient-to-b from-slate-400 to-slate-500 rounded-t-lg shadow-md border border-slate-600 z-20 flex items-center justify-center">
+                        <div className="w-16 h-2 bg-slate-300 rounded-full"></div>
+                    </div>
+
+                    {/* The Real Underneath QR — same position as fake, different pattern, black on white */}
+                    <div className="absolute inset-5 bg-white rounded-xl flex items-center justify-center relative overflow-hidden" style={{ zIndex: 2 }}>
+                        <div className="absolute inset-0 flex flex-col gap-0.5 p-6">
+                            {originalQrPattern.map((row, i) => (
+                                <div key={i} className="flex gap-0.5 flex-1">
+                                    {row.map((filled, j) => (
+                                        <div key={j} className={`flex-1 rounded-[1px] ${filled ? 'bg-black' : 'bg-transparent'}`}></div>
+                                    ))}
                                 </div>
+                            ))}
+                        </div>
+                        {/* Selvi's UPI ID — only shows when peeled enough */}
+                        {peelProgress > 50 && (
+                            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-800 px-3 py-1 rounded-full z-20 animate-in fade-in duration-300">
+                                <span className="text-white font-mono text-[9px] uppercase tracking-[0.2em] font-bold">selvi.vegetables@oksbi</span>
+                            </div>
+                        )}
+                        {/* "ORIGINAL" label — only shows when peeled enough */}
+                        {peelProgress > 50 && (
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-600 px-4 py-1.5 rounded-full z-20 shadow-md animate-in fade-in duration-300">
+                                <span className="text-white font-mono text-[10px] uppercase tracking-[0.3em] font-bold">✓ ORIGINAL QR</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* The Fake Peeling Sticker — peels from top-left to bottom-right */}
+                    <div className="absolute inset-5 bg-white border-4 border-sky-200 rounded-xl overflow-hidden shadow-[0_8px_25px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none"
+                        style={{
+                            clipPath: `polygon(${peelProgress}% 0, 100% 0, 100% 100%, 0 100%, 0 ${peelProgress}%)`,
+                            transition: isDraggingPeel ? 'none' : 'clip-path 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            zIndex: 5
+                        }}>
+                        <div className="absolute inset-0 flex flex-col gap-0.5 p-6">
+                            {qrPattern.map((row, i) => (
+                                <div key={i} className="flex gap-0.5 flex-1">
+                                    {row.map((filled, j) => (
+                                        <div key={j} className={`flex-1 rounded-[1px] ${filled ? 'bg-black' : 'bg-transparent'}`}></div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                        {/* Red "FAKE" watermark on sticker */}
+                        {peelProgress > 30 && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <span className="text-red-500/20 font-black text-6xl uppercase rotate-[-25deg] tracking-[0.3em]">FAKE</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* The Curl Effect — small fold at top-left corner */}
+                    <div className="absolute left-5 top-5 bg-gradient-to-br from-slate-300 via-slate-200 to-white origin-top-left shadow-[4px_4px_12px_rgba(0,0,0,0.3)] cursor-pointer"
+                        style={{
+                            width: `${Math.min(120, Math.max(40, peelProgress * 1.5))}px`,
+                            height: `${Math.min(120, Math.max(40, peelProgress * 1.5))}px`,
+                            clipPath: 'polygon(0 0, 100% 0, 0 100%)',
+                            transition: isDraggingPeel ? 'none' : 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            opacity: peelProgress > 80 ? 0 : 1,
+                            zIndex: 3
+                        }}
+                        onPointerDown={(e) => {
+                            setIsDraggingPeel(true);
+                            e.currentTarget.setPointerCapture(e.pointerId);
+                            try {
+                                const bgSynth = new window.AudioContext();
+                                const o = bgSynth.createOscillator();
+                                const g = bgSynth.createGain();
+                                o.type = 'triangle';
+                                o.frequency.value = 100;
+                                g.gain.setValueAtTime(0.05, bgSynth.currentTime);
+                                o.connect(g);
+                                g.connect(bgSynth.destination);
+                                o.start();
+                                o.stop(bgSynth.currentTime + 0.1);
+                            } catch (err) { }
+                        }}>
+                        <div className="w-full h-full bg-gradient-to-br from-slate-400 to-white"></div>
+                    </div>
+
+                    {/* Pulsing arrow hint — points diagonally toward bottom-right */}
+                    {peelProgress < 10 && (
+                        <div className="absolute left-12 top-12 z-20 animate-bounce pointer-events-none">
+                            <div className="bg-cyan-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.6)] flex items-center gap-1">
+                                ↘ DRAG HERE
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Title & Progress — BELOW the board so no overlap */}
+                <div className="mt-8 text-center z-10">
+                    <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-black text-3xl uppercase tracking-[0.2em] mb-2">Peel the Sticker</h2>
+                    <p className="text-white/40 font-serif italic text-base mb-4">Drag from the curled corner to reveal the real QR underneath...</p>
+
+                    {/* Animated progress bar */}
+                    <div className="w-64 mx-auto">
+                        <div className="h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+                            <div className="h-full rounded-full transition-all duration-200"
+                                style={{
+                                    width: `${peelProgress}%`,
+                                    background: peelProgress > 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #06b6d4, #3b82f6)'
+                                }}></div>
+                        </div>
+                        <p className="text-white/30 font-mono text-xs mt-2 tracking-[0.3em]">{Math.round(peelProgress)}% PEELED</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
+    // ROOM WALK (Post-payment, Level 1 Style Room)
+    // ═══════════════════════════════════════════
+    if (gameState === 'room_walk') {
+        const ROOM_W = 1200;
+        const ROOM_H = 800;
+
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+                <div
+                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans"
+                    style={{ width: ROOM_W, height: ROOM_H }}
+                >
+                    {/* Room Background — Dark Teal Wall + Wood Floor */}
+                    <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
+                        {/* Wood Floor Planks */}
+                        <div className="absolute inset-0 opacity-80" style={{
+                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
+                        }}></div>
+
+                        {/* Top Wall */}
+                        <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
+
+                        {/* Light Casts from Window */}
+                        <div className="absolute top-[180px] left-[350px] w-[500px] h-[600px] bg-blue-400/8 z-0 transform skew-x-[-25deg] origin-top-left pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
+
+                        {/* Window — Night City Skyline */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[450px] h-[160px] bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-[inset_0_0_50px_rgba(0,0,0,0.8),0_10px_30px_rgba(0,0,0,0.6)] overflow-hidden z-[5]">
+                            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
+                            <div className="absolute bottom-0 left-0 right-0 h-[70px] flex items-end gap-[1px]">
+                                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
+                                    <div key={i} className="flex-1 bg-[#090e1a] flex flex-wrap gap-1 p-1 items-start justify-center" style={{ height: h }}>
+                                        {i % 2 === 0 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
+                                        {i % 3 === 0 && <div className="w-2 h-2 bg-yellow-100/60 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.6)]"></div>}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
+                            {/* Stars */}
+                            <div className="absolute top-3 left-12 w-1 h-1 bg-white rounded-full animate-pulse"></div>
+                            <div className="absolute top-6 right-20 w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                            <div className="absolute top-4 left-1/3 w-0.5 h-0.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                        </div>
+
+                        {/* Left Bookshelf — Level 1 Style */}
+                        <div className="absolute top-[180px] left-8 w-[100px] z-10 bg-[#e08e50] border-[8px] border-[#b86b35] shadow-[0_12px_30px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-1.5 rounded-b-sm" style={{ height: 280 }}>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                            <div className="flex items-end h-[40px] px-1 gap-0.5">
+                                <div className="w-3 h-8 bg-red-600 shadow-sm border-l border-white/20"></div>
+                                <div className="w-3.5 h-10 bg-blue-600 shadow-sm border-l border-white/20"></div>
+                                <div className="w-3 h-6 bg-yellow-500 ml-1 shadow-sm border-l border-white/20"></div>
+                            </div>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                            <div className="flex items-end h-[40px] px-1 gap-0.5 justify-end">
+                                <div className="w-4 h-10 bg-emerald-600 shadow-sm border-l border-white/20"></div>
+                                <div className="w-3 h-7 bg-purple-600 shadow-sm border-l border-white/20"></div>
+                            </div>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                            <div className="flex items-end h-[40px] px-1 gap-0.5">
+                                <div className="w-3.5 h-10 bg-cyan-600 shadow-sm border-l border-white/20"></div>
+                                <div className="w-3 h-8 bg-red-500 shadow-sm border-l border-white/20"></div>
+                                <div className="w-4 h-6 bg-slate-600 ml-2 shadow-sm border-l border-white/20"></div>
+                            </div>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                        </div>
+
+                        {/* Right Bookshelf */}
+                        <div className="absolute top-[180px] right-8 w-[100px] z-10 bg-[#e08e50] border-[8px] border-[#b86b35] shadow-[0_12px_30px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-1.5 rounded-b-sm" style={{ height: 280 }}>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                            <div className="flex items-end h-[40px] px-1 gap-0.5">
+                                <div className="w-3 h-10 bg-indigo-700 shadow-sm transform rotate-3"></div>
+                                <div className="w-4 h-8 bg-rose-600 shadow-sm"></div>
+                            </div>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                            <div className="flex items-end h-[40px] px-1 gap-0.5 justify-end">
+                                <div className="w-3 h-6 bg-amber-700 shadow-sm"></div>
+                                <div className="w-4 h-10 bg-teal-700 shadow-sm"></div>
+                                <div className="w-3 h-8 bg-slate-500 shadow-sm"></div>
+                            </div>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                            <div className="flex items-end h-[40px] px-1 gap-0.5">
+                                <div className="w-4 h-9 bg-orange-600 shadow-sm"></div>
+                                <div className="w-3 h-7 bg-sky-700 shadow-sm"></div>
+                            </div>
+                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
+                        </div>
+
+                        {/* Ornate Rug */}
+                        <div className="absolute left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-red-950 border-[8px] border-red-900/80 rounded-lg z-0 overflow-hidden" style={{ top: 380, boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
+                            <div className="w-[92%] h-[90%] m-auto mt-[4%] border-2 border-yellow-700/40 flex justify-center items-center">
+                                <div className="w-[85%] h-[85%] border-2 border-red-800/60 flex justify-center items-center">
+                                    <div className="w-20 h-20 bg-yellow-700/20 rotate-45 border border-yellow-800/30"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* L-Shaped Desk — Level 1 Style */}
+                        <div className="absolute z-10" style={{ left: ROOM_DESK_ZONE.x - 50, top: ROOM_DESK_ZONE.y - 20, width: 300, height: 180 }}>
+                            {/* Shadow underneath desk */}
+                            <div className="absolute -inset-6 top-[80px] bg-black/40 blur-2xl z-[-1] rounded-[60px]"></div>
+
+                            {/* Main Desk Board */}
+                            <div className="absolute right-0 top-0 w-full h-[90px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '12px solid #b86b35', borderRight: '8px solid #b86b35', borderLeft: '8px solid #b86b35' }}></div>
+
+                            {/* Monitors on desk */}
+                            <div className="absolute top-[-24px] left-1/2 -translate-x-1/2 flex items-end gap-1 z-30">
+                                {/* Left Monitor */}
+                                <div className="w-[100px] h-[14px] bg-[#2a3b4c] rounded-sm transform -rotate-[15deg] translate-y-2 translate-x-2 border border-[#1e2a38] shadow-[0_10px_20px_rgba(0,0,0,0.8)] relative">
+                                    <div className="absolute -bottom-4 w-[70px] h-[8px] bg-cyan-400/20 blur-[4px] rounded-full left-1/2 -translate-x-1/2"></div>
+                                    <div className="absolute top-full mt-0.5 w-[40px] h-[20px] bg-[#cbd5e1] rounded shadow-md -z-10 left-1/2 -translate-x-1/2"></div>
+                                </div>
+                                {/* Main Monitor — glowing blue to attract */}
+                                <div className="w-[130px] h-[16px] bg-[#2a3b4c] rounded border border-[#1e2a38] shadow-[0_10px_20px_rgba(0,0,0,0.8),0_0_30px_rgba(59,130,246,0.4)] flex justify-center relative z-10 animate-pulse">
+                                    <div className="absolute -bottom-6 w-[100px] h-[10px] bg-blue-400/30 blur-[6px] rounded-full"></div>
+                                    <div className="absolute top-full mt-0.5 w-[50px] h-[25px] bg-[#cbd5e1] rounded shadow-md -z-10"></div>
+                                    <span className="text-[6px] text-blue-300 font-mono self-center">🛡️ CYBERCRIME</span>
+                                </div>
+                            </div>
+
+                            {/* Keyboard */}
+                            <div className="absolute top-[50px] left-[100px] w-[80px] h-[26px] bg-slate-200 flex flex-wrap gap-[1px] p-1 rounded shadow-[0_3px_8px_rgba(0,0,0,0.4)] border border-slate-400 z-30">
+                                {[...Array(24)].map((_, i) => <div key={i} className="w-[5px] h-[4px] bg-white rounded-sm shadow-sm"></div>)}
+                            </div>
+
+                            {/* Coffee Cup */}
+                            <div className="absolute top-[30px] right-[25px] w-[18px] h-[18px] bg-white rounded-full shadow-[3px_6px_10px_rgba(0,0,0,0.6)] border-2 border-slate-200 z-30">
+                                <div className="absolute top-0.5 left-0.5 w-2.5 h-2.5 bg-[#3a2010] rounded-full"></div>
+                                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-3 border-[3px] border-slate-300 rounded-l-full"></div>
+                            </div>
+
+                            {/* Desk Lamp */}
+                            <div className="absolute top-[10px] left-[20px] z-30">
+                                <div className="w-[30px] h-[30px] bg-white rounded-full shadow-[inset_-3px_-3px_8px_rgba(0,0,0,0.2),0_6px_12px_rgba(0,0,0,0.6)] border border-slate-200"></div>
+                                <div className="absolute -top-2 left-3 w-1 h-6 bg-slate-400 transform rotate-[30deg] rounded-full shadow-md"></div>
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] bg-amber-400/8 blur-[20px] rounded-full pointer-events-none"></div>
+                            </div>
+
+                            {/* Notepad */}
+                            <div className="absolute bottom-[80px] right-[10px] w-10 h-14 bg-yellow-100 rounded-sm shadow-md border border-yellow-300 z-10">
+                                <div className="w-full h-0.5 bg-red-400 mt-1.5"></div>
+                                <div className="p-0.5 space-y-0.5 mt-0.5">
+                                    <div className="w-6 h-0.5 bg-blue-300/50"></div>
+                                    <div className="w-5 h-0.5 bg-blue-300/50"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Office Chair */}
+                        <div className="absolute w-16 h-16 rounded-3xl z-0 flex flex-col items-center" style={{ left: ROOM_DESK_ZONE.x + 50, top: ROOM_DESK_ZONE.y + 120 }}>
+                            <div className="w-14 h-8 bg-zinc-800 border-t-4 border-zinc-700 rounded-t-xl z-0 shadow-lg absolute -top-4"></div>
+                            <div className="w-16 h-12 bg-zinc-900 border-b-4 border-zinc-950 rounded-b-3xl z-10 shadow-xl relative">
+                                <div className="absolute -left-2 top-2 w-2 h-8 bg-zinc-800 rounded-full shadow"></div>
+                                <div className="absolute -right-2 top-2 w-2 h-8 bg-zinc-800 rounded-full shadow"></div>
+                            </div>
+                        </div>
+
+                        {/* Left Potted Plant — Level 1 style */}
+                        <div className="absolute z-20" style={{ left: 30, top: 620 }}>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40px] h-[40px] bg-[#c05a3c] rounded-full border-[6px] border-[#9c452e] shadow-xl"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] pointer-events-none">
+                                {[0, 45, 90, 135].map(deg => (
+                                    <div key={deg} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[20px] bg-[#3e8549] rounded-full flex items-center" style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 3px 10px rgba(0,0,0,0.4)' }}>
+                                        <div className="w-full h-[1px] bg-[#2d6335]"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Right Potted Plant */}
+                        <div className="absolute z-20" style={{ right: 30, top: 620 }}>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40px] h-[40px] bg-[#c05a3c] rounded-full border-[6px] border-[#9c452e] shadow-xl"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] pointer-events-none">
+                                {[0, 45, 90, 135].map(deg => (
+                                    <div key={deg} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[20px] bg-[#3e8549] rounded-full flex items-center" style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 3px 10px rgba(0,0,0,0.4)' }}>
+                                        <div className="w-full h-[1px] bg-[#2d6335]"></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Player */}
+                    <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
+
+                    {/* Interaction Prompt */}
+                    {canInteractLaptop && (
+                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
+                            <button className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white pl-4 pr-10 py-3 rounded-full font-black shadow-[0_5px_0_#1e3a5f,0_0_30px_rgba(59,130,246,0.4)] flex items-center gap-6 group hover:translate-y-1 hover:shadow-[0_2px_0_#1e3a5f] transition-all border border-blue-400/50" onClick={() => setGameState('incident_report')}>
+                                <div className="bg-white text-blue-600 w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-inner border-2 border-blue-300 group-hover:scale-110 transition-transform font-black">E</div>
+                                <span className="text-xl uppercase tracking-widest font-mono">Open Laptop</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* HUD — Enhanced */}
+                    <div className="absolute top-4 left-4 z-50 bg-black/70 backdrop-blur-sm p-3 rounded-xl border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                            <span className="text-cyan-300 font-black text-xs uppercase tracking-wider">Objective</span>
+                        </div>
+                        <p className="text-white/70 font-mono text-xs">Report the QR scam on the Cyber Crime Portal.</p>
+                        <p className="text-white/40 font-mono text-[10px] mt-1">Controls: W A S D to move</p>
+                    </div>
+
+                    {/* Right sidebar HUD — positioned well below global Assets/Lives/Score/Rank HUD */}
+                    <div className="absolute top-[240px] right-4 z-30 bg-black/80 backdrop-blur-sm rounded-xl border border-cyan-500/20 overflow-hidden shadow-lg">
+                        {[{ label: 'EVIDENCE', val: evidence.length, color: 'text-cyan-400' }, { label: 'CLUES', val: cluesFound.length, color: 'text-amber-400' }].map((item, i) => (
+                            <div key={i} className="px-4 py-2.5 border-b border-slate-700/50 last:border-b-0">
+                                <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block">{item.label}</span>
+                                <span className={`${item.color} font-black text-lg`}>{item.val}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
+    // INCIDENT REPORT (Final Exam)
+    // ═══════════════════════════════════════════
+    if (gameState === 'incident_report') {
+        const handleDragOverReport = (e) => e.preventDefault();
+        const handleDropReport = (e) => {
+            e.preventDefault();
+            const droppedId = e.dataTransfer.getData('text/plain');
+            if (droppedId === 'fake_qr') {
+                try {
+                    const bgSynth = new window.AudioContext();
+                    const o = bgSynth.createOscillator();
+                    o.type = 'sine'; o.frequency.value = 600; o.connect(bgSynth.destination); o.start(); o.stop(bgSynth.currentTime + 0.2);
+                } catch (err) { }
+
+                showFeedback("✅ Evidence Accepted! +20 Points");
+                setTimeout(() => {
+                    completeLevel(true, 50 + (stickerPeeled ? 15 : 0), 0);
+                }, 2000);
+            } else {
+                showFeedback("❌ Incorrect evidence. Try again.");
+            }
+        };
+
+        return (
+            <div className="w-full h-full flex items-center justify-center relative overflow-hidden font-sans">
+                {/* Background Room */}
+                <div className="absolute inset-0 bg-black">
+                    <img src="/assets/home_office.jpeg" className="w-full h-full object-cover opacity-60" alt="Room" />
+                </div>
+
+                <EvidenceBinder />
+                <FeedbackToast />
+
+                {/* Laptop Screen */}
+                <div className="z-10 w-full max-w-5xl bg-slate-100 rounded-t-[2rem] rounded-b-xl p-4 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[16px] border-slate-900 flex flex-col mb-[-100px] animate-in slide-in-from-bottom duration-700 h-[80vh]">
+
+                    {/* Browser UI Header */}
+                    <div className="bg-slate-300 w-full rounded-t-xl p-3 flex items-center gap-4 mb-2 shadow-sm border-b border-slate-400">
+                        <div className="flex gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                            <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                            <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                        </div>
+                        <div className="flex-1 bg-white rounded-md px-4 py-1.5 text-slate-500 font-mono text-sm border border-slate-300 flex items-center gap-2">
+                            <span>🔒</span> https://cybercrime.gov.in/report
+                        </div>
+                    </div>
+
+                    {/* Cybercrime Portal Body */}
+                    <div className="flex-1 bg-white rounded-b-xl border border-slate-200 overflow-y-auto flex flex-col">
+                        <div className="bg-blue-900 px-8 py-6 text-white border-b-4 border-amber-500 flex justify-between items-center">
+                            <div>
+                                <h2 className="font-black text-3xl tracking-wide">National Cyber Crime Reporting Portal</h2>
+                                <p className="text-blue-200 text-sm mt-1 uppercase tracking-widest">Ministry of Home Affairs, Government of India</p>
+                            </div>
+                            <div className="text-5xl">🛡️</div>
+                        </div>
+
+                        <div className="flex-1 p-8 bg-slate-50 flex flex-col items-center">
+                            <h3 className="text-slate-800 font-bold text-2xl mb-2 text-center">Filing a New Complaint</h3>
+                            <p className="text-slate-500 mb-6 text-center max-w-2xl">To help us investigate this Financial Fraud (QR Code Tampering), please upload the physical evidence of the tampered overlay sticker.</p>
+
+                            {!scamReported ? (
+                                <>
+                                    {/* Drop zone - drag evidence from binder */}
+                                    <div
+                                        className="w-full max-w-xl bg-blue-50/50 border-4 border-dashed border-blue-300 rounded-2xl p-10 text-center transition-all flex flex-col items-center justify-center gap-4 hover:bg-blue-100 hover:border-blue-500 hover:shadow-lg"
+                                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('bg-blue-100', 'border-blue-500', 'scale-105'); }}
+                                        onDragLeave={(e) => { e.currentTarget.classList.remove('bg-blue-100', 'border-blue-500', 'scale-105'); }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.currentTarget.classList.remove('bg-blue-100', 'border-blue-500', 'scale-105');
+                                            const droppedId = e.dataTransfer.getData('text/plain');
+                                            if (droppedId === 'fake_qr') {
+                                                setScamReported(true);
+                                                setIsBinderOpen(false);
+                                                try {
+                                                    const bgSynth = new window.AudioContext();
+                                                    const o = bgSynth.createOscillator();
+                                                    o.type = 'sine'; o.frequency.value = 600; o.connect(bgSynth.destination); o.start(); o.stop(bgSynth.currentTime + 0.2);
+                                                } catch (err) { }
+                                                showFeedback("✅ Evidence Uploaded Successfully!");
+                                            } else {
+                                                showFeedback("❌ Wrong evidence! Drag the fake QR sticker.");
+                                            }
+                                        }}
+                                    >
+                                        <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                                            <span className="text-4xl text-blue-500">📥</span>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-blue-900 font-bold text-lg">Drag & Drop Evidence Here</h4>
+                                            <p className="text-blue-600/70 text-sm mt-1">Open the 📁 Evidence Folder (top-right) → Drag the QR sticker here</p>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : !complaintSubmitted ? (
+                                <>
+                                    {/* Evidence attached + Complaint form */}
+                                    <div className="w-full max-w-2xl">
+                                        {/* Evidence confirmation */}
+                                        <div className="bg-emerald-50 border-2 border-emerald-400 rounded-xl p-4 flex items-center gap-4 mb-6 animate-in zoom-in duration-300">
+                                            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                                                <span className="text-2xl">✅</span>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="text-emerald-800 font-bold text-sm">Evidence Attached</h4>
+                                                <p className="text-emerald-600 text-xs font-mono break-all">fake_qr_overlay_sticker.png</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Complaint Form */}
+                                        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+                                            <h4 className="text-slate-800 font-bold text-lg border-b border-slate-200 pb-2">📝 Complaint Details</h4>
+
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div>
+                                                    <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Complaint Type</label>
+                                                    <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 font-semibold">Financial Fraud - QR Code Tampering</div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Date of Incident</label>
+                                                    <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 font-semibold">{new Date().toLocaleDateString('en-IN')}</div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Victim / Affected Party</label>
+                                                <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 font-semibold">Selvi Akka (Vegetable Vendor)</div>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Shop / Location</label>
+                                                <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-800 font-semibold">📍 Selvi's Vegetable Stall, Main Market Road, Local Bazaar</div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div>
+                                                    <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Original UPI ID</label>
+                                                    <div className="mt-1 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 text-emerald-700 font-mono font-bold text-xs">selvi.vegetables@oksbi</div>
+                                                </div>
+                                                <div>
+                                                    <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Fraudulent UPI ID</label>
+                                                    <div className="mt-1 bg-red-50 border border-red-200 rounded-lg p-2.5 text-red-700 font-mono font-bold text-xs">9944XXXXX@paytm</div>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Description</label>
+                                                <div className="mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-700 text-sm leading-relaxed">
+                                                    A fraudulent QR code sticker was pasted over Selvi Akka's original payment QR code at her vegetable stall.
+                                                    The fake QR redirected payments to UPI ID '9944XXXXX@paytm' instead of her legitimate ID 'selvi.vegetables@oksbi'.
+                                                    The tampered sticker was physically peeled off and preserved as evidence.
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="text-slate-400 font-bold text-xs uppercase tracking-wider">Evidence Uploaded</label>
+                                                <div className="mt-1 bg-amber-50 border border-amber-200 rounded-lg p-2.5 flex items-center gap-3">
+                                                    <span className="text-xl">🏷️</span>
+                                                    <div>
+                                                        <p className="text-amber-800 font-bold text-sm">Fraudulent QR Overlay Sticker</p>
+                                                        <p className="text-amber-600 text-xs">Recovered from Selvi's Vegetable Stall board</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            className="mt-6 w-full py-4 px-6 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-black text-xl shadow-[0_10px_30px_rgba(30,58,138,0.4)] transition-all active:scale-95 animate-pulse flex items-center justify-center gap-3 mb-8"
+                                            onClick={() => setComplaintSubmitted(true)}
+                                        >
+                                            🛡️ SUBMIT REPORT
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {/* Complaint Submitted Success Screen */}
+                                    <div className="w-full max-w-2xl text-center animate-in zoom-in duration-500 py-8">
+                                        <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-inner">
+                                            ✅
+                                        </div>
+                                        <h3 className="text-emerald-700 font-black text-3xl mb-2">Complaint Submitted Successfully!</h3>
+                                        <p className="text-slate-500 text-sm mb-8">Your complaint has been registered with the National Cyber Crime Reporting Portal.</p>
+
+                                        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6 text-left space-y-3">
+                                            <div className="flex justify-between items-center border-b border-blue-200 pb-3">
+                                                <span className="text-blue-400 font-bold text-xs uppercase tracking-wider">Complaint Reference ID</span>
+                                                <span className="text-blue-900 font-black text-lg font-mono">NCRP/2024/FIN/{Math.floor(100000 + Math.random() * 900000)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                                <span className="text-slate-400 font-bold text-xs uppercase">Status</span>
+                                                <span className="bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full">UNDER INVESTIGATION</span>
+                                            </div>
+                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                                <span className="text-slate-400 font-bold text-xs uppercase">Category</span>
+                                                <span className="text-slate-700 font-semibold text-sm">Financial Fraud — QR Code Tampering</span>
+                                            </div>
+                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
+                                                <span className="text-slate-400 font-bold text-xs uppercase">Location</span>
+                                                <span className="text-slate-700 font-semibold text-sm">Main Market Road, Local Bazaar</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-400 font-bold text-xs uppercase">Evidence</span>
+                                                <span className="text-emerald-700 font-semibold text-sm">✅ 1 file attached</span>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-slate-400 text-xs mb-6 italic">You will receive updates on this complaint via SMS and email. For follow-up, call the Cyber Crime Helpline: 1930</p>
+
+                                        <button
+                                            className="w-full py-4 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] transition-all active:scale-95 flex items-center justify-center gap-3"
+                                            onClick={() => {
+                                                showFeedback("🎉 Level 4 Complete! You are a Cyber Guardian!");
+                                                setTimeout(() => {
+                                                    completeLevel(4, 50 + (stickerPeeled ? 15 : 0));
+                                                }, 2000);
+                                            }}
+                                        >
+                                            🌟 FINISH LEVEL 4
+                                        </button>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -774,49 +1713,72 @@ const Level4 = () => {
     if (gameState === 'scam_sequence') {
         const stolenAmount = 300000;
         return (
-            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-red-600/5 animate-pulse"></div>
+            <div className="w-full h-full bg-black flex flex-col items-center justify-start p-8 relative overflow-y-auto custom-scrollbar">
+                <div className="absolute inset-0 bg-red-600/5 animate-pulse pointer-events-none"></div>
 
-                <div className="z-10 w-full max-w-4xl bg-[#0a0c10] border-t-8 border-red-600 rounded-[3rem] p-16 shadow-[0_0_150px_rgba(220,38,38,0.4)] animate-in slide-in-from-bottom duration-500">
-                    <div className="flex items-center gap-10 mb-12 pb-12 border-b border-white/5">
-                        <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-6xl font-black shrink-0 shadow-[0_0_50px_rgba(220,38,38,0.8)] animate-bounce italic">!</div>
+                <div className="z-10 w-full max-w-4xl bg-[#0a0c10] border-t-8 border-red-600 rounded-[3rem] p-12 shadow-[0_0_150px_rgba(220,38,38,0.4)] animate-in slide-in-from-bottom duration-500 my-8">
+                    <div className="flex items-center gap-8 mb-10 pb-8 border-b border-white/5">
+                        <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-5xl font-black shrink-0 shadow-[0_0_50px_rgba(220,38,38,0.8)] animate-bounce italic">!</div>
                         <div>
-                            <h1 className="text-6xl font-black text-white uppercase italic tracking-tighter leading-none mb-2 underline decoration-red-600 decoration-8">CRITICAL BREACH</h1>
-                            <p className="text-red-500 font-black font-mono text-lg uppercase tracking-[0.3em]">OUTGOING FINANCIAL FLOW DETECTED</p>
+                            <h1 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none mb-2 underline decoration-red-600 decoration-4">CRITICAL BREACH</h1>
+                            <p className="text-red-500 font-black font-mono text-sm uppercase tracking-[0.3em]">OUTGOING FINANCIAL FLOW DETECTED</p>
                         </div>
                     </div>
 
-                    <div className="space-y-6 font-mono">
+                    <div className="space-y-4 font-mono">
                         {[
                             { t: '08:17:23 AM', msg: 'Collect Approved: ₹1.00', status: 'PIN_CONFIRMED', color: 'text-slate-500' },
                             { t: '08:17:25 AM', msg: 'Auto-Processed: ₹1,50,000.00', status: 'DEBIT_SUCCESS', color: 'text-red-500' },
                             { t: '08:17:26 AM', msg: 'Auto-Processed: ₹1,50,000.00', status: 'DEBIT_SUCCESS', color: 'text-red-500' },
-                            { t: '08:17:27 AM', msg: 'Insufficient Balance Rejection', status: 'DECLINED', color: 'text-slate-600' }
+                            { t: '08:17:27 AM', msg: 'User dialled 1930 — Cyber Helpline', status: 'REPORTED', color: 'text-amber-500' },
+                            { t: '08:17:30 AM', msg: 'Bank account freeze requested', status: 'BLOCKED', color: 'text-cyan-400' }
                         ].map((log, i) => (
-                            <div key={i} className={`p-6 bg-white/5 rounded-2xl border border-white/5 flex justify-between items-center animate-in fade-in slide-in-from-right duration-500`} style={{ animationDelay: `${i * 200}ms` }}>
+                            <div key={i} className={`p-5 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center animate-in fade-in slide-in-from-right duration-500`} style={{ animationDelay: `${i * 200}ms` }}>
                                 <div className="flex flex-col">
                                     <span className="text-white/20 text-xs font-black mb-1">{log.t}</span>
-                                    <span className={`text-2xl font-black ${log.color}`}>{log.msg}</span>
+                                    <span className={`text-xl font-black ${log.color}`}>{log.msg}</span>
                                 </div>
-                                <span className={`px-4 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest ${log.color === 'text-red-500' ? 'bg-red-500/10 border-red-500/20 text-red-500' : 'bg-white/5 border-white/10 text-white/40'}`}>
+                                <span className={`px-3 py-1 rounded-full text-[9px] font-black border uppercase tracking-widest ${log.color === 'text-red-500' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
+                                    log.color === 'text-amber-500' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                        log.color === 'text-cyan-400' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' :
+                                            'bg-white/5 border-white/10 text-white/40'
+                                    }`}>
                                     {log.status}
                                 </span>
                             </div>
                         ))}
                     </div>
 
-                    <div className="mt-12 p-10 bg-red-600/10 rounded-[2.5rem] border-4 border-red-600/20 text-center shadow-inner relative overflow-hidden">
+                    {/* Total stolen summary */}
+                    <div className="mt-8 p-8 bg-red-600/10 rounded-2xl border-4 border-red-600/20 text-center shadow-inner relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(45deg, #dc2626 25%, transparent 25%, transparent 50%, #dc2626 50%, #dc2626 75%, transparent 75%, transparent 100%)', backgroundSize: '10px 10px' }}></div>
-                        <h2 className="text-red-500 text-2xl font-black mb-2 uppercase tracking-[0.5em]">LIVES AT RISK</h2>
-                        <span className="text-8xl font-black text-white font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">-₹{stolenAmount.toLocaleString('en-IN')}</span>
+                        <h2 className="text-red-500 text-xl font-black mb-2 uppercase tracking-[0.4em]">TOTAL AMOUNT SENT TO HACKER</h2>
+                        <span className="text-6xl font-black text-white font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">-₹{stolenAmount.toLocaleString('en-IN')}</span>
+                        <p className="text-red-400/60 text-sm font-mono mt-3 uppercase tracking-wider">Funds transferred to unknown_collector@oksbi</p>
                     </div>
 
-                    <div className="mt-12 grid grid-cols-2 gap-8">
-                        <button className="bg-white/5 hover:bg-white/10 text-white/40 font-black py-6 rounded-2xl text-xl uppercase tracking-widest transition-all"
-                            onClick={() => { adjustAssets(-stolenAmount); adjustLives(-1); setGameState('market_walk'); }}>
+                    {/* Lives impact */}
+                    <div className="mt-6 p-6 bg-slate-900/80 rounded-2xl border border-slate-700/50 text-center">
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">IMPACT ON YOUR GAME</p>
+                        <div className="flex items-center justify-center gap-6">
+                            <div className="text-center">
+                                <p className="text-red-500 font-black text-2xl">-₹3,00,000</p>
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider">Assets Lost</p>
+                            </div>
+                            <div className="w-px h-10 bg-slate-700"></div>
+                            <div className="text-center">
+                                <p className="text-red-500 font-black text-2xl">❤️ -1</p>
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wider">Life Lost</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 grid grid-cols-2 gap-6">
+                        <button className="bg-white/5 hover:bg-white/10 text-white/40 font-black py-5 rounded-2xl text-lg uppercase tracking-widest transition-all"
+                            onClick={() => { adjustAssets(-stolenAmount); adjustLives(-1); setGameState('correct_path'); }}>
                             Accept Defeat
                         </button>
-                        <button className="bg-red-600 hover:bg-red-500 text-white font-black py-6 rounded-2xl text-2xl shadow-[0_20px_60px_rgba(220,38,38,0.5)] uppercase tracking-widest animate-pulse border-4 border-white/10 transition-transform active:scale-95"
+                        <button className="bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl text-xl shadow-[0_20px_60px_rgba(220,38,38,0.5)] uppercase tracking-widest animate-pulse border-4 border-white/10 transition-transform active:scale-95"
                             onClick={() => setGameState('recovery_screen')}>
                             🚨 CALL 1930 Helpline
                         </button>
@@ -831,28 +1793,29 @@ const Level4 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'recovery_screen') {
         return (
-            <div className="w-full h-full bg-[#0a0c10] flex items-center justify-center p-12 overflow-hidden relative">
+            <div className="w-full h-full bg-[#0a0c10] flex items-center justify-center p-8 overflow-y-auto relative">
                 <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0%,transparent_70%)]"></div>
 
-                <div className="z-10 w-full max-w-4xl bg-white rounded-[4rem] p-16 shadow-[0_50px_100px_rgba(0,0,0,0.5)] text-center animate-in zoom-in duration-500">
-                    <div className="w-32 h-32 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-6xl mx-auto mb-10 shadow-inner">⚡</div>
-                    <h2 className="text-slate-900 font-black text-5xl uppercase tracking-tighter mb-4 italic">GOLDEN HOUR RECOVERY</h2>
-                    <p className="text-slate-600 text-xl font-serif italic leading-relaxed mb-12 px-12 opacity-80">
+                <div className="z-10 w-full max-w-3xl bg-white rounded-[3rem] p-12 shadow-[0_50px_100px_rgba(0,0,0,0.5)] text-center animate-in zoom-in duration-500">
+                    <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-inner">⚡</div>
+                    <h2 className="text-slate-900 font-black text-4xl uppercase tracking-tighter mb-3 italic">GOLDEN HOUR RECOVERY</h2>
+                    <p className="text-slate-600 text-lg font-serif italic leading-relaxed mb-8 px-8 opacity-80">
                         "The 1930 Cyber Helpline initiated the 'Financial Fraud Reverse' protocol. Since you called within the first 30 minutes, there's a chance to freeze the funds in mule accounts."
                     </p>
-                    <div className="bg-emerald-50 border-4 border-emerald-500/20 p-10 rounded-[3rem] mb-12 flex justify-between items-center shadow-inner">
+                    <div className="bg-emerald-50 border-4 border-emerald-500/20 p-8 rounded-[2rem] mb-8 flex justify-between items-center shadow-inner">
                         <div className="text-left">
-                            <h4 className="text-emerald-900 font-black uppercase text-sm tracking-widest mb-1">Recovery Protocol Success</h4>
-                            <p className="text-emerald-600 text-5xl font-black font-mono mt-1">+₹1,50,000</p>
+                            <h4 className="text-emerald-900 font-black uppercase text-xs tracking-widest mb-1">Recovery Protocol Success</h4>
+                            <p className="text-emerald-600 text-4xl font-black font-mono mt-1">+₹1,50,000</p>
                         </div>
-                        <div className="text-slate-300 w-px h-20 bg-emerald-500/20 mx-8"></div>
+                        <div className="text-slate-300 w-px h-16 bg-emerald-500/20 mx-6"></div>
                         <div className="text-right">
-                            <h4 className="text-slate-400 font-black uppercase text-sm tracking-widest mb-1">Remaining Loss</h4>
-                            <p className="text-red-500 text-5xl font-black font-mono mt-1">-₹1,50,000</p>
+                            <h4 className="text-slate-400 font-black uppercase text-xs tracking-widest mb-1">Remaining Loss</h4>
+                            <p className="text-red-500 text-4xl font-black font-mono mt-1">-₹1,50,000</p>
                         </div>
                     </div>
-                    <button className="w-full bg-slate-950 hover:bg-black text-white font-black py-8 rounded-[2.5rem] text-3xl shadow-3xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
-                        onClick={() => { adjustAssets(150000); completeLevel(false, 0, 0); }}>
+                    <p className="text-slate-500 text-sm mb-6">Your assets will be updated: <strong className="text-slate-800">₹42,00,000 - ₹3,00,000 + ₹1,50,000 = ₹40,50,000</strong></p>
+                    <button className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-[2rem] text-2xl shadow-3xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
+                        onClick={() => { adjustAssets(-300000 + 150000); completeLevel(false, 0, 0); }}>
                         Accept & Continue →
                     </button>
                 </div>

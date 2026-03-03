@@ -11,12 +11,12 @@ const dialogues = [
     {
         speaker: 'GRANDPA',
         text: "Hello? ... Is this you? ... My son, it's me. My time has come. Listen carefully, for I won't have long...",
-        portrait: '/assets/grandpa.png',
+        portrait: '/assets/grandpa.jpg',
     },
     {
         speaker: 'GRANDPA',
         text: "There is... something you must know. The secrets I've kept... they are yours now. Use them well, for the world is full of shadows.",
-        portrait: '/assets/grandpa.png',
+        portrait: '/assets/grandpa.jpg',
     },
     {
         speaker: 'PLAYER',
@@ -26,7 +26,7 @@ const dialogues = [
     {
         speaker: 'GRANDPA',
         text: "...Find the truth... The shadows... they are moving...",
-        portrait: '/assets/grandpa.png',
+        portrait: '/assets/grandpa.jpg',
     }
 ];
 
@@ -222,7 +222,7 @@ const Prologue = () => {
                         <img src="/assets/protagonist.png" alt="Player" className="h-[500px] object-contain drop-shadow-[0_20px_50px_rgba(79,70,229,0.3)]" />
                     </div>
                     <div className={`transition-all duration-500 transform ${currentDialogue.speaker === 'GRANDPA' ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-100 scale-95 blur-[2px] contrast-75 brightness-75'}`}>
-                        <img src="/assets/grandpa.png" alt="Grandpa" className="h-[500px] object-contain drop-shadow-[0_20px_50px_rgba(239,68,68,0.3)] scale-x-[-1]" />
+                        <img src="/assets/grandpa.jpg" alt="Grandpa" className="h-[500px] object-contain drop-shadow-[0_20px_50px_rgba(239,68,68,0.3)] scale-x-[-1]" />
                     </div>
                 </div>
                 <div className="relative z-20 w-full max-w-5xl animate-slide-up">

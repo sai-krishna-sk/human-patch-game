@@ -8,6 +8,7 @@ import CareerGuard from './minigames/CareerGuard';
 import FileFortress from './minigames/FileFortress';
 import WiFiSentry from './minigames/WiFiSentry';
 import BrowserSentry from './minigames/BrowserSentry';
+import CryptoChase from './minigames/CryptoChase';
 
 const CyberDefenseLab = () => {
     const { enterLevel } = useGameState();
@@ -286,13 +287,29 @@ const CyberDefenseLab = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+                {/* 1. Crypto Chase */}
+                <div
+                    onClick={() => { setActiveGame('CryptoChase'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all cursor-pointer relative overflow-hidden"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">🏃</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">ARCADE_01</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tighter">Crypto Chase</h3>
+                    <p className="text-slate-400 text-sm mb-4">Evade the ransomware encryption worm! Jump over encrypted blocks and collect defense shields.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-emerald-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
                 {/* Placeholders */}
-                {[...Array(3)].map((_, i) => (
+                {[...Array(2)].map((_, i) => (
                     <div key={i} className="bg-slate-900/20 border border-slate-800/50 p-6 rounded-xl relative grayscale opacity-40 group overflow-hidden">
                         <div className="absolute inset-0 flex items-center justify-center rotate-12">
                             <span className="text-slate-700 font-black text-4xl opacity-10">CLASSIFIED</span>
                         </div>
-                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic uppercase">Mission_{i + 1}</h3>
+                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic uppercase">Mission_{i + 2}</h3>
                         <p className="text-slate-600 text-sm">Awaiting mission parameters...</p>
                     </div>
                 ))}
@@ -340,6 +357,9 @@ const CyberDefenseLab = () => {
                 )}
                 {view === 'playing' && activeGame === 'BrowserSentry' && (
                     <BrowserSentry onBack={() => { setView('minigames'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'CryptoChase' && (
+                    <CryptoChase onBack={() => { setView('arcade'); setActiveGame(null); }} />
                 )}
             </div>
 
