@@ -48,8 +48,8 @@ const MainMenu = () => {
                         >
                             <div className="relative z-10 flex items-center justify-between">
                                 <div>
-                                    <span className="block text-xs font-mono text-indigo-400 uppercase tracking-widest mb-1">Diagnostic Test</span>
-                                    <span className="block text-2xl font-black text-white uppercase tracking-tight">Quiz Mode</span>
+                                    <span className="block text-xs font-mono text-indigo-400 uppercase tracking-widest mb-1">Defense Training</span>
+                                    <span className="block text-2xl font-black text-white uppercase tracking-tight">Cyber Defense Lab</span>
                                 </div>
                                 <span className="text-2xl opacity-50 group-hover:opacity-100 transition-opacity">🧪</span>
                             </div>

@@ -8,7 +8,7 @@ import Level5 from './levels/Level5';
 import LevelSelector from './components/LevelSelector';
 import MainMenu from './components/MainMenu';
 import Prologue from './levels/Prologue';
-import Quiz from './components/Quiz';
+import CyberDefenseLab from './components/CyberDefenseLab';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 
 function GameRunner() {
@@ -64,7 +64,7 @@ function GameRunner() {
 
             {currentLevel === -3 && <Prologue />}
             {currentLevel === -2 && <MainMenu />}
-            {currentLevel === -4 && <Quiz />}
+            {currentLevel === -4 && <CyberDefenseLab />}
             {currentLevel === 0 && <WorldMap />}
             {currentLevel === -1 && <LevelSelector />}
             {currentLevel === 1 && <Level1 />}
