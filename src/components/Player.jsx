@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Player = ({ x, y }) => {
+const Player = React.memo(({ x, y }) => {
     return (
         <div
             className="absolute z-30 transition-none"
@@ -79,6 +79,7 @@ const Player = ({ x, y }) => {
             </div>
         </div>
     );
-};
+});
+
 
 export default Player;

@@ -9,7 +9,7 @@ export const GameStateProvider = ({ children }) => {
     const [safetyScore, setSafetyScore] = useState(0);
     const [rank, setRank] = useState('Rookie');
     const [lives, setLives] = useState(3);
-    const [currentLevel, setCurrentLevel] = useState(0); // 0 = Overworld, 1 = Level 1...
+    const [currentLevel, setCurrentLevel] = useState(-2); // -2 = Main Menu, -1 = Selector, 0 = World Map...
 
     const enterLevel = (levelId) => {
         setCurrentLevel(levelId);

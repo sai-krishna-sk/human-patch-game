@@ -4,7 +4,7 @@ import { useGameState } from '../context/GameStateContext';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
-const SPEED = 16;
+const SPEED = 9;
 const PLAYER_SIZE = 40;
 const DESK_ZONE = { x: 500, y: 280, w: 200, h: 100 };
 
@@ -31,10 +31,10 @@ const StatusBar = ({ dark = false }) => (
         <div className="flex gap-1.5 items-center">
             <div className="flex items-center gap-0.5">
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M2 17h20v2H2zm1.15-4.05L4 11.47l.85 1.48 1.3-.75-.85-1.48H7v-1.5H5.3l.85-1.48L4.85 7.47 4 8.95l-.85-1.48L2.3 7.47l.85 1.48H1v1.5h2.15l-.85 1.48 1.3.75.85-1.48 1.3.75-.85 1.48z"/>
+                    <path d="M2 17h20v2H2zm1.15-4.05L4 11.47l.85 1.48 1.3-.75-.85-1.48H7v-1.5H5.3l.85-1.48L4.85 7.47 4 8.95l-.85-1.48L2.3 7.47l.85 1.48H1v1.5h2.15l-.85 1.48 1.3.75.85-1.48 1.3.75-.85 1.48z" />
                 </svg>
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                    <path d="M1 9l2-2v8h18V7l2 2V5c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v4z"/>
+                    <path d="M1 9l2-2v8h18V7l2 2V5c0-.55-.45-1-1-1H3c-.55 0-1 .45-1 1v4z" />
                 </svg>
             </div>
             <div className="w-6 h-3 border border-current rounded-sm flex items-center p-0.5 relative">
@@ -288,7 +288,7 @@ const Level5 = () => {
                 {/* Phone container - matching Levels 1-3 style */}
                 <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
                     <StatusBar dark />
-                    
+
                     {/* Notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl z-50"></div>
 
@@ -387,7 +387,7 @@ const Level5 = () => {
 
                 <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
                     <StatusBar />
-                    
+
                     {/* Notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl z-50"></div>
 
@@ -495,9 +495,9 @@ const Level5 = () => {
 
                 {/* Phone with profile - matching Levels 1-3 style */}
                 <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
-                     style={{ transform: isDetectiveModeOpen ? 'translateX(-150px)' : 'translateX(0)' }}>
+                    style={{ transform: isDetectiveModeOpen ? 'translateX(-150px)' : 'translateX(0)' }}>
                     <StatusBar />
-                    
+
                     {/* Notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl z-50"></div>
 
@@ -633,7 +633,7 @@ const Level5 = () => {
                                 Call Real Nithya &#128222;
                             </button>
                         </div>
-                        
+
                         {/* Detective Mode Button */}
                         <button
                             className="absolute bottom-6 left-6 w-14 h-14 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.6)] border-2 border-amber-300 z-50 text-2xl"
@@ -967,18 +967,18 @@ const Level5 = () => {
             <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col" 
-                     style={{ 
-                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
-                     }}>
+                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col"
+                    style={{
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
+                    }}>
                     <StatusBar />
-                    
+
                     {/* Modern notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                         <div className="w-12 h-5 bg-slate-900 rounded-full"></div>
                     </div>
-                    
+
                     {/* Side buttons */}
                     <div className="absolute left-0 top-32 w-1 h-12 bg-slate-700 rounded-r-full"></div>
                     <div className="absolute left-0 top-48 w-1 h-8 bg-slate-700 rounded-r-full"></div>
@@ -1005,7 +1005,7 @@ const Level5 = () => {
                                 <p className="opacity-80 text-lg">Chennai, Tamil Nadu</p>
                                 <div className="flex items-center justify-center gap-2 mt-3">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                                     </svg>
                                     <span className="text-sm opacity-70">Mobile</span>
                                 </div>
@@ -1020,7 +1020,7 @@ const Level5 = () => {
                                     setGameState('call_confirmation');
                                 }}>
                                 <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/>
+                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                                 </svg>
                             </button>
                         </div>
@@ -1100,18 +1100,18 @@ const Level5 = () => {
             <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col" 
-                     style={{ 
-                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
-                     }}>
+                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col"
+                    style={{
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
+                    }}>
                     <StatusBar />
-                    
+
                     {/* Modern notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                         <div className="w-12 h-5 bg-slate-900 rounded-full"></div>
                     </div>
-                    
+
                     {/* Side buttons */}
                     <div className="absolute left-0 top-32 w-1 h-12 bg-slate-700 rounded-r-full"></div>
                     <div className="absolute left-0 top-48 w-1 h-8 bg-slate-700 rounded-r-full"></div>
@@ -1184,18 +1184,18 @@ const Level5 = () => {
             <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col" 
-                     style={{ 
-                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
-                     }}>
+                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col"
+                    style={{
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
+                    }}>
                     <StatusBar dark />
-                    
+
                     {/* Modern notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                         <div className="w-12 h-5 bg-slate-900 rounded-full"></div>
                     </div>
-                    
+
                     {/* Side buttons */}
                     <div className="absolute left-0 top-32 w-1 h-12 bg-slate-700 rounded-r-full"></div>
                     <div className="absolute left-0 top-48 w-1 h-8 bg-slate-700 rounded-r-full"></div>

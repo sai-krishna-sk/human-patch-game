@@ -4,7 +4,7 @@ import { useGameState } from '../context/GameStateContext';
 
 const ROOM_WIDTH = 2000;
 const ROOM_HEIGHT = 800;
-const SPEED = 16;
+const SPEED = 15;
 const PLAYER_SIZE = 40;
 const SELVI_ZONE = { x: 800, y: 250, w: 300, h: 300 }; // Raised center-left stall area
 

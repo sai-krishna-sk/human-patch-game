@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Enemy = ({ x, y, type }) => {
+const Enemy = React.memo(({ x, y, type }) => {
     // Different threat colors based on type
     const visorColor = type === 'Phisher' ? 'bg-red-500' :
         type === 'OTP Scammer' ? 'bg-amber-500' :
@@ -96,6 +96,7 @@ const Enemy = ({ x, y, type }) => {
             </div>
         </div>
     );
-};
+});
+
 
 export default Enemy;

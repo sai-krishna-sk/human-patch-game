@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
 
-const ROOM_WIDTH = 1200;
-const ROOM_HEIGHT = 800;
-const SPEED = 16;
+const ROOM_WIDTH = 1600;
+const ROOM_HEIGHT = 1100;
+const VIEWPORT_WIDTH = 1200;
+const VIEWPORT_HEIGHT = 800;
+const SPEED = 15;
 const PLAYER_SIZE = 40;
 
-const PHONE_DESK = { x: 500, y: 300, w: 200, h: 100 };
+const PHONE_DESK = { x: 600, y: 400, w: 400, h: 350 };
 
 const checkCollision = (px, py, rect) => {
     return (
@@ -20,7 +22,7 @@ const checkCollision = (px, py, rect) => {
 
 const Level1 = () => {
     const { assets, completeLevel, adjustAssets } = useGameState();
-    const [playerPos, setPlayerPos] = useState({ x: 580, y: 700 });
+    const [playerPos, setPlayerPos] = useState({ x: 780, y: 750 });
     const [keys, setKeys] = useState({});
 
     // STATE MACHINE: ringing → phone_ui → active_call → final_decision → game_over/victory → post_call → dialer → calling_1930 → level_complete
@@ -198,13 +200,20 @@ const Level1 = () => {
                 newX = Math.max(0, Math.min(newX, ROOM_WIDTH - PLAYER_SIZE));
                 newY = Math.max(0, Math.min(newY, ROOM_HEIGHT - PLAYER_SIZE));
 
-                // Desk Collision (Solid object)
-                if (checkCollision(newX, newY, PHONE_DESK)) {
-                    if (prev.x + PLAYER_SIZE <= PHONE_DESK.x || prev.x >= PHONE_DESK.x + PHONE_DESK.w) newX = prev.x;
-                    if (prev.y + PLAYER_SIZE <= PHONE_DESK.y || prev.y >= PHONE_DESK.y + PHONE_DESK.h) newY = prev.y;
+                // Desk Collisions (L-Shape split)
+                const deskParts = [
+                    { x: PHONE_DESK.x, y: PHONE_DESK.y, w: PHONE_DESK.w, h: 140 }, // Main Board
+                    { x: PHONE_DESK.x, y: PHONE_DESK.y + 140, w: 140, h: 210 }    // L-Return
+                ];
+
+                for (const rect of deskParts) {
+                    if (checkCollision(newX, newY, rect)) {
+                        if (prev.x + PLAYER_SIZE <= rect.x || prev.x >= rect.x + rect.w) newX = prev.x;
+                        if (prev.y + PLAYER_SIZE <= rect.y || prev.y >= rect.y + rect.h) newY = prev.y;
+                    }
                 }
 
-                const interactArea = { x: PHONE_DESK.x - 20, y: PHONE_DESK.y - 20, w: PHONE_DESK.w + 40, h: PHONE_DESK.h + 40 };
+                const interactArea = { x: PHONE_DESK.x - 40, y: PHONE_DESK.y - 40, w: PHONE_DESK.w + 80, h: PHONE_DESK.h + 80 };
                 setCanInteract(checkCollision(newX, newY, interactArea));
 
                 return { x: newX, y: newY };
@@ -903,215 +912,209 @@ const Level1 = () => {
         );
     }
 
+    const renderPlant = (x, y) => (
+        <div className="absolute z-20" style={{ left: x, top: y }}>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] bg-[#c05a3c] rounded-full border-[8px] border-[#9c452e] shadow-xl"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] pointer-events-none">
+                {[0, 45, 90, 135].map(deg => (
+                    <div key={deg} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[30px] bg-[#3e8549] rounded-full flex items-center`} style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 5px 15px rgba(0,0,0,0.4)', zIndex: deg }}>
+                        <div className="w-full h-[2px] bg-[#2d6335]"></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderBookshelf = (x, y) => (
+        <div className="absolute z-10 bg-[#e08e50] border-[12px] border-[#b86b35] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-2" style={{ left: x, top: y, width: 140, height: 450 }}>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+            <div className="flex items-end h-[60px] px-2 gap-1">
+                <div className="w-4 h-10 bg-red-600 shadow-sm border-l border-white/20"></div><div className="w-5 h-12 bg-blue-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-14 bg-yellow-500 ml-2 shadow-sm border-l border-white/20"></div>
+            </div>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+            <div className="flex items-end h-[60px] px-2 gap-1 justify-end">
+                <div className="w-6 h-12 bg-emerald-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-9 bg-purple-600 shadow-sm border-l border-white/20"></div>
+            </div>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+            <div className="flex items-end h-[60px] px-2 gap-1">
+                <div className="w-5 h-14 bg-cyan-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-12 bg-red-500 shadow-sm border-l border-white/20"></div><div className="w-6 h-10 bg-slate-600 ml-4 shadow-sm border-l border-white/20"></div>
+            </div>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+        </div>
+    );
+
+    const renderWindow = (x, y) => (
+        <div className="absolute z-5 bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-[inset_0_0_50px_rgba(0,0,0,0.8),0_10px_30px_rgba(0,0,0,0.6)] overflow-hidden" style={{ left: x, top: y, width: 450, height: 180 }}>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-[80px] flex items-end gap-[1px]">
+                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
+                    <div key={i} className={`flex-1 bg-[#090e1a] flex flex-wrap gap-1 p-1 items-start justify-center`} style={{ height: h }}>
+                        {Math.random() > 0.5 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
+                        {Math.random() > 0.7 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
+                    </div>
+                ))}
+            </div>
+            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
+        </div>
+    );
+
+    const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
+    const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
+
     return (
         <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+            {/* Viewport Container */}
             <div
-                className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden"
-                style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}
+                className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900"
+                style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
             >
-                {/* Wood Floor */}
-                <div className="absolute inset-0 bg-amber-900" style={{
-                    backgroundImage: `
-                        repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.3) 48px, rgba(0,0,0,0.3) 50px),
-                        linear-gradient(90deg, rgba(120,53,15,0.7), rgba(160,75,20,0.7)),
-                        repeating-linear-gradient(0deg, transparent, transparent 200px, rgba(0,0,0,0.3) 200px, rgba(0,0,0,0.3) 202px)
-                    `
-                }}></div>
-
-                {/* Top Wall */}
-                <div className="absolute top-0 left-0 right-0 h-[120px] bg-gradient-to-b from-slate-700 to-slate-600 z-0 border-b-4 border-amber-800">
-                    {/* Wainscoting detail */}
-                    <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-500/30"></div>
-                    {/* Baseboard */}
-                    <div className="absolute -bottom-1 left-0 right-0 h-2 bg-amber-900"></div>
-                </div>
-
-                {/* Window (top-center) */}
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-slate-950 border-8 border-amber-800 z-5 rounded-t-lg overflow-hidden" style={{ boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6)' }}>
-                    {/* Night sky */}
-                    <div className="absolute inset-0 bg-gradient-to-b from-slate-900 to-indigo-950">
-                        {/* Stars */}
-                        <div className="absolute top-3 left-8 w-1 h-1 bg-white rounded-full opacity-60"></div>
-                        <div className="absolute top-5 left-40 w-0.5 h-0.5 bg-white rounded-full opacity-40"></div>
-                        <div className="absolute top-2 right-20 w-1 h-1 bg-white rounded-full opacity-50"></div>
-                        <div className="absolute top-8 left-24 w-0.5 h-0.5 bg-white rounded-full opacity-30"></div>
-                        <div className="absolute top-4 right-40 w-0.5 h-0.5 bg-white rounded-full opacity-50"></div>
-                    </div>
-                    {/* City skyline silhouette */}
-                    <div className="absolute bottom-0 left-0 right-0 h-8 flex items-end gap-0.5 px-2">
-                        <div className="w-6 h-6 bg-slate-800"></div>
-                        <div className="w-4 h-8 bg-slate-800"></div>
-                        <div className="w-8 h-5 bg-slate-800"></div>
-                        <div className="w-3 h-7 bg-slate-800"></div>
-                        <div className="w-10 h-4 bg-slate-800"></div>
-                        <div className="w-5 h-6 bg-slate-800"></div>
-                        <div className="w-6 h-8 bg-slate-800"></div>
-                        <div className="w-8 h-3 bg-slate-800"></div>
-                        <div className="w-4 h-7 bg-slate-800"></div>
-                        <div className="w-12 h-5 bg-slate-800"></div>
-                        <div className="w-5 h-6 bg-slate-800"></div>
-                        <div className="w-3 h-4 bg-slate-800"></div>
-                    </div>
-                    {/* Window frame cross */}
-                    <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-amber-800 -translate-x-1/2"></div>
-                    <div className="absolute left-0 right-0 top-1/2 h-1 bg-amber-800 -translate-y-1/2"></div>
-                </div>
-
-                {/* Picture frames on wall */}
-                <div className="absolute top-6 left-[140px] w-16 h-12 bg-zinc-700 border-4 border-amber-700 z-5 rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                    <div className="w-full h-full bg-gradient-to-br from-emerald-900/40 to-cyan-900/40"></div>
-                </div>
-                <div className="absolute top-8 right-[140px] w-14 h-10 bg-zinc-700 border-4 border-amber-700 z-5 rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                    <div className="w-full h-full bg-gradient-to-br from-amber-900/40 to-red-900/40"></div>
-                </div>
-
-                {/* Rug */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/4 w-[600px] h-[400px] bg-red-950 border-[10px] border-red-900/80 rounded-lg z-0 overflow-hidden" style={{ boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
-                    <div className="w-[92%] h-[90%] m-auto mt-[5%] border-2 border-yellow-700/40 flex justify-center items-center">
-                        <div className="w-[85%] h-[85%] border-2 border-red-800/60 flex justify-center items-center">
-                            <div className="w-28 h-28 bg-yellow-700/20 rotate-45 border border-yellow-800/30"></div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bookshelf 1 (left wall) */}
-                <div className="absolute top-[120px] left-12 w-44 h-20 bg-amber-950 border-b-6 border-amber-900 z-10 flex p-2 gap-1 items-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                    <div className="w-3 h-14 bg-red-800 rounded-t-sm"></div>
-                    <div className="w-4 h-12 bg-blue-800 rounded-t-sm"></div>
-                    <div className="w-3 h-10 bg-green-800 rounded-t-sm transform -rotate-6"></div>
-                    <div className="w-4 h-14 bg-yellow-700 rounded-t-sm ml-2"></div>
-                    <div className="w-3 h-13 bg-slate-600 rounded-t-sm"></div>
-                    <div className="w-4 h-11 bg-indigo-700 rounded-t-sm"></div>
-                    <div className="w-3 h-14 bg-rose-700 rounded-t-sm"></div>
-                </div>
-
-                {/* Bookshelf 2 (right wall) */}
-                <div className="absolute top-[120px] right-12 w-44 h-20 bg-amber-950 border-b-6 border-amber-900 z-10 flex p-2 gap-1 items-end justify-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                    <div className="w-3 h-12 bg-indigo-800 rounded-t-sm transform rotate-6"></div>
-                    <div className="w-4 h-14 bg-rose-800 rounded-t-sm"></div>
-                    <div className="w-5 h-10 bg-emerald-700 rounded-t-sm ml-2"></div>
-                    <div className="w-3 h-14 bg-slate-700 rounded-t-sm"></div>
-                    <div className="w-4 h-12 bg-cyan-800 rounded-t-sm"></div>
-                    <div className="w-3 h-11 bg-amber-700 rounded-t-sm"></div>
-                </div>
-
-                {/* Potted Plant (corner, left) */}
-                <div className="absolute top-[130px] left-4 z-20 flex flex-col items-center">
-                    <div className="w-20 h-18 relative" style={{ height: 72 }}>
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-6 bg-amber-800"></div>
-                        <div className="w-18 h-12 bg-green-700 rounded-full absolute top-0 left-0" style={{ width: 72 }}></div>
-                        <div className="w-14 h-10 bg-green-600 rounded-full absolute top-1 left-2" style={{ width: 56 }}></div>
-                        <div className="w-10 h-8 bg-green-500/80 rounded-full absolute top-2 left-4" style={{ width: 40 }}></div>
-                    </div>
-                    <div className="w-14 h-10 bg-orange-800 rounded-b-lg rounded-t-sm border-2 border-orange-900 -mt-2" style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.4)' }}></div>
-                </div>
-
-                {/* Potted Plant (corner, right-bottom) */}
-                <div className="absolute bottom-8 right-12 z-20 flex flex-col items-center">
-                    <div className="w-16 h-14 relative" style={{ height: 56 }}>
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-5 bg-amber-800"></div>
-                        <div className="w-16 h-10 bg-emerald-700 rounded-full absolute top-0 left-0"></div>
-                        <div className="w-12 h-8 bg-emerald-600 rounded-full absolute top-1 left-2"></div>
-                    </div>
-                    <div className="w-12 h-8 bg-zinc-700 rounded-b-lg rounded-t-sm border-2 border-zinc-800 -mt-2" style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.4)' }}></div>
-                </div>
-
-                {/* The Elegant L-Shaped Desk */}
+                {/* World Container (Camera) */}
                 <div
-                    className="absolute bg-amber-800 shadow-[0_20px_50px_rgba(0,0,0,0.9)] rounded-md z-10 flex"
+                    className="absolute inset-0 transition-transform duration-100 ease-out"
                     style={{
-                        left: PHONE_DESK.x, top: PHONE_DESK.y, width: PHONE_DESK.w, height: PHONE_DESK.h,
-                        backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.1), transparent)',
-                        borderTop: '6px solid #b45309', borderLeft: '6px solid #b45309',
-                        borderBottom: '12px solid #78350f', borderRight: '12px solid #78350f'
+                        width: ROOM_WIDTH,
+                        height: ROOM_HEIGHT,
+                        transform: `translate(${-cameraX}px, ${-cameraY}px)`
                     }}
                 >
-                    {/* The L-return piece of the desk */}
-                    <div className="absolute top-[-6px] -left-20 w-20 h-56 bg-amber-800 rounded-md rounded-tr-none z-0"
-                        style={{
-                            backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.1), transparent)',
-                            borderTop: '6px solid #b45309', borderLeft: '6px solid #b45309',
-                            borderRight: '12px solid #78350f', borderBottom: '12px solid #78350f'
+                    <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
+                        {/* Wood Floor */}
+                        <div className="absolute inset-0 opacity-80" style={{
+                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
                         }}></div>
 
-                    {/* Dual Monitor PC Setup */}
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex gap-4 drop-shadow-2xl z-20">
-                        {/* Monitor 1 */}
-                        <div className="w-32 h-4 bg-slate-900 rounded border border-slate-700 flex justify-center mt-2 relative">
-                            {/* Stand */}
-                            <div className="w-8 h-6 bg-slate-800 absolute top-4 rounded-b"></div>
-                            {/* Screen glow */}
-                            <div className="absolute -bottom-8 w-24 h-8 bg-cyan-500/10 blur-md rounded-full"></div>
-                        </div>
-                        {/* Monitor 2 */}
-                        <div className="w-32 h-4 bg-slate-900 rounded border border-slate-700 flex justify-center transform -rotate-12 translate-y-2 relative">
-                            <div className="w-8 h-6 bg-slate-800 absolute top-4 rounded-b"></div>
-                            {/* Screen glow */}
-                            <div className="absolute -bottom-8 w-24 h-8 bg-cyan-500/10 blur-md rounded-full"></div>
-                        </div>
-                    </div>
+                        {/* Top Wall */}
+                        <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
 
-                    {/* Keyboard & Mouse */}
-                    <div className="absolute bottom-6 left-[110px] -translate-x-1/2 w-24 h-6 bg-zinc-900 rounded-sm shadow-black/50 shadow-inner flex justify-center items-center">
-                        <div className="w-20 h-4 bg-zinc-800 rounded-sm opacity-50"></div>
-                    </div>
-                    <div className="absolute bottom-6 right-2 w-4 h-6 bg-zinc-900 rounded-full shadow-black/50 shadow-inner border-t border-zinc-700"></div>
+                        {/* Light Casts from Windows */}
+                        <div className="absolute top-[180px] left-[350px] w-[500px] h-[900px] bg-blue-400/10 z-0 transform skew-x-[-25deg] origin-top-left pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
+                        <div className="absolute top-[180px] right-[250px] w-[500px] h-[900px] bg-blue-400/10 z-0 transform skew-x-[25deg] origin-top-right pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
 
-                    {/* Coffee Mug */}
-                    <div className="absolute top-4 left-4 w-8 h-8 bg-zinc-200 rounded-full shadow-[5px_5px_10px_rgba(0,0,0,0.6)] border border-slate-300 flex justify-center items-center">
-                        <div className="w-5 h-5 rounded-full border-[3px] border-zinc-300 absolute -right-3 top-1 shadow-md"></div>
-                        <div className="w-6 h-6 bg-amber-950 rounded-full flex justify-center items-center">
-                            <div className="w-4 h-4 rounded-full border border-amber-900/50"></div>
-                        </div>
-                    </div>
+                        {/* Windows */}
+                        {renderWindow(320, 0)}
+                        {renderWindow(930, 0)}
 
-                    {/* Glowing Desk Mat */}
-                    <div className="absolute bottom-4 left-[-60px] w-16 h-28 bg-zinc-900 rounded border border-cyan-900/40 shadow-[0_0_15px_rgba(34,211,238,0.1)] z-10 flex justify-center items-center">
-                        {/* Ringing Phone */}
-                        <div className={`w-10 h-16 bg-slate-950 border-2 border-slate-700 rounded-lg ${gameState === 'ringing' ? 'animate-[wiggle_0.2s_ease-in-out_infinite] shadow-[0_0_20px_rgba(239,68,68,0.8)]' : 'shadow-xl'} relative overflow-hidden z-30`}>
-                            {/* Phone Screen Glow */}
-                            <div className="absolute inset-x-0 bottom-0 top-3 bg-red-500/50 rounded-b-sm"></div>
-                            {/* Ringing indicators */}
-                            {gameState === 'ringing' && (
-                                <>
-                                    <div className="absolute -left-6 top-4 text-red-500 font-bold text-sm animate-ping">)</div>
-                                    <div className="absolute -right-6 top-4 text-red-500 font-bold text-sm animate-ping">(</div>
-                                </>
-                            )}
+                        {/* Bookshelves */}
+                        {renderBookshelf(60, 350)}
+                        {renderBookshelf(1400, 350)}
+
+                        {/* Potted Plants */}
+                        {renderPlant(180, 850)}
+                        {renderPlant(1420, 850)}
+
+                        {/* The Extravagant L-Shaped Desk */}
+                        <div className="absolute z-10" style={{ left: PHONE_DESK.x, top: PHONE_DESK.y, width: PHONE_DESK.w, height: PHONE_DESK.h }}>
+
+                            {/* Shadow underneath desk */}
+                            <div className="absolute -inset-10 top-[140px] bg-black/40 blur-2xl z-[-1] rounded-[100px]"></div>
+
+                            {/* Main Desk Board */}
+                            <div className="absolute right-0 top-0 w-full h-[140px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '16px solid #b86b35', borderRight: '12px solid #b86b35', borderLeft: '12px solid #b86b35' }}></div>
+
+                            {/* L-Return (Left side extension) */}
+                            <div className="absolute left-0 top-[140px] w-[140px] h-[210px] bg-[#e08e50] shadow-2xl rounded-b-sm" style={{ borderBottom: '16px solid #b86b35', borderLeft: '12px solid #b86b35', borderRight: '12px solid #b86b35' }}></div>
+
+                            {/* Monitors Setup */}
+                            <div className="absolute top-[-30px] left-1/2 -translate-x-1/2 flex items-end gap-2 drop-shadow-2xl z-30">
+                                {/* Left Angled Monitor */}
+                                <div className="w-[160px] h-[20px] bg-[#2a3b4c] rounded-sm flex justify-center transform -rotate-[24deg] translate-y-4 translate-x-4 border border-[#1e2a38] shadow-[0_15px_30px_rgba(0,0,0,0.8)] relative">
+                                    <div className="absolute -bottom-6 w-[120px] h-[10px] bg-cyan-400/20 blur-[6px] rounded-full"></div>
+                                    <div className="absolute top-full mt-1 w-[50px] h-[35px] bg-[#cbd5e1] rounded shadow-lg -z-10"></div>
+                                </div>
+                                {/* Main Center Monitor */}
+                                <div className="w-[200px] h-[22px] bg-[#2a3b4c] rounded border border-[#1e2a38] shadow-[0_15px_30px_rgba(0,0,0,0.8)] flex justify-center relative z-10">
+                                    <div className="absolute -bottom-8 w-[160px] h-[12px] bg-blue-400/20 blur-[8px] rounded-full"></div>
+                                    <div className="absolute top-full mt-1 w-[70px] h-[40px] bg-[#cbd5e1] rounded shadow-lg -z-10"></div>
+                                </div>
+                            </div>
+
+                            {/* Spherical Desk Lamp */}
+                            <div className="absolute top-6 right-[30px] z-30 flex items-center justify-center">
+                                <div className="w-[45px] h-[45px] bg-white rounded-full shadow-[inset_-5px_-5px_10px_rgba(0,0,0,0.2),0_10px_20px_rgba(0,0,0,0.6)] border border-slate-200"></div>
+                                <div className="absolute -top-3 right-5 w-1.5 h-8 bg-slate-400 transform rotate-[35deg] rounded-full shadow-md"></div>
+                                {/* Ambient Lamp Glow */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] bg-amber-400/10 blur-[30px] rounded-full pointer-events-none"></div>
+                            </div>
+
+                            {/* Coffee Cup */}
+                            <div className="absolute top-20 left-[180px] w-[24px] h-[24px] bg-white rounded-full shadow-[5px_10px_15px_rgba(0,0,0,0.6)] border-2 border-slate-200 z-30">
+                                <div className="absolute top-1 left-1 w-3 h-3 bg-[#3a2010] rounded-full flex items-center justify-center overflow-hidden">
+                                    <div className="w-4 h-1 bg-amber-900/40 blur-[1px]"></div>
+                                </div>
+                                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-5 border-4 border-slate-300 rounded-l-full"></div>
+                            </div>
+
+                            {/* Keyboard */}
+                            <div className="absolute top-[80px] left-[230px] w-[110px] h-[36px] bg-slate-200 flex flex-wrap gap-[2px] p-1.5 rounded shadow-[0_5px_10px_rgba(0,0,0,0.4)] border border-slate-400 z-30 text-[0px]">
+                                {[...Array(30)].map((_, i) => <div key={i} className="w-[7px] h-[5px] bg-white rounded-sm shadow-sm border border-slate-100"></div>)}
+                            </div>
+
+                            {/* Mouse */}
+                            <div className="absolute top-[85px] left-[360px] w-[18px] h-[28px] bg-white rounded-full shadow-[0_5px_10px_rgba(0,0,0,0.4)] border border-slate-300 z-30 overflow-hidden">
+                                <div className="w-full h-1/2 border-b-2 border-slate-200 flex justify-center">
+                                    <div className="w-1 h-3 bg-slate-200 rounded-full mt-1"></div>
+                                </div>
+                                <div className="absolute -top-[40px] left-1/2 w-0.5 h-[40px] bg-slate-600 -translate-x-1/2 -z-10"></div>
+                            </div>
+
+                            {/* Stack of Books (left side) */}
+                            <div className="absolute top-[180px] left-[30px] z-30 shadow-xl transform -rotate-[15deg] group">
+                                <div className="w-[60px] h-[45px] bg-red-700 rounded-sm border-r-[6px] border-[#7f1d1d] shadow-md flex items-center justify-end pr-2"><div className="w-1 h-6 bg-yellow-400"></div></div>
+                                <div className="w-[55px] h-[40px] bg-amber-600 rounded-sm border-r-[6px] border-[#92400e] shadow-md absolute top-[-6px] left-[2px] transform rotate-3"></div>
+                                <div className="w-[50px] h-[35px] bg-white rounded-sm border-r-[6px] border-slate-300 shadow-md absolute top-[-10px] left-[4px] transform rotate-6 flex items-center justify-center">
+                                    <div className="w-[40px] h-[25px] bg-slate-100 border border-slate-200"></div>
+                                </div>
+                            </div>
+
+                            {/* === THE INTERACTABLE PHONE === */}
+                            <div className="absolute top-[120px] left-[70px] z-40">
+                                <div className={`w-[28px] h-[50px] bg-slate-900 border-[3px] border-slate-700 rounded-lg shadow-2xl relative ${gameState === 'ringing' ? 'animate-[wiggle_0.2s_ease-in-out_infinite] shadow-[0_0_25px_rgba(239,68,68,1)]' : ''}`}>
+                                    {gameState === 'ringing' && (
+                                        <div className="absolute inset-0 bg-red-500/40 animate-pulse rounded border border-red-500"></div>
+                                    )}
+                                    <div className="absolute top-1 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-slate-700 rounded-full"></div>
+                                </div>
+                                {/* Phone glow */}
+                                {gameState === 'ringing' && (
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] bg-red-500/10 blur-[20px] rounded-full pointer-events-none -z-10"></div>
+                                )}
+                            </div>
                         </div>
+
+                        {/* Ergonomic Office Chair */}
+                        <div className="absolute w-[100px] h-[100px] z-20 flex flex-col items-center drop-shadow-2xl" style={{ left: 750, top: 600 }}>
+                            <div className="w-[70px] h-[45px] bg-[#3a4f6d] rounded-t-2xl border-x-[6px] border-t-[6px] border-[#2c3e50] absolute -top-4 z-0"></div>
+                            <div className="w-[85px] h-[55px] bg-[#4a6285] rounded-b-[40px] border-b-[8px] border-[#2c3e50] relative z-10 shadow-[0_15px_30px_rgba(0,0,0,0.8)]">
+                                <div className="absolute -left-4 top-2 w-[16px] h-[35px] bg-[#3a4f6d] rounded-full shadow-lg border-2 border-[#2c3e50]"></div>
+                                <div className="absolute -right-4 top-2 w-[16px] h-[35px] bg-[#3a4f6d] rounded-full shadow-lg border-2 border-[#2c3e50]"></div>
+                            </div>
+                            <div className="absolute -bottom-8 w-6 h-6 rounded-full bg-slate-800 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-0 flex items-center justify-center">
+                                <div className="w-20 h-1.5 bg-slate-700 transform rotate-45 rounded-full"></div>
+                                <div className="absolute w-20 h-1.5 bg-slate-700 transform -rotate-45 rounded-full"></div>
+                            </div>
+                        </div>
+
+                        <Player x={playerPos.x} y={playerPos.y} />
+
                     </div>
                 </div>
 
-                {/* Ergonomic Office Chair */}
-                <div className="absolute w-16 h-16 rounded-3xl z-0 flex flex-col items-center" style={{ left: 560, top: 410 }}>
-                    {/* Back rest */}
-                    <div className="w-14 h-8 bg-zinc-800 border-t-4 border-zinc-700 rounded-t-xl z-0 shadow-lg absolute -top-4"></div>
-                    {/* Seat */}
-                    <div className="w-16 h-12 bg-zinc-900 border-b-4 border-zinc-950 rounded-b-3xl z-10 shadow-xl relative">
-                        {/* Arm rests */}
-                        <div className="absolute -left-2 top-2 w-2 h-8 bg-zinc-800 rounded-full shadow"></div>
-                        <div className="absolute -right-2 top-2 w-2 h-8 bg-zinc-800 rounded-full shadow"></div>
-                    </div>
-                </div>
-
-                <Player x={playerPos.x} y={playerPos.y} />
-
-                {/* Interaction Prompt HUD overlay */}
+                {/* Interaction Prompt HUD overlay (Outside camera, pinned to screen) */}
                 {canInteract && gameState === 'ringing' && (
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)] z-50 flex items-center gap-3 animate-bounce">
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)] z-[400] flex items-center gap-3 animate-bounce">
                         <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
                         <span>ANSWER PHONE</span>
                     </div>
                 )}
                 {canInteract && gameState === 'post_call' && (
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] z-50 flex items-center gap-3 animate-bounce">
+                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] z-[400] flex items-center gap-3 animate-bounce">
                         <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
                         <span>USE PHONE</span>
                     </div>
                 )}
 
-                {/* Instruction HUD */}
-                <div className="absolute top-4 left-4 text-emerald-500 font-mono text-xs z-50 bg-black/60 p-2 rounded">
+                {/* Instruction HUD (Outside camera) */}
+                <div className="absolute top-4 left-4 text-emerald-500 font-mono text-xs z-[400] bg-black/60 p-2 rounded">
                     {gameState === 'post_call' ? (
                         <>Objective: Report the scam. Go to the phone and call <span className="text-yellow-400 font-bold">1930</span>.<br />Controls: W A S D to move.</>
                     ) : (
@@ -1119,9 +1122,9 @@ const Level1 = () => {
                     )}
                 </div>
 
-                {/* POST-CALL ALERT BANNER */}
+                {/* POST-CALL ALERT BANNER (Outside camera) */}
                 {gameState === 'post_call' && (
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-yellow-500/90 text-black px-8 py-4 rounded-xl shadow-[0_0_30px_rgba(234,179,8,0.6)] font-bold text-center animate-pulse max-w-lg">
+                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] bg-yellow-500/90 text-black px-8 py-4 rounded-xl shadow-[0_0_30px_rgba(234,179,8,0.6)] font-bold text-center animate-pulse max-w-lg">
                         📞 You need to report this to the Cyber Crime Helpline!<br />
                         <span className="text-2xl">Dial 1930</span> from the phone on your desk.
                     </div>
@@ -1133,10 +1136,11 @@ const Level1 = () => {
                         50% { transform: rotate(5deg); }
                     }
                 `}</style>
-                {/* GAME OVER OVERLAY (Remains in room) */}
+
+                {/* GAME OVER OVERLAY (Pinned to screen) */}
                 {
                     gameState === 'game_over' && (
-                        <div className="absolute inset-0 bg-red-950/90 z-[300] backdrop-blur text-white flex flex-col items-center justify-center p-12 text-center overflow-hidden animate-fadeIn">
+                        <div className="absolute inset-0 bg-red-950/90 z-[500] backdrop-blur text-white flex flex-col items-center justify-center p-12 text-center overflow-hidden animate-fadeIn fixed">
                             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #000 40px, #000 80px)' }}></div>
                             <h1 className="text-7xl font-black text-red-500 tracking-widest mb-6 drop-shadow-[0_0_20px_rgba(239,68,68,1)] z-10">GAME OVER</h1>
                             <h2 className="text-4xl font-bold mb-10 z-10">You Shared the OTP.</h2>
@@ -1165,10 +1169,10 @@ const Level1 = () => {
                     )
                 }
 
-                {/* VICTORY OVERLAY (Remains in room) */}
+                {/* VICTORY OVERLAY (Pinned to screen) */}
                 {
                     gameState === 'victory' && (
-                        <div className="absolute inset-0 bg-emerald-950/90 z-[300] backdrop-blur text-white flex flex-col items-center justify-center p-12 text-center overflow-hidden animate-fadeIn">
+                        <div className="absolute inset-0 bg-emerald-950/90 z-[500] backdrop-blur text-white flex flex-col items-center justify-center p-12 text-center overflow-hidden animate-fadeIn fixed">
                             <div className="absolute inset-0 bg-black/50"></div>
 
                             <div className="w-32 h-32 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(16,185,129,0.8)] z-10">
