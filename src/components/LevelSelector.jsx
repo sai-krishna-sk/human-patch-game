@@ -9,8 +9,8 @@ const levelNames = {
     5: 'Ghost Profile',
     6: 'SIM Swap',
     7: 'The Open Network',
-    8: 'Deep Fake',
-    9: 'Data Broker',
+    8: 'The Ghost Store',
+    9: 'The Invisible Hook',
     10: 'Crypto Rug',
     11: 'Dark Web',
     12: 'Zero Day',
@@ -70,7 +70,7 @@ const LevelSelector = () => {
                         </p>
                     </div>
                     <button
-                        onClick={() => enterLevel(0)}
+                        onClick={() => enterLevel(-2)}
                         className="px-6 py-2.5 bg-slate-950 hover:bg-slate-800 text-red-400 font-bold border border-red-900/60 hover:border-red-500 transition-colors uppercase tracking-widest font-mono text-sm rounded-sm"
                     >
                         ✕ Abort
@@ -81,7 +81,7 @@ const LevelSelector = () => {
                 <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-5 pr-2 relative z-10 custom-scrollbar">
                     {[...Array(14)].map((_, i) => {
                         const levelNum = i + 1;
-                        const isUnlocked = levelNum <= 7;
+                        const isUnlocked = levelNum <= 9;
                         const difficulty = levelDifficulty[levelNum];
 
                         return (

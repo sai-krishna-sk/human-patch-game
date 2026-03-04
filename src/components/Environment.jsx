@@ -117,7 +117,8 @@ export const Billboard = React.memo(({ x, y, text = "PATCH", color = "text-cyan-
                 <div className="w-1 h-3 bg-red-500 animate-pulse" />
                 <div className="w-1 h-3 bg-emerald-500 animate-pulse [animation-delay:0.5s]" />
             </div>
-            <style jsx>{`
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes flicker {
                     0%, 100% { opacity: 1; transform: scale(1); }
                     92% { opacity: 1; transform: scale(1); }
@@ -126,7 +127,7 @@ export const Billboard = React.memo(({ x, y, text = "PATCH", color = "text-cyan-
                     95% { opacity: 0.8; }
                 }
                 .animate-flicker { animation: flicker 5s infinite; }
-            `}</style>
+            ` }} />
         </div>
     </div>
 ));

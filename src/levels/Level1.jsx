@@ -1130,12 +1130,13 @@ const Level1 = () => {
                     </div>
                 )}
 
-                <style jsx>{`
+                <style dangerouslySetInnerHTML={{
+                    __html: `
                     @keyframes wiggle {
                         0%, 100% { transform: rotate(-5deg); }
                         50% { transform: rotate(5deg); }
                     }
-                `}</style>
+                ` }} />
 
                 {/* GAME OVER OVERLAY (Pinned to screen) */}
                 {

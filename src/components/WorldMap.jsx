@@ -127,7 +127,7 @@ const WorldMap = () => {
             const triggerRect = L1_TRIGGER;
             if (nx < triggerRect.x + triggerRect.w && nx + PLAYER_SIZE > triggerRect.x &&
                 ny < triggerRect.y + triggerRect.h && ny + PLAYER_SIZE > triggerRect.y) {
-                enterLevel(-1);
+                enterLevel('living-room');
                 ny += 50;
             }
 
@@ -324,7 +324,8 @@ const WorldMap = () => {
                 </div>
             </div>
 
-            <style jsx>{`
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes fog-drift {
                     0%, 100% { transform: translateX(0) scale(1); }
                     50% { transform: translateX(100px) scale(1.1); }
@@ -338,7 +339,7 @@ const WorldMap = () => {
                     transform-origin: 50% 50%;
                     animation: radar-sweep 4s linear infinite; 
                 }
-            `}</style>
+            ` }} />
         </div>
     );
 

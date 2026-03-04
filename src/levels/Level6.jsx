@@ -33,12 +33,6 @@ const CLUE_DATA = [
         points: 10
     },
     {
-        id: 'modem_info',
-        name: 'Remote Control Risk',
-        description: 'Sharing an AnyDesk code gives the attacker control over your whole device, not just the browser.',
-        points: 15
-    },
-    {
         id: 'thatha_note',
         name: "Thatha's Official List",
         description: 'The verified SBI number (1800-425-3800) contradicts the number from the Google Ad.',
@@ -61,9 +55,11 @@ const Level6 = () => {
     const [callerIdChoice, setCallerIdChoice] = useState(null);
     const [outcomeType, setOutcomeType] = useState(null); // 'victory' or 'scam'
     const [interactionActive, setInteractionActive] = useState(false);
+    const [showVerifyPanel, setShowVerifyPanel] = useState(false);
     const [keys, setKeys] = useState({});
 
     const timerRef = useRef(null);
+    const speechRef = useRef(null);
 
     // ═══ MOVEMENT LOGIC ═══
     useEffect(() => {
@@ -166,9 +162,23 @@ const Level6 = () => {
 
     const handleDial = () => {
         setGameState('phone_call');
+        // Speak Vikram's dialogue using Web Speech API
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(
+                "Hello sir, this is Vikram from SBI Senior Technical Support. I can see your net banking session has an issue. Don't worry sir, I am sending you a secure AnyDesk link to patch your device directly. Please accept the link and share the code with me."
+            );
+            utterance.rate = 0.9;
+            utterance.pitch = 0.8;
+            utterance.lang = 'en-IN';
+            speechRef.current = utterance;
+            window.speechSynthesis.speak(utterance);
+        }
     };
 
     const handleHangUp = () => {
+        // Stop Vikram's speech
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         if (cluesFound.length >= 3) {
             setIsPhoneOpen(false);
             setOutcomeType('victory');
@@ -176,6 +186,15 @@ const Level6 = () => {
         } else {
             showFeedback("I need more evidence before I hang up and lose the trail...", "orange");
         }
+    };
+
+    const handleAbortSession = () => {
+        // Stop Vikram's speech
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        clearInterval(timerRef.current);
+        setIsPhoneOpen(false);
+        setOutcomeType('abort_victory');
+        setGameState('outcome');
     };
 
     const handleMiniChallenge = (choice) => {
@@ -289,7 +308,8 @@ const Level6 = () => {
                         <button
                             onClick={() => {
                                 setGameState('anydesk_countdown');
-                                setIsPhoneOpen(false); // Force close phone to allow exploring
+                                setIsPhoneOpen(false);
+                                handleClueClick('anydesk_source');
                                 showFeedback("AnyDesk download started. Search the room for evidence!", "orange");
                             }}
                             className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 text-sm mt-4"
@@ -323,57 +343,116 @@ const Level6 = () => {
         </PhoneContainer>
     );
 
-    const CountdownUI = () => (
-        <div className="absolute top-8 right-8 z-[75] w-80 animate-in fade-in slide-in-from-right duration-500">
-            <div className="bg-slate-900 border-2 border-red-500/50 p-6 rounded-2xl shadow-[0_20px_50px_rgba(220,38,38,0.2)]">
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <h2 className="text-red-400 text-sm font-black tracking-widest uppercase mb-1">ANYDESK SESSION</h2>
-                        <span className="text-xs text-slate-400 uppercase font-bold tracking-widest">Active Connection</span>
-                    </div>
-                    <div className="text-right">
-                        <div className={`text-3xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`}>
-                            00:{timeLeft.toString().padStart(2, '0')}
+    const renderCountdownUI = () => (
+        <div key="countdown-ui" className="fixed top-8 left-8 z-[30000] w-80 animate-in fade-in slide-in-from-left duration-500 pointer-events-auto">
+            <div className="bg-slate-900/95 backdrop-blur-md border-2 border-red-500/60 p-6 rounded-2xl shadow-[0_20px_60px_rgba(220,38,38,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
+                {/* Danger glow pulse */}
+                <div className="absolute -inset-1 bg-red-500/10 rounded-2xl blur-xl animate-pulse pointer-events-none" />
+                <div className="relative z-10">
+                    <div className="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 className="text-red-400 text-sm font-black tracking-widest uppercase mb-1 flex items-center gap-2">
+                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                                ANYDESK SESSION
+                            </h2>
+                            <span className="text-xs text-slate-400 uppercase font-bold tracking-widest">Active Connection</span>
+                        </div>
+                        <div className="text-right">
+                            <div className={`text-3xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`} style={{ textShadow: timeLeft < 10 ? '0 0 20px rgba(239,68,68,0.6)' : '0 0 15px rgba(34,211,238,0.4)' }}>
+                                00:{timeLeft.toString().padStart(2, '0')}
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="space-y-4 mb-4">
-                    <div>
-                        <div className="flex justify-between text-[10px] mb-1 font-bold">
-                            <span className="text-slate-400 uppercase">Downloading Patches</span>
-                            <span className="text-cyan-400 font-mono">{Math.round(anydeskProgress)}%</span>
-                        </div>
-                        <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-1000"
-                                style={{ width: `${anydeskProgress}%` }}
-                            />
+                    <div className="space-y-4 mb-4">
+                        <div>
+                            <div className="flex justify-between text-[10px] mb-1.5 font-bold">
+                                <span className="text-slate-400 uppercase tracking-wider">Downloading Patches</span>
+                                <span className="text-cyan-400 font-mono">{Math.round(anydeskProgress)}%</span>
+                            </div>
+                            <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                                <div
+                                    className="h-full bg-gradient-to-r from-red-600 via-red-500 to-orange-400 transition-all duration-1000 relative"
+                                    style={{ width: `${anydeskProgress}%` }}
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="text-xs text-yellow-400 font-bold mb-4 uppercase tracking-widest text-center animate-pulse">
-                    ⚠️ PROMPT: Search room for evidence!
-                </div>
+                    <div className="text-xs text-yellow-400 font-bold mb-4 uppercase tracking-widest text-center animate-pulse bg-yellow-500/5 py-2 rounded-lg border border-yellow-500/20">
+                        ⚠️ PROMPT: Search room for evidence!
+                    </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                    <button
-                        onClick={() => setGameState('mini_challenge')}
-                        className="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-lg transition-all border border-slate-700 shadow-md"
-                    >
-                        Verify Identity
-                    </button>
-                    <button
-                        onClick={handleHangUp}
-                        className="bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-lg transition-all shadow-md active:scale-95"
-                    >
-                        Abort Session
-                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowVerifyPanel(true); }}
+                            className="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-lg transition-all border border-slate-600 shadow-md hover:shadow-lg hover:border-cyan-500/50 pointer-events-auto"
+                        >
+                            🔍 Verify Identity
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleAbortSession(); }}
+                            className="bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-xl transition-all shadow-[0_4px_15px_rgba(220,38,38,0.4)] active:scale-95 hover:shadow-[0_6px_25px_rgba(220,38,38,0.5)] border border-red-500/50 pointer-events-auto"
+                        >
+                            🛑 Abort Session
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     );
+
+    const VerifyIdentityPanel = () => {
+        if (!showVerifyPanel) return null;
+        return (
+            <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowVerifyPanel(false)}>
+                <div className="max-w-lg w-full bg-slate-900 border-2 border-cyan-500/30 p-8 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                    <div className="text-center mb-6">
+                        <span className="text-cyan-500 text-xs font-bold uppercase tracking-[0.3em] mb-2 block">Caller Identity Report</span>
+                        <h2 className="text-white text-2xl font-black">WHO IS "VIKRAM"?</h2>
+                    </div>
+
+                    <div className="space-y-3 mb-6">
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Caller Name</span>
+                            <span className="text-white font-black">"Vikram" — SBI Senior Tech Support</span>
+                        </div>
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Call Source</span>
+                            <span className="text-red-400 font-black">1800-000-2233 (Google Sponsored Ad)</span>
+                        </div>
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Real SBI Helpline</span>
+                            <span className="text-emerald-400 font-black">1800-425-3800 (from sbi.co.in)</span>
+                        </div>
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Requesting</span>
+                            <span className="text-red-400 font-black">AnyDesk remote access to your device</span>
+                        </div>
+                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Download Source</span>
+                            <span className="text-red-400 font-black">anydesk-sbi-fix.net (NOT official anydesk.com)</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl mb-6">
+                        <p className="text-red-200 text-sm leading-relaxed">⚠️ Banks NEVER ask to remotely access your device. "Vikram" is not a real SBI employee. His number came from a paid Google Ad, not the official SBI website.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => { setShowVerifyPanel(false); handleHangUp(); }} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm transition-all">
+                            🛡️ Hang Up Call
+                        </button>
+                        <button onClick={() => setShowVerifyPanel(false)} className="bg-slate-800 hover:bg-slate-700 text-white font-black py-3 rounded-xl text-sm transition-all border border-white/10">
+                            Back
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     const MiniChallengeUI = () => (
         <div className="absolute inset-0 z-[70] bg-slate-950 flex items-center justify-center p-4">
@@ -416,8 +495,8 @@ const Level6 = () => {
         </div>
     );
 
-    const OutcomeUI = () => (
-        <div className="absolute inset-0 z-[100] bg-slate-950 flex flex-col items-center justify-center p-8 animate-fade-in">
+    const renderOutcomeUI = () => (
+        <div key="outcome-ui" className="absolute inset-0 z-[20000] bg-slate-950 flex flex-col items-center justify-start py-12 px-8 overflow-y-auto animate-fade-in pointer-events-auto custom-scrollbar">
             {outcomeType === 'victory' ? (
                 <div className="max-w-3xl text-center">
                     <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-[0_0_50px_rgba(16,185,129,0.4)]">🏆</div>
@@ -438,15 +517,65 @@ const Level6 = () => {
                         </div>
                         <div className="bg-slate-900 p-6 rounded-2xl border border-cyan-500/30">
                             <span className="text-slate-500 text-[10px] font-bold uppercase block mb-1">Assets Saved</span>
-                            <span className="text-3xl font-black text-cyan-400">₹42L</span>
+                            <span className="text-3xl font-black text-cyan-400">₹4,20,000</span>
                         </div>
                     </div>
                     <button
                         onClick={() => completeLevel(true, 100, 0)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-12 py-4 rounded-xl text-lg tracking-widest transition-all shadow-xl shadow-emerald-900/20 active:scale-95"
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-12 py-4 rounded-xl text-lg tracking-widest transition-all shadow-xl shadow-emerald-900/20 active:scale-95 pointer-events-auto"
                     >
                         CONTINUE INVESTIGATION
                     </button>
+                </div>
+            ) : outcomeType === 'abort_victory' ? (
+                <div className="max-w-3xl text-center relative">
+                    {/* Background glow */}
+                    <div className="absolute -inset-20 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
+                    <div className="relative z-10">
+                        <div className="w-28 h-28 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-full flex items-center justify-center text-6xl mx-auto mb-8 shadow-[0_0_60px_rgba(16,185,129,0.5),0_0_120px_rgba(34,211,238,0.2)] animate-bounce">
+                            🛡️
+                        </div>
+                        <div className="inline-block bg-emerald-500/20 border border-emerald-500/40 px-4 py-1.5 rounded-full mb-6">
+                            <span className="text-emerald-400 text-xs font-black uppercase tracking-[0.3em]">Scam Detected & Blocked</span>
+                        </div>
+                        <h1 className="text-5xl font-black text-white mb-4 tracking-tight uppercase" style={{ textShadow: '0 0 40px rgba(16,185,129,0.3)' }}>
+                            YOU SUCCESSFULLY FOUND THAT ANYDESK WAS SCAM!
+                        </h1>
+                        <p className="text-2xl text-emerald-100 leading-relaxed mb-6 font-black italic">
+                            "AnyDesk was a SCAM from Vikram to steal money!"
+                        </p>
+                        <p className="text-lg text-emerald-300/80 leading-relaxed mb-10 max-w-xl mx-auto">
+                            By aborting the session in time, you prevented Vikram from gaining remote access to your device. No bank employee will ever ask for remote access software!
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-5 mb-10">
+                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-emerald-500/30 shadow-[0_4px_20px_rgba(16,185,129,0.1)]">
+                                <span className="text-slate-500 text-[10px] font-bold uppercase block mb-2 tracking-wider">Quick Thinking</span>
+                                <span className="text-3xl font-black text-emerald-400">+80 PTS</span>
+                            </div>
+                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-cyan-500/30 shadow-[0_4px_20px_rgba(34,211,238,0.1)]">
+                                <span className="text-slate-500 text-[10px] font-bold uppercase block mb-2 tracking-wider">Threat Blocked</span>
+                                <span className="text-3xl font-black text-cyan-400">ANYDESK</span>
+                            </div>
+                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-amber-500/30 shadow-[0_4px_20px_rgba(245,158,11,0.1)]">
+                                <span className="text-slate-500 text-[10px] font-bold uppercase block mb-2 tracking-wider">Total Assets Saved</span>
+                                <span className="text-3xl font-black text-amber-400">₹4,20,000</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-emerald-950/30 border border-emerald-500/20 p-5 rounded-xl mb-10 max-w-lg mx-auto">
+                            <p className="text-emerald-200 text-sm leading-relaxed">
+                                🔒 <span className="font-bold">Summary:</span> Vikram tried to use AnyDesk to take control and steal money. By clicking Abort, you successfully saved your entire account balance of <span className="text-emerald-400 font-bold">₹4,20,000</span> from being stolen!
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => { console.log('Continue investigation clicked'); completeLevel(true, 80, 0); }}
+                            className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black px-14 py-4 rounded-xl text-lg tracking-widest transition-all shadow-[0_8px_30px_rgba(16,185,129,0.3)] active:scale-95 hover:shadow-[0_12px_40px_rgba(16,185,129,0.4)] pointer-events-auto"
+                        >
+                            🎯 CONTINUE INVESTIGATION
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <div className="max-w-2xl text-center">
@@ -477,7 +606,7 @@ const Level6 = () => {
                             setTimeLeft(45);
                             setAnydeskProgress(0);
                         }}
-                        className="bg-slate-800 hover:bg-slate-700 text-white font-black px-12 py-4 rounded-xl text-lg tracking-widest transition-all border border-slate-700"
+                        className="bg-slate-800 hover:bg-slate-700 text-white font-black px-12 py-4 rounded-xl text-lg tracking-widest transition-all border border-slate-700 pointer-events-auto"
                     >
                         TRY AGAIN
                     </button>
@@ -489,9 +618,20 @@ const Level6 = () => {
     const DetectiveBoard = () => {
         if (!showDetectiveBoard) return null;
 
+        // Filter cluesFound to only include clues that exist in CLUE_DATA
+        const validCluesFound = cluesFound.filter(id => CLUE_DATA.some(c => c.id === id));
+        const clueCount = validCluesFound.length;
+
+        const getPos = (i) => {
+            const grid = [
+                { x: 140, y: 180 }, { x: 380, y: 180 }, { x: 140, y: 340 }, { x: 380, y: 340 }, { x: 260, y: 480 }
+            ];
+            return grid[i % grid.length];
+        };
+
         return (
             <div
-                className="absolute inset-y-8 right-8 w-[600px] bg-amber-100 rounded-lg shadow-[-20px_0_50px_rgba(0,0,0,0.8)] z-[200] p-8 flex flex-col border-[16px] border-[#5c3a21] animate-[slideLeft_0.3s_ease-out] overflow-hidden"
+                className="fixed inset-y-8 right-8 w-[600px] bg-amber-100 rounded-lg shadow-[-20px_0_50px_rgba(0,0,0,0.8)] z-[9998] p-8 flex flex-col border-[16px] border-[#5c3a21] overflow-hidden"
                 style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`,
                     backgroundColor: '#e6c280'
@@ -499,88 +639,84 @@ const Level6 = () => {
             >
                 {/* Draw Red Strings Between Discovered Clues */}
                 <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                    {cluesFound.map((clueId, idx) => {
+                    {validCluesFound.map((clueId, idx) => {
                         if (idx > 0) {
-                            // Pseudo-random deterministic placement based on index length
-                            const getPos = (i) => {
-                                const grid = [
-                                    { x: 140, y: 160 }, { x: 380, y: 200 }, { x: 150, y: 380 }, { x: 380, y: 400 }, { x: 260, y: 550 }, { x: 200, y: 280 }
-                                ];
-                                return { x: grid[i % grid.length].x + (i * 5), y: grid[i % grid.length].y + (i * 3) };
-                            };
-                            const prev = getPos(idx - 1);
-                            const curr = getPos(idx);
-                            return <line key={`line-${idx}`} x1={prev.x} y1={prev.y} x2={curr.x} y2={curr.y} stroke="rgba(220,38,38,0.8)" strokeWidth="3" style={{ filter: 'drop-shadow(2px 4px 2px rgba(0,0,0,0.5))' }} />
+                            const clueIdx = CLUE_DATA.findIndex(c => c.id === clueId);
+                            const prevClueIdx = CLUE_DATA.findIndex(c => c.id === validCluesFound[idx - 1]);
+                            if (clueIdx === -1 || prevClueIdx === -1) return null;
+                            const prev = getPos(prevClueIdx);
+                            const curr = getPos(clueIdx);
+                            return <line key={`line-${idx}`} x1={prev.x} y1={prev.y} x2={curr.x} y2={curr.y} stroke="rgba(220,38,38,0.8)" strokeWidth="3" style={{ filter: 'drop-shadow(2px 4px 2px rgba(0,0,0,0.5))' }} />;
                         }
                         return null;
                     })}
                 </svg>
 
                 {/* Header Label */}
-                <div className="flex justify-between items-center mb-6 z-10 bg-white p-3 rounded-sm shadow-md transform -rotate-2 border border-stone-300 self-start">
+                <div className="flex justify-between items-center mb-4 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-sm shadow-md transform -rotate-2 border border-stone-300 self-start">
                     <h2 className="text-2xl font-black text-stone-800 uppercase tracking-widest font-mono">
                         📌 INVESTIGATION BOARD
                     </h2>
-                    <button className="text-red-600 hover:text-red-800 font-black text-2xl ml-6" onClick={() => setShowDetectiveBoard(false)}>✖</button>
+                    <button className="text-red-600 hover:text-red-800 font-black text-2xl ml-6 transition-colors" onClick={() => setShowDetectiveBoard(false)}>✖</button>
                 </div>
 
-                {/* Clue Polaroids */}
-                {cluesFound.map((clueId, idx) => {
-                    const clue = CLUE_DATA.find(c => c.id === clueId);
-                    const getPos = (i) => {
-                        const grid = [
-                            { x: 140, y: 160 }, { x: 380, y: 200 }, { x: 150, y: 380 }, { x: 380, y: 400 }, { x: 260, y: 550 }, { x: 200, y: 280 }
-                        ];
-                        return { x: grid[i % grid.length].x + (i * 5), y: grid[i % grid.length].y + (i * 3) };
-                    };
+                {/* Clue Polaroids - scattered on board */}
+                {CLUE_DATA.map((clue, idx) => {
+                    const found = validCluesFound.includes(clue.id);
                     const pos = getPos(idx);
 
                     return (
                         <div
-                            key={clueId}
-                            className="absolute bg-yellow-50 p-4 shadow-xl w-48 border border-yellow-200 z-10 flex flex-col"
+                            key={clue.id}
+                            className={`absolute bg-yellow-50 p-4 shadow-xl w-44 border z-10 flex flex-col transition-all duration-300 ${found ? 'border-yellow-200 opacity-100 shadow-[0_8px_25px_rgba(0,0,0,0.3)]' : 'border-stone-300 opacity-30 grayscale'}`}
                             style={{
-                                left: pos.x - 96,
+                                left: pos.x - 88,
                                 top: pos.y - 48,
                                 transform: `rotate(${(idx % 2 === 0 ? -1 : 1) * ((idx * 2) % 6 + 2)}deg)`
                             }}
                         >
                             {/* Red Pin Head */}
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-600 shadow-[2px_4px_4px_rgba(0,0,0,0.5)] border border-red-800 flex items-center justify-center">
+                            <div className={`absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-[2px_4px_4px_rgba(0,0,0,0.5)] border flex items-center justify-center ${found ? 'bg-red-600 border-red-800' : 'bg-stone-400 border-stone-500'}`}>
                                 <div className="w-2 h-2 rounded-full bg-white/40 absolute top-0.5 right-1"></div>
                             </div>
-                            {/* Pin connection circle for SVG line visually */}
-                            <div className="absolute top-0 left-1/2 w-2 h-2 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                            <h4 className="font-bold text-red-800 tracking-wider mb-2 text-sm leading-tight border-b-2 border-red-800/20 pb-2 uppercase">{clue.name}</h4>
-                            <p className="text-xs text-stone-700 font-mono leading-tight">{clue.description}</p>
-                            <span className="text-[10px] text-emerald-600 font-bold mt-2">+{clue.points} PTS</span>
+                            <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b-2 border-red-800/20 pb-2 uppercase">{clue.name}</h4>
+                            {found ? (
+                                <>
+                                    <p className="text-[10px] text-stone-700 font-mono leading-tight">{clue.description}</p>
+                                    <span className="text-[10px] text-emerald-600 font-bold mt-2">+{clue.points} PTS</span>
+                                </>
+                            ) : (
+                                <p className="text-[10px] text-stone-500 italic">???</p>
+                            )}
                         </div>
                     );
                 })}
 
-                {cluesFound.length === 0 && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-700/50 text-center font-mono font-bold text-2xl rotate-[-5deg] border-4 border-dashed border-stone-700/30 p-8 rounded-xl z-0 pointer-events-none">
-                        SEARCH THE ROOM AND<br />CLICK SUSPICIOUS ITEMS.
-                    </div>
-                )}
-
                 {/* Footer Suspicion Meter */}
-                <div className="absolute bottom-6 left-6 right-6 bg-zinc-900 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-10 border-2 border-zinc-700">
-                    <h3 className="text-xs text-zinc-400 uppercase font-mono mb-2 flex justify-between">
-                        <span>Threat Intelligence Meter</span>
-                        <span style={{ color: cluesFound.length >= 3 ? '#22c55e' : '#eab308' }}>{cluesFound.length}/6 CLUES</span>
+                <div className="absolute bottom-6 left-6 right-6 bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-10 border-2 border-zinc-700">
+                    <h3 className="text-xs text-zinc-400 uppercase font-mono mb-2 flex justify-between tracking-wider">
+                        <span className="flex items-center gap-2">
+                            <span className={`w-1.5 h-1.5 rounded-full ${clueCount >= 3 ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
+                            Threat Intelligence Meter
+                        </span>
+                        <span style={{ color: clueCount >= 3 ? '#22c55e' : '#eab308' }}>{clueCount}/5 CLUES</span>
                     </h3>
                     <div className="w-full h-4 bg-zinc-950 rounded-full overflow-hidden shadow-inner">
                         <div
-                            className="h-full transition-all duration-500"
+                            className="h-full transition-all duration-500 rounded-full"
                             style={{
-                                width: `${(cluesFound.length / 6) * 100}%`,
-                                backgroundColor: cluesFound.length >= 3 ? '#22c55e' : '#eab308'
+                                width: `${(clueCount / 5) * 100}%`,
+                                background: clueCount >= 3
+                                    ? 'linear-gradient(90deg, #22c55e, #10b981)'
+                                    : 'linear-gradient(90deg, #eab308, #f59e0b)',
+                                boxShadow: clueCount >= 3
+                                    ? '0 0 12px rgba(34,197,94,0.5)'
+                                    : '0 0 8px rgba(234,179,8,0.4)'
                             }}
                         ></div>
                     </div>
-                    {cluesFound.length >= 3 && (
+                    {clueCount >= 3 && (
                         <p className="text-emerald-400 text-[10px] mt-2 font-bold uppercase tracking-widest text-center animate-pulse">AUTHORIZATION TO HANG UP GRANTED</p>
                     )}
                 </div>
@@ -666,15 +802,6 @@ const Level6 = () => {
                             <div className="w-1.5 h-full bg-blue-500/80 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
                             <div className="w-1 h-full bg-emerald-500/80 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                             <div className="w-1.5 h-full bg-amber-500/80 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-
-                            {/* Visual Clue: Modem Info */}
-                            <div
-                                onClick={(e) => { e.stopPropagation(); handleClueClick('modem_info'); }}
-                                className={`absolute -right-8 top-1 p-1 bg-zinc-800 border-2 shadow-xl cursor-help z-50 pointer-events-auto transition-transform hover:scale-110 ${cluesFound.includes('modem_info') ? 'border-emerald-500 ring-4 ring-emerald-500/30' : 'border-amber-500/80 ring-1 ring-amber-500/50 animate-pulse'}`}
-                            >
-                                <div className="text-[6px] text-green-400 font-mono tracking-widest font-black">ANYDESK_IP</div>
-                                <div className="text-[5px] text-zinc-300 font-bold border-t border-zinc-600 mt-1 pt-0.5">192.168.1.45</div>
-                            </div>
                         </div>
                     </div>
 
@@ -696,6 +823,20 @@ const Level6 = () => {
                             <div className="w-full h-[8px] bg-[#9c5525] shadow-sm"></div>
                         </div>
                     ))}
+
+                    {/* MODEM / ROUTER on top of right bookshelf — decoration only */}
+                    <div
+                        className="absolute z-20"
+                        style={{ left: 960, top: 20, width: 80, height: 30 }}
+                    >
+                        <div className="w-full h-full bg-zinc-800 rounded border-2 border-zinc-700 flex items-center justify-between px-2 shadow-lg">
+                            <div className="flex gap-1">
+                                <div className="w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_6px_orange] animate-pulse" />
+                                <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_6px_green]" style={{ animationDelay: '0.5s' }} />
+                            </div>
+                            <div className="text-[5px] text-zinc-400 font-mono font-bold">ROUTER</div>
+                        </div>
+                    </div>
 
                     {/* THE PREMIUM L-SHAPED DESK (Veneer Walnut) */}
                     <div className="absolute z-10" style={{ left: 300, top: 450, width: 400, height: 250 }}>
@@ -774,9 +915,10 @@ const Level6 = () => {
             {isPhoneOpen && gameState === 'browser_timeout' && <BrowserTimeoutScreen />}
             {isPhoneOpen && gameState === 'google' && <GoogleSearchUI />}
             {isPhoneOpen && (gameState === 'phone_call' || gameState === 'anydesk_countdown') && <PhoneCallUI />}
-            {gameState === 'anydesk_countdown' && <CountdownUI />}
+            {gameState === 'anydesk_countdown' && renderCountdownUI()}
+            <VerifyIdentityPanel />
             {gameState === 'mini_challenge' && <MiniChallengeUI />}
-            {gameState === 'outcome' && <OutcomeUI />}
+            {gameState === 'outcome' && renderOutcomeUI()}
 
             {/* ═══ DETECTIVE BOARD & TOGGLE ═══ */}
             <DetectiveBoard />

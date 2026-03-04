@@ -1,750 +1,697 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameState } from '../context/GameStateContext';
 
-// ═══ CONSTANTS ═══
+// ═══ CLUE DATA ═══
 const CLUE_DATA = [
-    {
-        id: 'secure_net_props',
-        name: 'SBI_SecureNet Properties',
-        description: 'BSSID prefix E4:FA proves it\'s a mobile hotspot, not a commercial router. Banks don\'t host open Wi-Fi.',
-        points: 25
-    },
-    {
-        id: 'wifi_card',
-        name: 'Brew & Bond Credentials',
-        description: 'BrewConnect_Guest is the only authorized network. The password confirms encryption is active.',
-        points: 15
-    },
-    {
-        id: 'hacker_corner',
-        name: 'The Honeypot Hacker',
-        description: 'A malicious operator using portable radio equipment and a packet-sniffing terminal to hijack traffic.',
-        points: 30
-    },
-    {
-        id: 'customer_screen',
-        name: 'MITM Intercept Demo',
-        description: 'Connecting to open Wi-Fi allows hackers to "strip" SSL security, capturing plaintext banking data.',
-        points: 20
-    },
-    {
-        id: 'mobile_data',
-        name: '4G Data Security',
-        description: 'Direct tower-to-device encryption. Mobile data is thousands of times safer for finance than public Wi-Fi.',
-        points: 15
-    },
-    {
-        id: 'vpn_clue',
-        name: 'The VPN Shield',
-        description: 'A Virtual Private Network creates a military-grade encrypted tunnel over any untrusted connection.',
-        points: 15
-    }
+    { id: 'secure_net_props', name: 'SBI_SecureNet Properties', desc: 'BSSID prefix E4:FA:C4 — identified as a mobile phone hotspot, NOT a commercial router. Banks never host open Wi-Fi in public spaces.', points: 25, icon: '📡' },
+    { id: 'wifi_card', name: 'Brew & Bond Wi-Fi Card', desc: 'The café\'s only official network is BrewConnect_Guest with WPA2 encryption. Password: coffee2024.', points: 15, icon: '📋' },
+    { id: 'hacker_corner', name: 'Suspicious Customer (Hacker)', desc: 'Laptop running network monitoring tools. A portable router hidden in his backpack is broadcasting SBI_SecureNet.', points: 30, icon: '🕵️' },
+    { id: 'customer_screen', name: 'Victim\'s Screen (MITM Demo)', desc: 'Her banking URL shows http:// instead of https://. The hacker is silently capturing her login credentials.', points: 20, icon: '💻' },
+    { id: 'mobile_data', name: '4G Mobile Data Safety', desc: 'Mobile data uses direct tower-to-device encryption. It is the safest option for banking in public places.', points: 10, icon: '📶' },
+    { id: 'vpn_clue', name: 'VPN Protection', desc: 'A VPN encrypts all traffic even on public Wi-Fi. If you must use public Wi-Fi, always enable VPN first.', points: 10, icon: '🛡️' },
+];
+
+const NETWORKS = [
+    { id: 'brew_connect', name: 'BrewConnect_Guest', signal: 3, locked: true, security: 'WPA2-PSK (AES-256)', mac: '00:1A:2B:3C:4D:5E', created: 'Router — Active 2+ years', desc: 'Official café network. Password protected with WPA2 encryption.', safe: true },
+    { id: 'sbi_secure', name: 'SBI_SecureNet', signal: 4, locked: false, security: 'NONE (Open Network)', mac: 'E4:FA:C4:29:11:AB — Mobile Hotspot', created: 'Today, 09:47 AM (2 hours ago)', desc: 'Banks do NOT set up Wi-Fi networks in public spaces. This is a honeypot trap.', safe: false },
+    { id: 'android_hotspot', name: 'AndroidHotspot_7291', signal: 1, locked: true, security: 'WPA2-PSK', mac: 'A0:B1:C2:D3:E4:F5', created: 'Personal device', desc: 'A customer\'s personal mobile hotspot. Low signal.', safe: true },
+    { id: 'bsnl_fiber', name: 'BSNL_Fiber_Home42', signal: 1, locked: true, security: 'WPA2-PSK', mac: '00:FF:AA:BB:CC:DD', created: 'Router — Residential', desc: 'A home router from the building above. Very faint signal.', safe: true },
 ];
 
 const Level7 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
 
-    // ═══ STATE ═══
-    const [gameState, setGameState] = useState('cafe'); // cafe, radar, outcome
+    const [gameState, setGameState] = useState('cafe');
     const [cluesFound, setCluesFound] = useState([]);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
-    const [showDetectiveBoard, setShowDetectiveBoard] = useState(false);
     const [activeNetwork, setActiveNetwork] = useState(null);
-    const [outcomeType, setOutcomeType] = useState(null); // 'victory' or 'scam'
-    const [hoveredClue, setHoveredClue] = useState(null);
-    const [hackerPanelOpen, setHackerPanelOpen] = useState(false);
+    const [outcomeType, setOutcomeType] = useState(null);
+    const [activeCluePanel, setActiveCluePanel] = useState(null);
+    const [showCluesSidebar, setShowCluesSidebar] = useState(false);
 
-    // ═══ HELPERS ═══
     const showFeedback = (msg, color = 'cyan') => {
         setFeedbackMsg({ text: msg, color });
         setTimeout(() => setFeedbackMsg(null), 3500);
     };
 
     const handleClueClick = (clueId) => {
-        if (cluesFound.includes(clueId)) return;
+        if (cluesFound.includes(clueId)) {
+            setActiveCluePanel(clueId);
+            return;
+        }
         const clue = CLUE_DATA.find(c => c.id === clueId);
         setCluesFound(prev => [...prev, clueId]);
-        showFeedback(`ANALYZED CLUE: ${clue.name} (+${clue.points} pts)`, 'emerald');
+        setActiveCluePanel(clueId);
+        showFeedback(`🔍 CLUE FOUND: ${clue.name} (+${clue.points} pts)`, 'emerald');
     };
 
     const handleFinalChoice = (choice) => {
         if (choice === 'sbi_secure') {
             setOutcomeType('scam');
             setGameState('outcome');
-        } else {
+        } else if (choice === 'safe') {
             if (cluesFound.length >= 3) {
                 setOutcomeType('victory');
                 setGameState('outcome');
             } else {
-                showFeedback("I need more evidence before trusting any connection...", "orange");
+                showFeedback("Collect at least 3 clues before making your decision!", 'orange');
             }
         }
     };
 
-    // ═══ RENDER COMPONENTS ═══
-
-    const RadarBubble = ({ id, name, signal, locked, x, y, size = 140 }) => (
-        <div
-            className="absolute flex flex-col items-center justify-center cursor-pointer group transition-all duration-500 hover:scale-110 active:scale-90 z-20"
-            style={{ left: x, top: y, width: size, height: size }}
-            onClick={() => {
-                setActiveNetwork(id);
-                if (id === 'sbi_secure') handleClueClick('secure_net_props');
-            }}
-        >
-            <div className={`w-full h-full rounded-full border-2 flex items-center justify-center relative transition-all duration-700 ${activeNetwork === id
-                    ? 'border-cyan-400 bg-cyan-400/20 shadow-[0_0_40px_rgba(34,211,238,0.4)]'
-                    : 'border-slate-800 bg-slate-900/10 group-hover:border-slate-500 group-hover:bg-slate-800/20'
-                }`}>
-                {/* Sonar Pulse */}
-                <div className="absolute inset-0 rounded-full border border-cyan-400/30 animate-ping" />
-                <div className="absolute inset-10 rounded-full border border-cyan-400/15 animate-[ping_4s_infinite]" />
-
-                <div className={`text-4xl transition-all duration-500 ${activeNetwork === id ? 'scale-125' : 'group-hover:grayscale-0 grayscale opacity-40 group-hover:opacity-100'}`}>
-                    {locked ? '🔒' : '🔓'}
-                </div>
-
-                <div className={`absolute -bottom-12 px-5 py-2 rounded-xl border-2 backdrop-blur-md transition-all duration-500 ${activeNetwork === id
-                        ? 'bg-cyan-600 border-cyan-400 shadow-xl text-white'
-                        : 'bg-slate-900/80 border-slate-700 text-slate-500 group-hover:text-slate-200'
-                    }`}>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] whitespace-nowrap">{name}</span>
-                </div>
-            </div>
-
-            <div className="mt-16 flex gap-1.5 h-4 items-end">
-                {[...Array(4)].map((_, i) => (
-                    <div
-                        key={i}
-                        className={`w-1.5 rounded-full transition-all duration-500 ${i < signal ? (id === 'sbi_secure' ? 'bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]') : 'bg-slate-800'}`}
-                        style={{ height: `${(i + 1) * 25}%` }}
-                    />
-                ))}
-            </div>
+    // ═══════════════════════════════════════
+    // FEEDBACK TOAST
+    // ═══════════════════════════════════════
+    const FeedbackToast = () => feedbackMsg && (
+        <div className={`fixed top-8 left-1/2 -translate-x-1/2 py-4 px-8 rounded-2xl shadow-2xl z-[600] animate-in slide-in-from-top duration-500 font-black tracking-wider text-sm flex items-center gap-3 border backdrop-blur-xl ${feedbackMsg.color === 'emerald' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' :
+            feedbackMsg.color === 'orange' ? 'bg-amber-950/90 border-amber-500/50 text-amber-200' :
+                'bg-cyan-950/90 border-cyan-500/50 text-cyan-200'
+            }`}>
+            <div className={`w-3 h-3 rounded-full animate-pulse ${feedbackMsg.color === 'emerald' ? 'bg-emerald-400' :
+                feedbackMsg.color === 'orange' ? 'bg-amber-400' : 'bg-cyan-400'
+                }`} />
+            {feedbackMsg.text}
         </div>
     );
 
-    const RadarMap = () => (
-        <div className="absolute inset-0 bg-[#040712] overflow-hidden flex items-center justify-center font-sans animate-in fade-in zoom-in-110 duration-1000">
-            {/* ═══ PREMIUM SONAR ENGINE ═══ */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {[...Array(8)].map((_, i) => (
-                    <div
-                        key={i}
-                        className="absolute rounded-full border-t border-cyan-500/5 border-l border-cyan-500/5"
-                        style={{ width: (i + 1) * 200, height: (i + 1) * 200, opacity: 1 - (i * 0.1) }}
-                    />
-                ))}
-                {/* Moving Sonar Beam */}
-                <div className="absolute w-[1000px] h-[1000px] bg-conic-gradient from-cyan-500/10 via-transparent to-transparent animate-[spin_4s_linear_infinite]" />
-
-                {/* Data Grid Overlay */}
-                <div className="absolute inset-0 opacity-[0.02] mix-blend-screen" style={{
-                    backgroundImage: 'linear-gradient(rgba(34,211,238,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.5) 1px, transparent 1px)',
-                    backgroundSize: '40px 40px'
-                }} />
+    // ═══════════════════════════════════════
+    // CLUES SIDEBAR (compact)
+    // ═══════════════════════════════════════
+    const CluesSidebar = () => (
+        <div className={`fixed right-0 top-0 bottom-0 w-[340px] bg-slate-950/95 backdrop-blur-xl border-l border-white/10 z-[400] transform transition-transform duration-500 flex flex-col ${showCluesSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+                <div>
+                    <h3 className="text-white font-black text-lg uppercase tracking-wider">Evidence Found</h3>
+                    <p className="text-slate-500 text-xs font-bold mt-1">{cluesFound.length} / {CLUE_DATA.length} clues</p>
+                </div>
+                <button onClick={() => setShowCluesSidebar(false)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-all">✕</button>
             </div>
-
-            {/* Scanning Centerpiece */}
-            <div className="relative z-10 flex flex-col items-center">
-                <div className="w-24 h-24 bg-gradient-to-br from-cyan-600 to-indigo-900 rounded-[35%] flex items-center justify-center shadow-[0_0_100px_rgba(34,211,238,0.4)] border-4 border-white animate-[pulse_3s_infinite] rotate-12">
-                    <span className="text-4xl -rotate-12">📱</span>
-                </div>
-                <div className="mt-6 px-6 py-2 bg-cyan-950/80 backdrop-blur-md border border-cyan-400/30 rounded-full shadow-2xl">
-                    <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.5em] animate-pulse">Scanning Bio-Session</span>
-                </div>
-            </div>
-
-            <RadarBubble id="brew_connect" name="BrewConnect_Guest_Enc" signal={4} locked={true} x="65%" y="15%" />
-            <RadarBubble id="sbi_secure" name="SBI_ATM_GUEST" signal={4} locked={false} x="10%" y="30%" size={180} />
-            <RadarBubble id="android_hotspot" name="OPPO_F21_Pro" signal={1} locked={true} x="80%" y="70%" />
-            <RadarBubble id="bsnl_fiber" name="BSNL_HighSpeed_92" signal={2} locked={true} x="12%" y="75%" />
-
-            {/* NETWORK INSPECTOR PANEL */}
-            {activeNetwork && (
-                <div className="absolute top-10 bottom-10 right-10 w-[400px] bg-slate-900/90 backdrop-blur-3xl border-l border-white/10 p-12 rounded-[50px] shadow-[0_0_150px_rgba(0,0,0,1)] flex flex-col animate-in slide-in-from-right-20 duration-700">
-                    <div className="flex justify-between items-center mb-12">
-                        <div className="flex flex-col">
-                            <span className="text-cyan-400 font-black tracking-[0.3em] text-[10px] uppercase mb-1">Packet Intel</span>
-                            <h3 className="text-white font-black text-2xl uppercase tracking-tighter">Session Audit</h3>
-                        </div>
-                        <button onClick={() => setActiveNetwork(null)} className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all">
-                            <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                    </div>
-
-                    <div className="flex-1 space-y-10">
-                        <div className="bg-white/5 p-6 rounded-3xl border border-white/5 shadow-inner">
-                            <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Network SSID</label>
-                            <div className="text-xl text-white font-black font-mono tracking-tight">
-                                {activeNetwork === 'sbi_secure' ? 'SBI_ATM_GUEST' : activeNetwork === 'brew_connect' ? 'BrewConnect_Guest' : 'PRIVATE_NODE'}
-                            </div>
-                        </div>
-
-                        <div className="bg-white/5 p-6 rounded-3xl border border-white/5 shadow-inner">
-                            <label className="text-[10px] text-slate-500 uppercase font-black mb-2 block tracking-widest">Protocol Type</label>
-                            <div className={`text-sm font-black tracking-widest uppercase flex items-center gap-3 ${activeNetwork === 'sbi_secure' ? 'text-red-500' : 'text-emerald-500'
-                                }`}>
-                                {activeNetwork === 'sbi_secure' ? '⚠️ OPEN / UNENCRYPTED' : '🛡️ WPA2 AES-256'}
-                            </div>
-                        </div>
-
-                        {activeNetwork === 'sbi_secure' && (
-                            <div className="bg-red-500/10 border-2 border-red-500/20 p-8 rounded-[40px] space-y-4 animate-pulse">
-                                <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.3em] block">Technical Anomaly</span>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-[11px] font-mono text-slate-300">
-                                        <span>BSSID PREFIX:</span>
-                                        <span className="text-red-400 font-black">E4:FA:C4 (Mobile)</span>
-                                    </div>
-                                    <div className="flex justify-between text-[11px] font-mono text-slate-300">
-                                        <span>CHANNEL:</span>
-                                        <span className="text-red-400 font-black">Adaptive 2.4GHz</span>
-                                    </div>
-                                </div>
-                                <p className="text-[11px] text-red-100/60 italic leading-relaxed font-medium">
-                                    "Confirmed: Signal behavior mirrors a mobile device personal hotspot. High probability of rogue actor interception."
-                                </p>
-                            </div>
-                        )}
-
-                        <div className="mt-auto pt-10">
-                            <button
-                                onClick={() => handleFinalChoice(activeNetwork)}
-                                className={`w-full py-6 rounded-3xl font-black uppercase tracking-[0.3em] text-xs shadow-3xl transition-all active:scale-95 ${activeNetwork === 'sbi_secure'
-                                        ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-900/40'
-                                        : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/40'
-                                    }`}
-                            >
-                                {activeNetwork === 'sbi_secure' ? 'Force Security Login' : 'Tunnel Through Network'}
-                            </button>
-                            <p className="mt-5 text-center text-[10px] text-slate-500 uppercase font-black tracking-[0.2em] opacity-40 italic">
-                                Encryption Handshake Required: {activeNetwork === 'sbi_secure' ? 'DISABLED' : 'READY'}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <button
-                onClick={() => setGameState('cafe')}
-                className="absolute top-12 left-12 bg-white/5 backdrop-blur-3xl border border-white/10 px-10 py-4 rounded-[30px] text-[11px] font-black tracking-[0.3em] text-white hover:bg-white/15 transition-all flex items-center gap-4 group shadow-2xl"
-            >
-                <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center group-hover:-translate-x-1 transition-transform">←</div>
-                EXIT SCANNER
-            </button>
-        </div>
-    );
-
-    const CafeScene = () => (
-        <div className="absolute inset-0 bg-[#2d1b10] overflow-hidden animate-in fade-in duration-[1500ms]">
-
-            {/* ═══ VOLUMETRIC GOD RAYS (Premium Lighting) ═══ */}
-            <div className="absolute inset-x-0 top-0 h-full z-[5] pointer-events-none overflow-hidden opacity-30">
-                <div className="absolute -top-[100px] left-[15%] w-[300px] h-[1200px] bg-gradient-to-b from-amber-400/40 to-transparent skew-x-[-25deg] blur-[80px]" />
-                <div className="absolute -top-[100px] left-[55%] w-[400px] h-[1200px] bg-gradient-to-b from-amber-400/30 to-transparent skew-x-[-25deg] blur-[120px]" />
-            </div>
-
-            {/* Ceiling Vitality: Fan Component */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 z-20 w-80 h-40 flex flex-col items-center">
-                <div className="w-2 h-20 bg-zinc-900 border-x border-zinc-950" />
-                <div className="relative w-96 h-96 -translate-y-1/2 animate-[spin_10s_linear_infinite]">
-                    {[0, 120, 240].map(deg => (
-                        <div key={deg} className="absolute top-1/2 left-1/2 w-48 h-10 bg-zinc-900/90 border-r-8 border-black origin-left rounded-r-3xl" style={{ transform: `rotate(${deg}deg) translateY(-50%)` }} />
-                    ))}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-zinc-800 rounded-full border-4 border-zinc-950 shadow-2xl" />
-                </div>
-            </div>
-
-            {/* Environment Art Base */}
-            <div className="absolute inset-x-0 bottom-0 h-[45%] bg-[#120a06]" style={{
-                backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 45px, rgba(255,200,100,0.01) 45px, rgba(255,200,100,0.01) 46px)'
-            }} />
-
-            <div className="absolute inset-0 z-0 opacity-20" style={{
-                backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 38px, #000 38px, #000 40px), repeating-linear-gradient(90deg, transparent, transparent 78px, #000 78px, #000 80px)',
-                backgroundSize: '80px 40px'
-            }} />
-
-            {/* Panoramic Windows with outside street blur */}
-            <div className="absolute left-[8%] top-0 bottom-[45%] w-[38%] bg-blue-950/20 border-x-[20px] border-b-[20px] border-[#1a100a] shadow-[inset_0_0_120px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-blue-400/5 to-black/40" />
-                <div className="absolute bottom-10 left-12 w-48 h-32 bg-yellow-400/10 blur-[60px] animate-pulse" />
-                {/* Indoor Plant Silhouette */}
-                <div className="absolute bottom-0 left-0 w-32 h-64 bg-zinc-950/40 rounded-t-[50%] blur-sm animate-[bounce_10s_infinite]" />
-            </div>
-            <div className="absolute right-[8%] top-0 bottom-[45%] w-[38%] bg-blue-950/20 border-x-[20px] border-b-[20px] border-[#1a100a] shadow-[inset_0_0_120px_rgba(0,0,0,1)]" />
-
-            {/* Counter Section with Barista */}
-            <div className="absolute bottom-0 right-0 w-[44%] h-1/2 bg-gradient-to-t from-[#121214] to-[#2d1b10] border-l-[16px] border-t-[16px] border-[#1a100a] shadow-[-30px_0_150px_rgba(0,0,0,1)] flex flex-col items-center">
-                <div className="absolute -top-36 left-16 w-48 h-80 flex flex-col items-center animate-[pulse_4s_infinite]">
-                    <div className="w-20 h-20 bg-zinc-950 rounded-full border-4 border-white/5 shadow-2xl" />
-                    <div className="w-36 h-52 bg-gradient-to-t from-black via-zinc-900 to-zinc-950 mt-2 rounded-t-[60px] shadow-2xl relative">
-                        {/* Barista Apron Detail */}
-                        <div className="absolute top-0 inset-x-8 bottom-0 bg-emerald-950/40 border-x-2 border-black/20" />
-                    </div>
-                </div>
-                {/* Premium Pastry Case */}
-                <div className="w-[85%] h-56 bg-white/5 backdrop-blur-xl border-2 border-white/10 m-8 rounded-[40px] relative overflow-hidden flex flex-col justify-end p-8">
-                    <div className="flex gap-8 items-end">
-                        <div className="w-24 h-16 bg-amber-800/40 rounded-xl shadow-2xl border border-amber-500/10" />
-                        <div className="w-16 h-16 bg-orange-400/30 rounded-full shadow-2xl border border-white/5" />
-                        <div className="w-28 h-12 bg-white/20 rounded-xl shadow-2xl flex items-center justify-center text-[10px] font-black text-white/40 italic">FRESH_BAKE</div>
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent pointer-events-none" />
-                </div>
-            </div>
-
-            {/* ═══ THE HACKER (Deep Redesign: ROGUE UNIT) ═══ */}
-            <div
-                className="absolute left-[6%] bottom-[15%] w-72 h-[450px] cursor-pointer group z-10"
-                onClick={() => { handleClueClick('hacker_corner'); setHackerPanelOpen(true); }}
-                onMouseEnter={() => setHoveredClue('Threat Vector: Unauthorized Radio Unit')}
-                onMouseLeave={() => setHoveredClue(null)}
-            >
-                {/* Rogue Signal Aura (Threat Aura) */}
-                <div className="absolute inset-0 bg-red-600/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 animate-pulse" />
-
-                {/* Character Silhouette with detailed gear */}
-                <div className="absolute bottom-4 left-16 w-56 h-[400px] flex flex-col items-center group-hover:translate-y-[-10px] transition-transform duration-700">
-                    {/* Head shadow with glowing mask reflection */}
-                    <div className="w-20 h-20 bg-zinc-950 rounded-full animate-[pulse_5s_infinite] flex items-center justify-center">
-                        <div className="w-12 h-1 bg-cyan-400/20 shadow-[0_0_15px_rgba(34,211,238,0.5)] rounded-full blur-[1px] transform rotate-12" />
-                    </div>
-                    {/* Torso & Hoodie Art */}
-                    <div className="w-52 h-full bg-gradient-to-t from-black via-zinc-900 to-zinc-950 rounded-t-[100px] shadow-3xl relative overflow-hidden">
-                        {/* Backpack Router (The Clue) */}
-                        <div className="absolute bottom-6 left-0 right-0 h-40 bg-zinc-950 p-6 flex flex-col gap-3">
-                            <div className="flex justify-between">
-                                <div className="flex gap-1">
-                                    <div className="w-2 h-2 bg-red-600 rounded-full shadow-[0_0_8px_red] animate-pulse" />
-                                    <div className="w-2 h-2 bg-emerald-600 rounded-full opacity-30" />
-                                </div>
-                                <div className="text-[6px] text-cyan-400 font-mono tracking-widest opacity-40">RF_SNIFFER_v4</div>
-                            </div>
-                            <div className="w-full h-1 bg-zinc-800 rounded-full" />
-                            <div className="w-full h-1 bg-zinc-800 rounded-full" />
-                            <div className="w-3/4 h-1 bg-zinc-800 rounded-full" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Floating "Hacker HUD" Preview on Hover */}
-                <div className="absolute top-20 right-[-100px] w-60 bg-black/90 backdrop-blur-2xl border-2 border-red-500/20 p-5 rounded-[30px] shadow-2xl opacity-0 group-hover:opacity-100 transition-all duration-700 scale-90 group-hover:scale-100 pointer-events-none">
-                    <div className="flex justify-between items-center mb-3">
-                        <span className="text-red-500 font-black text-[9px] tracking-widest uppercase">Encryption Override</span>
-                        <div className="w-2 h-2 bg-red-600 rounded-full animate-ping" />
-                    </div>
-                    <div className="font-mono text-[8px] space-y-1 text-slate-400">
-                        <p className="text-emerald-400/60"># mac_changer --random...</p>
-                        <p># airodump-ng capture --bssid...</p>
-                        <p className="text-red-400">CRACKING HANDSHAKE... 88%</p>
-                        <div className="w-full h-1.5 bg-zinc-900 rounded-full mt-2">
-                            <div className="w-[88%] h-full bg-red-600 rounded-full animate-pulse" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* THE VICTIM: Dynamic Screen Detail */}
-            <div
-                className="absolute right-[46%] bottom-[12%] w-64 h-80 cursor-pointer group z-10"
-                onClick={() => handleClueClick('customer_screen')}
-                onMouseEnter={() => setHoveredClue('Victim Session: Monitoring Intercept')}
-                onMouseLeave={() => setHoveredClue(null)}
-            >
-                <div className="absolute bottom-0 w-48 h-72 bg-gradient-to-t from-black to-[#1a100a] rounded-t-[70px] shadow-3xl" />
-
-                {/* Advanced Laptop Asset */}
-                <div className="absolute bottom-36 -right-20 w-64 h-48 group-hover:scale-105 transition-transform duration-1000 origin-bottom-left z-20">
-                    <div className="absolute inset-x-0 bottom-[-10px] h-[10px] bg-zinc-900 rounded-full shadow-2xl" />
-                    <div className="absolute inset-0 bg-[#0c0c0e] border-[10px] border-zinc-900 rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
-                        <div className="h-10 bg-zinc-950 flex justify-between items-center px-6">
-                            <div className="text-[10px] text-red-500 font-black flex items-center gap-2 tracking-widest animate-pulse">
-                                <span className="w-2 h-2 bg-red-500 rounded-full" />
-                                INSECURE SESSION
-                            </div>
-                            <span className="text-[9px] text-zinc-500 font-mono">bank.sbi_yono.com</span>
-                        </div>
-                        <div className="flex-1 bg-white p-6 space-y-6">
-                            <div className="flex gap-4 items-center border-b border-slate-50 pb-4">
-                                <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🏦</div>
-                                <div className="space-y-2">
-                                    <div className="w-24 h-4 bg-slate-100 rounded-full" />
-                                    <div className="w-16 h-3 bg-slate-50 rounded-full" />
-                                </div>
-                            </div>
-                            <div className="w-full h-16 bg-indigo-500/10 border-2 border-indigo-500/50 rounded-2xl flex items-center justify-center animate-[pulse_2s_infinite]">
-                                <span className="text-indigo-600 font-black text-xs uppercase tracking-widest italic blur-[0.2px]">Sending OTP...</span>
-                            </div>
-                        </div>
-                        {/* Data Hijack Animation */}
-                        <div className="absolute inset-0 bg-red-600/0 group-hover:bg-red-600/15 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-1000 flex flex-col items-center justify-center p-8 select-none">
-                            <div className="w-full h-px bg-red-500 animate-bounce" />
-                            <span className="text-[12px] font-black text-red-700 bg-white shadow-2xl px-6 py-4 border-2 border-red-100 rounded-2xl rotate-2">PACKET LEAKED</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══ ULTIMATE PREMIUM SMARTPHONE (The Phone) ═══ */}
-            <div className="absolute bottom-0 left-[20%] right-[32%] h-[40%] bg-gradient-to-b from-[#e08e50] to-[#b86b35] border-t-[30px] border-[#a55a2a] shadow-[0_-80px_200px_rgba(0,0,0,0.95)] rounded-t-[60px] z-40 overflow-hidden">
-                {/* Surface texture */}
-                <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 15px, #000 15px, #000 16px)' }} />
-
-                {/* Mug & Coffee Detail */}
-                <div className="absolute left-[30%] -top-24 w-28 h-32 bg-[#faf9f6] rounded-b-[45px] border-x-[10px] border-stone-200 shadow-3xl flex flex-col items-center">
-                    <div className="absolute -top-4 inset-x-0 h-10 bg-amber-950/90 rounded-full blur-[2px] border-b-2 border-amber-950 shadow-inner" />
-                    <div className="absolute -top-24 flex gap-4">
-                        <div className="w-3 h-16 bg-white/20 blur-lg rounded-full animate-[bounce_3s_infinite]" />
-                        <div className="w-5 h-24 bg-white/10 blur-2xl rounded-full animate-[bounce_5s_infinite_1s]" />
-                    </div>
-                </div>
-
-                {/* THE PHONE UNIT: Hyper-realistic Mobile UI */}
-                <div
-                    className="absolute left-[50%] -top-12 flex flex-col items-center cursor-pointer group z-50 transform hover:translate-y-[-10px] transition-all duration-700"
-                    onClick={() => setGameState('radar')}
-                >
-                    {/* Device Case (iPhone Style) */}
-                    <div className="w-[190px] h-[360px] bg-[#0a0f1d] border-[12px] border-[#1e293b] rounded-[70px] shadow-[0_80px_160px_rgba(0,0,0,1)] relative overflow-hidden flex flex-col group-hover:shadow-cyan-950/40">
-                        {/* Notch Area */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-8 bg-[#1e293b] rounded-b-[30px] z-30 shadow-2xl" />
-
-                        {/* Status Bar */}
-                        <div className="pt-14 px-8 flex justify-between items-center z-20">
-                            <span className="text-[15px] text-white font-black tracking-tighter">11:45</span>
-                            <div className="flex gap-2.5 items-center">
-                                {/* Clue: Mobile Data (Encrypted tower) */}
-                                <div
-                                    className="flex gap-1 items-end h-[18px] group/data"
-                                    onClick={(e) => { e.stopPropagation(); handleClueClick('mobile_data'); }}
-                                >
-                                    {[...Array(4)].map((_, i) => <div key={i} className="w-[3px] bg-white rounded-full group-hover/data:bg-cyan-400 transition-colors" style={{ height: `${(i + 1) * 25}%`, opacity: cluesFound.includes('mobile_data') ? 1 : 0.4 }} />)}
-                                    <span className="text-[10px] text-white font-black tracking-tighter italic ml-0.5">4G</span>
-                                </div>
-                                <div className="w-10 h-[18px] border-2 border-white/20 rounded-[4px] relative p-0.5">
-                                    <div className="h-full bg-emerald-500 rounded-[2px]" style={{ width: '85%' }} />
-                                    <div className="absolute right-[-4px] top-1/2 -translate-y-1/2 w-1.5 h-2 bg-white/20 rounded-r-sm" />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* OS Desktop Content */}
-                        <div className="flex-1 bg-gradient-to-br from-[#1e1e3e] via-[#0a0f1d] to-black p-8 flex flex-col gap-8">
-                            {/* Urgent Notification */}
-                            <div className="bg-white/10 backdrop-blur-3xl p-6 rounded-[35px] border border-white/10 shadow-2xl animate-in zoom-in-90 duration-1000 relative">
-                                <div className="w-11 h-11 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-xl shadow-indigo-950/40 mb-4">🏦</div>
-                                <h4 className="text-[14px] text-white font-black tracking-tight leading-none uppercase">SBI Security</h4>
-                                <p className="text-[11px] text-white/50 mt-2 font-bold leading-tight">Verify recent ₹12,000 charge immediately.</p>
-                                <div className="absolute top-4 right-6 w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_red]" />
-                            </div>
-
-                            {/* Dock/Primary Launchers */}
-                            <div className="mt-auto grid grid-cols-2 gap-4">
-                                <div className="bg-white/5 backdrop-blur-3xl aspect-square rounded-[30px] flex items-center justify-center border border-white/5 text-2xl group-hover:scale-110 transition-all duration-500">
-                                    <div
-                                        className="animate-[pulse_2s_infinite]"
-                                        onClick={(e) => { e.stopPropagation(); setGameState('radar'); }}
-                                    >📡</div>
-                                </div>
-                                <div className="bg-white/5 backdrop-blur-3xl aspect-square rounded-[30px] flex items-center justify-center border border-white/5 text-2xl opacity-40">
-                                    🌐
-                                </div>
-                            </div>
-
-                            {/* Main CTA */}
-                            <button className="w-full bg-gradient-to-r from-cyan-600 to-indigo-700 text-white font-black py-6 rounded-[35px] text-[11px] uppercase tracking-[0.3em] shadow-[0_20px_40px_rgba(0,0,0,0.4)] animate-[pulse_3s_infinite] border border-white/20">
-                                Find Networks
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* THE VPN ARMOR ICON (Clue: Encrypted Tunnel) */}
-            <div
-                className="absolute left-[10%] bottom-[12%] w-28 h-28 bg-[#0a0a0c]/80 backdrop-blur-3xl border-2 border-slate-700/50 rounded-[40px] flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500 hover:shadow-[0_0_60px_rgba(34,211,238,0.2)] transition-all duration-700 group z-[60]"
-                onClick={() => handleClueClick('vpn_clue')}
-                onMouseEnter={() => setHoveredClue('Threat Mitigation: VPN Armor Plugin')}
-                onMouseLeave={() => setHoveredClue(null)}
-            >
-                <div className="text-5xl group-hover:scale-110 transition-transform duration-700">🛡️</div>
-                <div className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest group-hover:text-cyan-400">VPN_OFF</div>
-            </div>
-
-            {/* TABLE DECORATIONS */}
-            <div className="absolute right-[14%] bottom-[42%] w-36 h-28 bg-white shadow-2xl p-6 rounded-[4px] border-t-[12px] border-emerald-500 cursor-pointer hover:translate-y-[-10px] transition-all origin-bottom"
-                onClick={() => handleClueClick('wifi_card')}
-            >
-                <div className="text-[9px] font-black text-stone-900 border-b-2 border-slate-50 pb-3 mb-3 flex justify-between italic uppercase">
-                    <span>Brew & Bond</span>
-                    <span>v2.4</span>
-                </div>
-                <div className="space-y-2 opacity-60">
-                    <p className="text-[11px] font-black leading-none">BrewConnect</p>
-                    <p className="text-[11px] font-mono leading-none tracking-tighter">pass: coffee2024</p>
-                </div>
-            </div>
-
-            {/* HACKER INTEL OVERLAY */}
-            {hackerPanelOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/95 backdrop-blur-2xl animate-in fade-in duration-500">
-                    <div className="max-w-xl w-full bg-slate-900 border-2 border-red-500/30 p-16 rounded-[60px] shadow-[0_0_200px_rgba(239,68,68,0.1)]">
-                        <div className="text-center mb-12">
-                            <span className="text-red-500 text-[11px] font-black uppercase tracking-[0.6em] mb-4 block">Intelligence Insight</span>
-                            <h2 className="text-white text-5xl font-black mb-8 tracking-tighter italic uppercase">ROGUE_NODE_DETECTED</h2>
-                            <p className="text-slate-400 text-lg leading-relaxed italic font-medium">
-                                "This individual is operating a <span className="text-white underline decoration-red-500 underline-offset-8 decoration-4">Honeypot Attack</span>. He is currently waiting for unencrypted ARP handshakes to hijack financial sessions."
-                            </p>
-                        </div>
-
-                        <div className="space-y-6 mb-12 bg-black/40 p-8 rounded-[40px] border border-white/5">
-                            <div className="flex justify-between items-center text-sm border-b border-white/5 pb-4">
-                                <span className="text-slate-500 font-bold uppercase tracking-widest">Intercept Hardware</span>
-                                <span className="text-red-400 font-black italic tracking-widest uppercase">RADIO_SNIFFER_X2</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm border-b border-white/5 pb-4">
-                                <span className="text-slate-500 font-bold uppercase tracking-widest">Network Blueprint</span>
-                                <span className="text-red-400 font-black italic tracking-widest uppercase">Hotspot MAC Found</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-slate-500 font-bold uppercase tracking-widest">Session Vulnerability</span>
-                                <span className="text-red-400 font-black italic tracking-widest uppercase animate-pulse">SSL_EXFIL_READY</span>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => setHackerPanelOpen(false)}
-                            className="w-full bg-white text-black font-black py-8 rounded-[35px] uppercase tracking-[0.4em] text-sm hover:scale-[1.02] active:scale-95 transition-all shadow-2xl"
-                        >
-                            Log Threat Intelligence
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* GLOBAL HOVER TOOLTIP */}
-            {hoveredClue && !hackerPanelOpen && (
-                <div className="fixed bottom-16 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-cyan-500/50 px-12 py-5 rounded-full text-cyan-400 font-black tracking-[0.4em] text-[12px] uppercase shadow-[0_40px_100px_rgba(0,0,0,1)] z-[70] animate-in slide-in-from-bottom-5 duration-700 backdrop-blur-3xl">
-                    <span className="text-2xl mr-5 italic">🔍</span> {hoveredClue}
-                </div>
-            )}
-        </div>
-    );
-
-    const OutcomeUI = () => (
-        <div className="absolute inset-0 z-[200] bg-black flex flex-col items-center justify-center p-12">
-            {outcomeType === 'victory' ? (
-                <div className="max-w-5xl animate-in zoom-in-90 duration-1000 text-center font-sans tracking-tight">
-                    <div className="w-40 h-40 bg-emerald-500 rounded-[55px] flex items-center justify-center text-8xl mx-auto mb-16 shadow-[0_0_120px_rgba(16,185,129,0.4)] animate-bounce italic">🛡️</div>
-                    <h1 className="text-[100px] font-black text-white mb-12 tracking-tighter uppercase italic leading-none">THREAT_CLEARED</h1>
-                    <p className="text-4xl text-slate-300 leading-relaxed max-w-4xl mx-auto mb-20 italic font-medium opacity-80">
-                        "Your bank doesn't host open Wi-Fi in cafes. I refused the hotspot trap and secured the biometric session."
-                    </p>
-
-                    <div className="grid grid-cols-3 gap-12 mb-20 px-20">
-                        <div className="bg-slate-900 border border-emerald-500/30 p-12 rounded-[60px] shadow-3xl">
-                            <span className="text-slate-500 text-[12px] font-black uppercase tracking-[0.4em] block mb-4 italic">Intel Score</span>
-                            <span className="text-6xl font-black text-emerald-400 tracking-tighter shadow-emerald-500/20 shadow-glow">+150</span>
-                        </div>
-                        <div className="bg-slate-900 border border-indigo-500/30 p-12 rounded-[60px] shadow-3xl">
-                            <span className="text-slate-500 text-[12px] font-black uppercase tracking-[0.4em] block mb-4 italic">Medal Unlocked</span>
-                            <span className="text-2xl font-black text-indigo-400 uppercase tracking-tighter italic">Shield Master</span>
-                        </div>
-                        <div className="bg-slate-900 border border-cyan-500/30 p-12 rounded-[60px] shadow-3xl">
-                            <span className="text-slate-500 text-[12px] font-black uppercase tracking-[0.4em] block mb-4 italic">Network Status</span>
-                            <span className="text-4xl font-black text-cyan-400 uppercase tracking-tighter">VETTED_SAFE</span>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={() => completeLevel(true, 150, 0)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-24 py-10 rounded-[50px] text-3xl tracking-[0.2em] transition-all shadow-[0_30px_60px_rgba(16,185,129,0.3)] active:scale-95 uppercase italic"
-                    >
-                        CLOSE CASE FILE 07
-                    </button>
-
-                    <p className="mt-16 text-slate-700 font-mono text-sm uppercase font-black opacity-30">ENCRYPTION_LINK_ESTABLISHED | DATA_INTEGRITY: 100% | THREAT_VECTOR: NEUTRALIZED</p>
-                </div>
-            ) : (
-                <div className="max-w-4xl animate-in zoom-in-95 duration-1000 text-center font-sans tracking-tight">
-                    <div className="w-32 h-32 bg-red-600 rounded-full flex items-center justify-center text-7xl mx-auto mb-12 shadow-[0_0_120px_rgba(220,38,38,0.5)] animate-pulse">💸</div>
-                    <h1 className="text-8xl font-black text-white mb-10 tracking-tighter uppercase leading-none">TOTAL ASSET LOSS</h1>
-                    <p className="text-3xl text-slate-300 mb-16 max-w-3xl mx-auto font-medium leading-relaxed italic">
-                        By trusting <span className="text-red-500 font-black">SBI_ATM_GUEST</span>, you broadcasted your credentials into the attacker's receiver.
-                        ₹1,20,000 was liquidated in 48 seconds.
-                    </p>
-
-                    <div className="bg-red-950/10 border-4 border-red-900/30 p-14 rounded-[70px] mb-20 shadow-3xl text-left max-w-3xl mx-auto backdrop-blur-3xl">
-                        <h3 className="text-red-500 font-black uppercase tracking-[0.4em] text-[13px] mb-10 border-b border-red-900/40 pb-6 italic">Forensics: Rogue Packet Audit</h3>
-                        <div className="space-y-8">
-                            <div className="flex justify-between items-center text-lg">
-                                <span className="text-slate-500 font-black tracking-widest uppercase italic">Session Tokens</span>
-                                <span className="text-red-500 font-black tracking-[0.1em]">HIJACKED</span>
-                            </div>
-                            <div className="flex justify-between items-center text-lg">
-                                <span className="text-slate-500 font-black tracking-widest uppercase italic">Bank_ID_Credential</span>
-                                <span className="text-red-500 font-black tracking-[0.1em]">EXFILTRATED</span>
-                            </div>
-                            <div className="h-px bg-red-900/40 my-10" />
-                            <div className="flex justify-between items-center">
-                                <span className="text-white font-black text-3xl tracking-tighter italic">FINANCIAL DAMAGE:</span>
-                                <span className="text-7xl font-black text-red-600 tracking-tighter">₹1,20,000</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={() => {
-                            adjustAssets(-120000);
-                            adjustLives(-1);
-                            setGameState('cafe');
-                            setCluesFound([]);
-                            setActiveNetwork(null);
-                        }}
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-black px-24 py-10 rounded-[50px] text-2xl tracking-[0.2em] transition-all border-4 border-slate-800 shadow-3xl active:scale-95 uppercase italic"
-                    >
-                        REWIND INVESTIGATION
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-
-    const DetectiveBoard = () => {
-        if (!showDetectiveBoard) return null;
-
-        return (
-            <div
-                className="absolute inset-y-10 right-10 w-[720px] bg-amber-100 rounded-[60px] shadow-[-60px_0_150px_rgba(0,0,0,1)] z-[300] p-20 flex flex-col border-[30px] border-[#311f12] animate-[slideLeft_0.5s_ease-out] overflow-hidden"
-                style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.22'/%3E%3C/svg%3E")`,
-                    backgroundColor: '#e6c280'
-                }}
-            >
-                <div className="absolute top-0 left-0 right-0 h-8 bg-[#1a100a] opacity-30" />
-
-                <div className="flex justify-between items-center mb-16 z-10 bg-white p-6 rounded-sm shadow-3xl transform -rotate-1 border border-stone-400 self-start">
-                    <h2 className="text-5xl font-black text-stone-900 uppercase tracking-[0.1em] font-mono italic">
-                        🕵️ EVIDENCE_ROOM
-                    </h2>
-                    <button className="text-red-700 hover:text-black font-black text-5xl ml-16 transition-all" onClick={() => setShowDetectiveBoard(false)}>✖</button>
-                </div>
-
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                    {cluesFound.map((clueId, idx) => {
-                        if (idx > 0) {
-                            const getPos = (i) => {
-                                const grid = [{ x: 220, y: 300 }, { x: 520, y: 340 }, { x: 240, y: 520 }, { x: 540, y: 560 }, { x: 400, y: 720 }, { x: 320, y: 400 }];
-                                return grid[i % grid.length];
-                            };
-                            const p1 = getPos(idx - 1);
-                            const p2 = getPos(idx);
-                            return (
-                                <g key={idx}>
-                                    <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#c00000" strokeWidth="6" strokeOpacity="0.9" style={{ filter: 'drop-shadow(5px 5px 4px rgba(0,0,0,0.4))' }} />
-                                    <circle cx={p1.x} cy={p1.y} r="6" fill="#600000" />
-                                </g>
-                            );
-                        }
-                        return null;
-                    })}
-                </svg>
-
-                {cluesFound.map((clueId, idx) => {
-                    const clue = CLUE_DATA.find(c => c.id === clueId);
-                    const getPos = (i) => {
-                        const grid = [{ x: 220, y: 300 }, { x: 520, y: 340 }, { x: 240, y: 520 }, { x: 540, y: 560 }, { x: 400, y: 720 }, { x: 320, y: 400 }];
-                        return grid[i % grid.length];
-                    };
-                    const pos = getPos(idx);
-
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {CLUE_DATA.map(clue => {
+                    const found = cluesFound.includes(clue.id);
                     return (
-                        <div
-                            key={clueId}
-                            className="absolute bg-white p-6 shadow-[0_30px_60px_rgba(0,0,0,0.5)] w-64 border border-stone-200 z-10 transform flex flex-col items-center animate-in zoom-in-50 duration-700"
-                            style={{
-                                left: pos.x - 128,
-                                top: pos.y - 64,
-                                transform: `rotate(${(idx % 2 === 0 ? -1 : 1) * ((idx * 5) % 15 + 3)}deg)`
-                            }}
-                        >
-                            <div className="absolute -top-6 w-10 h-10 rounded-full bg-red-700 shadow-[0_10px_20px_rgba(0,0,0,0.5)] border-4 border-[#311f12] flex items-center justify-center">
-                                <div className="w-3 h-3 bg-white/40 rounded-full mb-1 ml-1" />
+                        <div key={clue.id} className={`p-4 rounded-xl border transition-all ${found ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/5 opacity-40'}`}>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xl">{found ? clue.icon : '❓'}</span>
+                                <div>
+                                    <h4 className={`text-sm font-black ${found ? 'text-emerald-300' : 'text-slate-500'}`}>{found ? clue.name : 'Undiscovered'}</h4>
+                                    {found && <p className="text-xs text-slate-400 mt-1 leading-relaxed">{clue.desc}</p>}
+                                </div>
                             </div>
-                            <h4 className="font-black text-red-950 text-[11px] uppercase border-b-2 border-red-50 mb-4 tracking-widest text-center w-full pb-4 italic">{clue.name}</h4>
-                            <p className="text-[12px] text-stone-800 leading-tight italic font-black text-center opacity-90">{clue.description}</p>
-                            <span className="text-[10px] text-emerald-700 font-black mt-6 uppercase tracking-[0.2em] italic">Vetted_Signal</span>
+                            {found && <div className="mt-2 text-right"><span className="text-emerald-400 text-xs font-black">+{clue.points} pts</span></div>}
                         </div>
                     );
                 })}
+            </div>
+            <div className="p-4 border-t border-white/10">
+                <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-1000 ${cluesFound.length >= 3 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${(cluesFound.length / CLUE_DATA.length) * 100}%` }} />
+                </div>
+                <p className="text-center text-xs text-slate-500 mt-2 font-bold">{cluesFound.length >= 3 ? '✓ Ready to make your choice' : `Find ${3 - cluesFound.length} more clues`}</p>
+            </div>
+        </div>
+    );
 
-                <div className="absolute bottom-16 left-16 right-16 bg-[#1a100a] p-10 rounded-[50px] border-[6px] border-[#3a2516] shadow-3xl">
-                    <div className="flex justify-between items-center text-[12px] font-black uppercase tracking-[0.5em] text-stone-500 mb-6 italic">
-                        <span className="flex items-center gap-4">
-                            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_15px_rgba(16,185,129,0.8)]" />
-                            Session Audit In_Progress
-                        </span>
-                        <span className={cluesFound.length >= 3 ? 'text-emerald-400' : 'text-amber-500'}>
-                            {cluesFound.length} / 6 DISCOVERED
-                        </span>
+    // ═══════════════════════════════════════
+    // CLUE DETAIL PANEL (modal overlay)
+    // ═══════════════════════════════════════
+    const ClueDetailPanel = () => {
+        if (!activeCluePanel) return null;
+        const clue = CLUE_DATA.find(c => c.id === activeCluePanel);
+        if (!clue) return null;
+
+        const details = {
+            secure_net_props: {
+                title: 'Network Analysis', items: [
+                    { label: 'Network Name (SSID)', value: 'SBI_SecureNet' },
+                    { label: 'Security', value: 'NONE (Open — No Encryption)', danger: true },
+                    { label: 'MAC Address', value: 'E4:FA:C4:29:11:AB — Mobile Phone Hotspot', danger: true },
+                    { label: 'Network Created', value: 'Today, 09:47 AM (2 hours ago)', danger: true },
+                ], warning: 'Banks do NOT set up Wi-Fi networks in public spaces. Any network named after a bank should be treated as a scam.'
+            },
+            wifi_card: {
+                title: 'Official Wi-Fi Credentials', items: [
+                    { label: 'Network', value: 'BrewConnect_Guest' },
+                    { label: 'Password', value: 'coffee2024' },
+                    { label: 'Security', value: 'WPA2 Encrypted ✓' },
+                ], warning: 'A password-protected Wi-Fi with WPA2 encryption is safer than an open network. The password creates a basic encryption layer.'
+            },
+            hacker_corner: {
+                title: 'Suspicious Individual Report', items: [
+                    { label: 'Equipment', value: 'Laptop + Portable Router in Backpack', danger: true },
+                    { label: 'Software', value: 'Network monitoring & packet sniffing tools', danger: true },
+                    { label: 'Broadcasting', value: 'SBI_SecureNet (the fake network)', danger: true },
+                    { label: 'Connected Devices', value: '6 victims currently connected', danger: true },
+                ], warning: 'This person has set up a HONEYPOT. He is intercepting all data from devices connected to SBI_SecureNet.'
+            },
+            customer_screen: {
+                title: 'Man-in-the-Middle Attack Demo', items: [
+                    { label: 'Victim', value: 'College student checking bank balance' },
+                    { label: 'Connection', value: 'SBI_SecureNet (the fake network)' },
+                    { label: 'URL Displayed', value: 'http:// (NOT https://)', danger: true },
+                    { label: 'Data Captured', value: 'Login credentials, session tokens', danger: true },
+                ], warning: 'A MITM attack captures data silently. The victim never knows. The attacker can read passwords, OTPs, account numbers.'
+            },
+            mobile_data: {
+                title: 'Mobile Data vs Public Wi-Fi', items: [
+                    { label: 'Public Wi-Fi (Open)', value: 'No encryption, hackable, MITM risk HIGH', danger: true },
+                    { label: 'Mobile Data (4G/5G)', value: 'Tower-encrypted, personal, MITM risk VERY LOW' },
+                ], warning: 'Mobile data costs just a few paise per MB for banking. It is the SAFEST option for financial transactions in public.'
+            },
+            vpn_clue: {
+                title: 'VPN Protection', items: [
+                    { label: 'Status', value: 'Currently OFF (Not Protected)', danger: true },
+                    { label: 'Function', value: 'Encrypts ALL internet traffic end-to-end' },
+                ], warning: 'A VPN makes MITM attacks ineffective. If you MUST use public Wi-Fi for banking, always turn on a trusted VPN first.'
+            },
+        };
+
+        const d = details[activeCluePanel] || { title: clue.name, items: [], warning: clue.desc };
+
+        return (
+            <div className="fixed inset-0 z-[500] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setActiveCluePanel(null)}>
+                <div className="max-w-lg w-full bg-slate-900 border-2 border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-3xl border border-emerald-500/30">{clue.icon}</div>
+                        <div>
+                            <h3 className="text-white font-black text-xl">{d.title}</h3>
+                            <p className="text-emerald-400 text-xs font-bold mt-1 uppercase tracking-wider">+{clue.points} Detective Points</p>
+                        </div>
                     </div>
-                    <div className="h-8 bg-black/60 rounded-full overflow-hidden p-2 shadow-inner">
-                        <div
-                            className={`h-full rounded-full transition-all duration-[2000ms] ${cluesFound.length >= 3 ? 'bg-gradient-to-r from-emerald-600 via-emerald-400 to-emerald-600 shadow-glow shadow-emerald-500/40' : 'bg-gradient-to-r from-amber-600 to-amber-400 shadow-glow shadow-amber-500/40'}`}
-                            style={{ width: `${(cluesFound.length / 6) * 100}%` }}
-                        />
+
+                    <div className="space-y-3 mb-6">
+                        {d.items.map((item, i) => (
+                            <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                <span className="text-slate-500 text-xs font-bold uppercase tracking-wider block mb-1">{item.label}</span>
+                                <span className={`text-sm font-black ${item.danger ? 'text-red-400' : 'text-white'}`}>{item.value}</span>
+                            </div>
+                        ))}
                     </div>
+
+                    {d.warning && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl mb-6">
+                            <p className="text-amber-200 text-sm leading-relaxed">⚠️ {d.warning}</p>
+                        </div>
+                    )}
+
+                    <button onClick={() => setActiveCluePanel(null)} className="w-full bg-white/10 hover:bg-white/15 text-white font-black py-4 rounded-xl transition-all">
+                        Close
+                    </button>
                 </div>
             </div>
         );
     };
 
-    return (
-        <div className="w-full h-full flex items-center justify-center bg-black font-sans selection:bg-cyan-500/30 overflow-hidden relative">
-            <div className="relative w-full h-full max-w-[1920px] max-h-[1080px] bg-[#02040a] shadow-[0_0_300px_rgba(0,0,0,1)]">
-                {gameState === 'cafe' && <CafeScene />}
-                {gameState === 'radar' && <RadarMap />}
-                {gameState === 'outcome' && <OutcomeUI />}
+    // ═══════════════════════════════════════
+    // CAFÉ SCENE
+    // ═══════════════════════════════════════
+    if (gameState === 'cafe') {
+        return (
+            <div className="w-full h-full bg-[#1a0e08] relative overflow-hidden">
+                <FeedbackToast />
+                <CluesSidebar />
+                <ClueDetailPanel />
 
-                {/* ═══ GLOBAL UI ELEMENTS ═══ */}
-                <DetectiveBoard />
+                {/* Warm café background */}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #2d1810 0%, #1a0e08 60%, #0d0705 100%)' }} />
 
-                {gameState !== 'outcome' && (
-                    <button
-                        onClick={() => setShowDetectiveBoard(!showDetectiveBoard)}
-                        className="fixed bottom-16 left-16 bg-[#1a100a]/98 backdrop-blur-3xl border-[6px] border-[#311f12] hover:border-amber-500 text-amber-500 rounded-[45px] w-28 h-28 flex items-center justify-center text-6xl shadow-3xl z-[350] transition-all hover:scale-110 active:scale-90 group"
-                    >
-                        🔍
-                        {cluesFound.length > 0 && !showDetectiveBoard && (
-                            <div className="absolute -top-5 -right-5 bg-red-600 text-white text-[15px] font-black w-12 h-12 rounded-full flex items-center justify-center animate-bounce shadow-3xl border-[6px] border-[#1a100a]">
-                                {cluesFound.length}
-                            </div>
-                        )}
-                        <span className="absolute -bottom-14 opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-black uppercase tracking-[0.4em] text-amber-500 whitespace-nowrap bg-[#1a100a] px-6 py-3 rounded-full border border-[#311f12] shadow-[0_30px_60px_rgba(0,0,0,1)] italic">Forensic Board</span>
-                    </button>
-                )}
+                {/* Brick wall texture */}
+                <div className="absolute inset-x-0 top-0 h-[55%] opacity-20" style={{
+                    backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(139,90,43,0.3) 18px, rgba(139,90,43,0.3) 20px), repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(139,90,43,0.2) 38px, rgba(139,90,43,0.2) 40px)',
+                    backgroundSize: '40px 20px'
+                }} />
 
-                {/* Toast Feedback */}
-                {feedbackMsg && (
-                    <div className={`fixed top-16 left-1/2 -translate-x-1/2 py-8 px-20 rounded-[50px] shadow-[0_50px_100px_rgba(0,0,0,1)] z-[600] transition-all duration-700 animate-in slide-in-from-top-20 font-black tracking-[0.5em] text-[12px] uppercase flex items-center gap-6 border-[3px] backdrop-blur-3xl ${feedbackMsg.color === 'red' ? 'bg-red-950/98 border-red-500 text-red-100 shadow-red-900/30' :
-                            feedbackMsg.color === 'emerald' ? 'bg-emerald-950/98 border-emerald-500 text-emerald-100 shadow-emerald-900/40' :
-                                'bg-cyan-950/98 border-cyan-500 text-cyan-100 shadow-cyan-900/40'
-                        }`}>
-                        <div className={`w-4 h-4 rounded-full animate-pulse shadow-[0_0_20px_currentColor] ${feedbackMsg.color === 'red' ? 'bg-red-500' :
-                                feedbackMsg.color === 'emerald' ? 'bg-emerald-500' :
-                                    'bg-cyan-500'
-                            }`} />
-                        {feedbackMsg.text}
+                {/* Warm light rays from windows */}
+                <div className="absolute top-0 left-[10%] w-[250px] h-[600px] bg-gradient-to-b from-amber-400/15 to-transparent skew-x-[-15deg] blur-[40px] pointer-events-none" />
+                <div className="absolute top-0 left-[50%] w-[200px] h-[500px] bg-gradient-to-b from-amber-300/10 to-transparent skew-x-[-10deg] blur-[60px] pointer-events-none" />
+
+                {/* Window (left) */}
+                <div className="absolute left-[5%] top-[5%] w-[30%] h-[45%] bg-gradient-to-b from-indigo-950/40 to-slate-950/60 border-[12px] border-[#3d2415] rounded-t-lg overflow-hidden">
+                    <div className="absolute bottom-4 left-4 w-20 h-10 bg-amber-400/10 rounded blur-lg animate-pulse" />
+                    <div className="absolute bottom-8 right-8 w-12 h-8 bg-white/5 rounded blur-sm" />
+                    <div className="absolute top-4 right-4 text-xs text-white/20 font-mono">STREET VIEW</div>
+                </div>
+
+                {/* Window (right) */}
+                <div className="absolute right-[5%] top-[5%] w-[25%] h-[40%] bg-gradient-to-b from-indigo-950/30 to-slate-950/50 border-[12px] border-[#3d2415] rounded-t-lg" />
+
+                {/* Floor */}
+                <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-[#0a0604] to-[#1a0e08]" style={{
+                    backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(100,60,20,0.05) 60px, rgba(100,60,20,0.05) 62px)',
+                }} />
+
+                {/* Edison bulbs */}
+                {[15, 35, 55, 75].map((left, i) => (
+                    <div key={i} className="absolute z-10 pointer-events-none" style={{ left: `${left}%`, top: 0 }}>
+                        <div className="w-px h-16 bg-amber-900/60 mx-auto" />
+                        <div className="w-4 h-6 bg-amber-400/60 rounded-full mx-auto shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse" style={{ animationDelay: `${i * 0.7}s` }} />
                     </div>
-                )}
-            </div>
+                ))}
 
-            {/* Global Vignette/Dust */}
-            <div className="fixed inset-0 pointer-events-none shadow-[inset_0_0_350px_rgba(0,0,0,0.95)] z-[1000] mix-blend-multiply" />
-        </div>
-    );
+                {/* ═══ INTERACTIVE HOTSPOTS ═══ */}
+
+                {/* 1. Wi-Fi Card on table */}
+                <div className="absolute bottom-[38%] right-[25%] cursor-pointer group z-20" onClick={() => handleClueClick('wifi_card')}>
+                    <div className={`w-32 h-20 bg-white rounded-lg p-3 shadow-xl transform rotate-[-3deg] transition-all group-hover:rotate-0 group-hover:scale-110 ${cluesFound.includes('wifi_card') ? 'ring-2 ring-emerald-400' : ''}`}>
+                        <div className="text-[7px] font-black text-stone-800 border-b border-stone-200 pb-1 mb-1">☕ Brew & Bond</div>
+                        <div className="text-[8px] font-bold text-stone-600">WiFi: BrewConnect_Guest</div>
+                        <div className="text-[8px] font-mono text-stone-500">Pass: coffee2024</div>
+                    </div>
+
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[9px] text-amber-300 font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Click to inspect</div>
+                </div>
+
+                {/* 2. Hacker in corner */}
+                <div className="absolute left-[3%] bottom-[10%] w-48 h-72 cursor-pointer group z-20" onClick={() => handleClueClick('hacker_corner')}>
+                    <div className={`relative w-full h-full transition-all group-hover:scale-105 ${cluesFound.includes('hacker_corner') ? 'ring-2 ring-red-400 rounded-xl' : ''}`}>
+                        {/* Person silhouette */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 flex flex-col items-center">
+                            <div className="w-14 h-14 bg-zinc-900 rounded-full border-2 border-zinc-800 flex items-center justify-center">
+                                <div className="w-8 h-1 bg-cyan-400/30 rounded blur-[1px]" />
+                            </div>
+                            <div className="w-28 h-40 bg-gradient-to-b from-zinc-900 to-black rounded-t-[40px] mt-1 relative overflow-hidden">
+                                <div className="absolute top-2 inset-x-6 h-full bg-zinc-800/30" />
+                            </div>
+                        </div>
+                        {/* Laptop on table */}
+                        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-36 h-24 bg-zinc-950 border-4 border-zinc-800 rounded-lg overflow-hidden">
+                            <div className="w-full h-4 bg-zinc-900 flex items-center px-2 gap-1">
+                                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                                <div className="w-1.5 h-1.5 bg-green-500/30 rounded-full" />
+                            </div>
+                            <div className="p-1 space-y-0.5">
+                                <div className="text-[5px] font-mono text-green-400/60">$ airodump-ng wlan0</div>
+                                <div className="text-[5px] font-mono text-red-400/80">CAPTURING: 6 devices...</div>
+                            </div>
+                        </div>
+                        {/* Backpack with blinking router */}
+                        <div className="absolute bottom-0 right-0 w-16 h-20 bg-zinc-900 rounded-lg border border-zinc-800">
+                            <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_red] animate-pulse" />
+                        </div>
+                    </div>
+
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] text-amber-300 font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Suspicious customer</div>
+                </div>
+
+                {/* 3. Victim customer */}
+                <div className="absolute left-[35%] bottom-[30%] w-44 h-56 cursor-pointer group z-20" onClick={() => handleClueClick('customer_screen')}>
+                    <div className={`relative w-full h-full transition-all group-hover:scale-105 ${cluesFound.includes('customer_screen') ? 'ring-2 ring-amber-400 rounded-xl' : ''}`}>
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-24 flex flex-col items-center">
+                            <div className="w-12 h-12 bg-amber-900/40 rounded-full" />
+                            <div className="w-20 h-32 bg-gradient-to-b from-rose-900/30 to-zinc-900/50 rounded-t-[30px] mt-1" />
+                        </div>
+                        {/* Her laptop */}
+                        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-32 h-20 bg-white border-4 border-zinc-300 rounded-lg overflow-hidden">
+                            <div className="w-full h-3 bg-slate-100 flex items-center px-2">
+                                <div className="text-[4px] font-mono text-red-500">⚠ http://bank.sbi</div>
+                            </div>
+                            <div className="p-2 flex items-center gap-2">
+                                <div className="w-6 h-6 bg-indigo-500 rounded text-white text-[6px] flex items-center justify-center font-bold">SBI</div>
+                                <div className="space-y-1">
+                                    <div className="w-12 h-1.5 bg-slate-200 rounded" />
+                                    <div className="w-8 h-1.5 bg-slate-100 rounded" />
+                                </div>
+                            </div>
+                        </div>
+                        {/* Data leak animation on hover */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-[8px] font-black px-2 py-1 rounded animate-bounce">DATA BEING CAPTURED</div>
+                        </div>
+                    </div>
+
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] text-amber-300 font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Another customer's laptop</div>
+                </div>
+
+                {/* 4. THE PHONE (center table) with VPN + 4G clues */}
+                <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 z-30">
+                    {/* Table surface */}
+                    <div className="w-[400px] h-[200px] bg-gradient-to-b from-[#8B5A2C] to-[#6B4423] rounded-t-xl border-t-4 border-[#A0724A] relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                        {/* Coffee mug */}
+                        <div className="absolute left-8 top-4 w-14 h-16 bg-white rounded-b-[20px] border-2 border-stone-200 shadow-lg">
+                            <div className="absolute -top-1 inset-x-0 h-4 bg-amber-900/80 rounded-full" />
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-2">
+                                <div className="w-1 h-6 bg-white/20 rounded-full blur animate-bounce" style={{ animationDelay: '0s' }} />
+                                <div className="w-1 h-8 bg-white/15 rounded-full blur animate-bounce" style={{ animationDelay: '0.5s' }} />
+                            </div>
+                        </div>
+
+                        {/* Phone on table */}
+                        <div className="absolute right-12 top-2 w-[140px] h-[260px] bg-black rounded-[24px] border-4 border-zinc-800 shadow-xl overflow-hidden cursor-pointer group" onClick={() => setGameState('radar')}>
+                            {/* Notch */}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
+                            {/* Status bar */}
+                            <div className="pt-7 px-3 flex justify-between items-center">
+                                <span className="text-[8px] text-white font-bold">11:45</span>
+                                <div className="flex items-center gap-1">
+                                    {/* 4G icon - clickable */}
+                                    <div className="flex items-end gap-[1px] h-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleClueClick('mobile_data'); }}>
+                                        {[...Array(4)].map((_, i) => <div key={i} className="w-[2px] bg-white rounded-full" style={{ height: `${(i + 1) * 25}%` }} />)}
+                                        <span className="text-[6px] text-white font-bold ml-[2px]">4G</span>
+                                    </div>
+                                    <div className="w-5 h-[8px] border border-white/40 rounded-sm p-[1px]">
+                                        <div className="h-full bg-green-400 rounded-sm" style={{ width: '80%' }} />
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Screen content */}
+                            <div className="p-3 flex flex-col gap-2 flex-1">
+                                {/* Bank notification */}
+                                <div className="bg-white/10 p-2 rounded-lg border border-white/10 animate-pulse">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 bg-indigo-500 rounded-md text-[6px] text-white flex items-center justify-center font-bold">SBI</div>
+                                        <div>
+                                            <div className="text-[7px] text-white font-bold">Bank Alert</div>
+                                            <div className="text-[6px] text-white/50">Review ₹12,000 charge</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* VPN app */}
+                                <div className="cursor-pointer hover:scale-105 transition-all bg-white/5 p-2 rounded-lg border border-white/5" onClick={(e) => { e.stopPropagation(); handleClueClick('vpn_clue'); }}>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-lg">🛡️</div>
+                                        <div>
+                                            <div className="text-[7px] text-white font-bold">VPN App</div>
+                                            <div className="text-[6px] text-red-400">OFF — Not Protected</div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                {/* Scan networks button */}
+                                <div className="mt-auto">
+                                    <div className="bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-[8px] font-black py-2 rounded-lg text-center uppercase tracking-wider shadow-lg group-hover:shadow-cyan-500/30">
+                                        📡 Scan Wi-Fi Networks
+                                    </div>
+                                </div>
+                            </div>
+                            {/* Home bar */}
+                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-white/30 rounded-full" />
+                        </div>
+
+                        {/* Croissant */}
+                        <div className="absolute left-28 top-8 w-12 h-8 bg-amber-400/60 rounded-[50%] rotate-12 border border-amber-600/30 shadow-md" />
+                    </div>
+                </div>
+
+                {/* Counter / Barista area */}
+                <div className="absolute right-0 bottom-0 w-[35%] h-[55%] bg-gradient-to-t from-[#0a0604] to-[#2d1810] border-l-[10px] border-[#3d2415]">
+                    {/* Barista */}
+                    <div className="absolute -top-20 left-12 flex flex-col items-center">
+                        <div className="w-12 h-12 bg-amber-900/40 rounded-full" />
+                        <div className="w-24 h-32 bg-gradient-to-b from-emerald-900/40 to-black rounded-t-[30px] mt-1 relative">
+                            <div className="absolute top-0 inset-x-4 h-full bg-emerald-800/20 border-x border-emerald-700/10" />
+                        </div>
+                    </div>
+                    {/* Menu board */}
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[80%] h-24 bg-zinc-900 rounded-lg border-4 border-[#3d2415] p-3">
+                        <div className="text-[8px] text-amber-400 font-black text-center mb-1">☕ MENU</div>
+                        <div className="text-[6px] text-stone-400 space-y-0.5 text-center font-mono">
+                            <p>Filter Coffee ₹80 | Latte ₹150</p>
+                            <p>Croissant ₹120 | Sandwich ₹200</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ═══ BOTTOM HUD ═══ */}
+                <div className="absolute bottom-4 left-4 flex gap-3 z-40">
+                    <button onClick={() => setShowCluesSidebar(!showCluesSidebar)} className="bg-slate-900/90 backdrop-blur border border-white/10 hover:border-amber-500 text-white px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg">
+                        🔍 Evidence ({cluesFound.length}/{CLUE_DATA.length})
+                        {cluesFound.length > 0 && !showCluesSidebar && <span className="w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-bounce">{cluesFound.length}</span>}
+                    </button>
+                </div>
+
+                {/* Top instruction bar */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur border border-white/10 px-6 py-3 rounded-xl z-40">
+                    <p className="text-white/80 text-xs font-bold text-center">
+                        {cluesFound.length < 3
+                            ? "☕ Explore the café. Click on suspicious items to gather clues."
+                            : "✓ You have enough clues! Click the phone to scan Wi-Fi networks and make your choice."}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════
+    // NETWORK RADAR
+    // ═══════════════════════════════════════
+    if (gameState === 'radar') {
+        return (
+            <div className="w-full h-full bg-[#040810] relative overflow-hidden">
+                <FeedbackToast />
+                <CluesSidebar />
+
+                {/* Sonar rings */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="absolute rounded-full border border-cyan-500/10" style={{ width: (i + 1) * 180, height: (i + 1) * 180 }} />
+                    ))}
+                    {/* Sweep line */}
+                    <div className="absolute w-[600px] h-[600px] animate-[spin_6s_linear_infinite] pointer-events-none">
+                        <div className="absolute top-1/2 left-1/2 w-1/2 h-px bg-gradient-to-r from-cyan-400/40 to-transparent" />
+                    </div>
+                </div>
+
+                {/* Grid overlay */}
+                <div className="absolute inset-0 opacity-[0.03]" style={{
+                    backgroundImage: 'linear-gradient(rgba(34,211,238,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.5) 1px, transparent 1px)',
+                    backgroundSize: '50px 50px'
+                }} />
+
+                {/* Center device */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10 pointer-events-none">
+                    <div className="w-16 h-16 bg-gradient-to-br from-cyan-600 to-indigo-800 rounded-2xl flex items-center justify-center shadow-[0_0_60px_rgba(34,211,238,0.3)] border-2 border-white/20">
+                        <span className="text-2xl">📱</span>
+                    </div>
+                    <div className="mt-3 px-4 py-1.5 bg-cyan-950/80 border border-cyan-500/30 rounded-full">
+                        <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">Your Device</span>
+                    </div>
+                </div>
+
+                {/* Network bubbles */}
+                {NETWORKS.map((net, idx) => {
+                    const positions = [
+                        { x: '65%', y: '20%' },
+                        { x: '15%', y: '25%' },
+                        { x: '75%', y: '70%' },
+                        { x: '20%', y: '72%' },
+                    ];
+                    const pos = positions[idx];
+                    const isActive = activeNetwork === net.id;
+                    const isSelected = activeNetwork === net.id;
+
+                    return (
+                        <div key={net.id} className="absolute z-20 cursor-pointer group" style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}
+                            onClick={() => { setActiveNetwork(net.id); if (net.id === 'sbi_secure') handleClueClick('secure_net_props'); }}>
+                            {/* Pulse ring */}
+                            <div className={`absolute inset-[-10px] rounded-full border animate-ping ${!net.safe ? 'border-red-500/20' : 'border-cyan-500/10'}`} />
+                            {/* Bubble */}
+                            <div className={`w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-500 border-2 ${isActive ? (!net.safe ? 'border-red-400 bg-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_40px_rgba(34,211,238,0.3)]')
+                                : 'border-slate-700 bg-slate-900/50 group-hover:border-slate-500'
+                                }`}>
+                                <span className="text-2xl mb-1">{net.locked ? '🔒' : '🔓'}</span>
+                                {/* Signal bars */}
+                                <div className="flex gap-1 items-end h-3">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className={`w-1 rounded-full transition-all ${i < net.signal ? (!net.safe ? 'bg-red-400' : 'bg-cyan-400') : 'bg-slate-700'
+                                            }`} style={{ height: `${(i + 1) * 25}%` }} />
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Name label */}
+                            <div className={`absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${isActive ? (!net.safe ? 'bg-red-600 border-red-400 text-white' : 'bg-cyan-600 border-cyan-400 text-white')
+                                : 'bg-slate-900/80 border-slate-700 text-slate-400 group-hover:text-white'
+                                }`}>
+                                {net.name}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* Network Inspector Panel (right side) */}
+                {activeNetwork && (() => {
+                    const net = NETWORKS.find(n => n.id === activeNetwork);
+                    return (
+                        <div className="absolute top-6 bottom-6 right-6 w-[360px] bg-slate-950/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 z-30 flex flex-col animate-in slide-in-from-right duration-500 shadow-2xl overflow-y-auto">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-white font-black text-lg">Network Details</h3>
+                                <button onClick={() => setActiveNetwork(null)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 text-sm">✕</button>
+                            </div>
+
+                            <div className="space-y-4 flex-1">
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">SSID</span>
+                                    <span className="text-white font-black text-lg">{net.name}</span>
+                                </div>
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Security</span>
+                                    <span className={`font-black text-sm ${net.safe ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {net.safe ? '🛡️' : '⚠️'} {net.security}
+                                    </span>
+                                </div>
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">MAC Address</span>
+                                    <span className={`font-mono text-xs ${!net.safe ? 'text-red-400' : 'text-slate-300'}`}>{net.mac}</span>
+                                </div>
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Origin</span>
+                                    <span className={`text-sm font-bold ${!net.safe ? 'text-red-400' : 'text-slate-300'}`}>{net.created}</span>
+                                </div>
+
+                                {!net.safe && (
+                                    <div className="bg-red-500/10 border-2 border-red-500/30 p-4 rounded-xl animate-pulse">
+                                        <p className="text-red-300 text-sm font-bold leading-relaxed">⚠️ {net.desc}</p>
+                                    </div>
+                                )}
+                                {net.safe && net.id === 'brew_connect' && (
+                                    <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl">
+                                        <p className="text-emerald-300 text-sm font-bold leading-relaxed">✓ {net.desc}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-4 space-y-3">
+                                {net.id === 'sbi_secure' && (
+                                    <button onClick={() => handleFinalChoice('sbi_secure')} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-black text-sm transition-all border border-white/10">
+                                        Connect to {net.name}
+                                    </button>
+                                )}
+                                {net.id === 'brew_connect' && (
+                                    <button onClick={() => handleFinalChoice('safe')} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-black text-sm transition-all border border-white/10">
+                                        Connect to {net.name}
+                                    </button>
+                                )}
+                                {(net.id === 'android_hotspot' || net.id === 'bsnl_fiber') && (
+                                    <div className="text-center text-slate-500 text-xs font-bold py-4">Signal too weak to connect</div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* Use Mobile Data button */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-30">
+                    <button onClick={() => setGameState('cafe')} className="bg-slate-800/90 backdrop-blur border border-white/10 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all">
+                        ← Back to Café
+                    </button>
+                    <button onClick={() => handleFinalChoice('safe')} className="bg-slate-800/90 backdrop-blur border border-white/10 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all">
+                        📶 Use Mobile Data Instead
+                    </button>
+                    <button onClick={() => setShowCluesSidebar(!showCluesSidebar)} className="bg-slate-800/90 backdrop-blur border border-white/10 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all">
+                        🔍 Evidence ({cluesFound.length})
+                    </button>
+                </div>
+
+                {/* Top info */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur border border-white/10 px-6 py-3 rounded-xl z-30">
+                    <p className="text-white/80 text-xs font-bold text-center">📡 Click a network bubble to inspect it. Choose wisely before connecting.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════
+    // OUTCOME
+    // ═══════════════════════════════════════
+    if (gameState === 'outcome') {
+        const totalPoints = cluesFound.reduce((sum, id) => sum + (CLUE_DATA.find(c => c.id === id)?.points || 0), 0);
+
+        if (outcomeType === 'victory') {
+            return (
+                <div className="w-full h-full bg-[#040810] flex items-center justify-center p-8 overflow-y-auto">
+                    <div className="max-w-3xl w-full text-center animate-in zoom-in-95 duration-500">
+                        <div className="w-28 h-28 bg-emerald-500 rounded-3xl flex items-center justify-center text-6xl mx-auto mb-8 shadow-[0_0_80px_rgba(16,185,129,0.4)] animate-bounce">🛡️</div>
+                        <h1 className="text-5xl font-black text-white uppercase tracking-tighter mb-4">THREAT NEUTRALIZED</h1>
+                        <p className="text-slate-400 text-lg italic mb-10 max-w-xl mx-auto leading-relaxed">
+                            You refused the honeypot trap, used safe mobile data, and alerted the café staff. The hacker packed up and left. Six other customers were saved.
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-6 mb-10">
+                            <div className="bg-slate-900 border border-emerald-500/30 p-6 rounded-2xl">
+                                <span className="text-emerald-400 text-3xl font-black">+{totalPoints}</span>
+                                <p className="text-slate-500 text-xs font-bold mt-2 uppercase tracking-wider">Detective Points</p>
+                            </div>
+                            <div className="bg-slate-900 border border-indigo-500/30 p-6 rounded-2xl">
+                                <span className="text-indigo-400 text-lg font-black">Community Guardian</span>
+                                <p className="text-slate-500 text-xs font-bold mt-2 uppercase tracking-wider">Badge Unlocked</p>
+                            </div>
+                            <div className="bg-slate-900 border border-cyan-500/30 p-6 rounded-2xl">
+                                <span className="text-cyan-400 text-lg font-black">₹0 Lost</span>
+                                <p className="text-slate-500 text-xs font-bold mt-2 uppercase tracking-wider">Assets Protected</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 p-6 rounded-2xl mb-8 text-left">
+                            <h3 className="text-emerald-400 font-black text-sm uppercase tracking-wider mb-3">🔐 Cyber Tip — Level 7</h3>
+                            <ul className="text-slate-300 text-sm space-y-2 leading-relaxed">
+                                <li>• <strong>NEVER</strong> do banking on public/open Wi-Fi</li>
+                                <li>• A <strong>Honeypot</strong> is a fake Wi-Fi that looks legitimate</li>
+                                <li>• <strong>Mobile data (4G/5G)</strong> is always safest for banking</li>
+                                <li>• If you must use public Wi-Fi, enable a <strong>trusted VPN</strong></li>
+                                <li>• <strong>MITM attacks</strong> are silent — the victim never knows</li>
+                            </ul>
+                        </div>
+
+                        <button onClick={() => completeLevel(true, totalPoints, 0)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-12 py-5 rounded-2xl text-xl transition-all shadow-xl active:scale-95 uppercase tracking-wider">
+                            Complete Mission →
+                        </button>
+                    </div>
+                </div>
+            );
+        } else {
+            return (
+                <div className="w-full h-full bg-black flex items-center justify-center p-8 overflow-y-auto">
+                    <div className="max-w-3xl w-full text-center animate-in zoom-in-95 duration-500">
+                        <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-[0_0_80px_rgba(220,38,38,0.5)] animate-bounce">!</div>
+                        <h1 className="text-5xl font-black text-white uppercase tracking-tighter mb-4">CREDENTIALS COMPROMISED</h1>
+                        <p className="text-slate-400 text-lg italic mb-8 max-w-xl mx-auto leading-relaxed">
+                            By connecting to <span className="text-red-400 font-bold">SBI_SecureNet</span>, your banking credentials were captured by the hacker's MITM attack. ₹1,20,000 was transferred to a mule account.
+                        </p>
+
+                        <div className="space-y-3 mb-8 font-mono text-left max-w-md mx-auto">
+                            {[
+                                { t: '11:46 AM', msg: 'Connected to SBI_SecureNet', status: 'CONNECTED', color: 'text-slate-500' },
+                                { t: '11:47 AM', msg: 'YONO login credentials captured', status: 'INTERCEPTED', color: 'text-red-500' },
+                                { t: '11:48 AM', msg: 'Session token cloned', status: 'HIJACKED', color: 'text-red-500' },
+                                { t: '11:49 AM', msg: 'UPI transfer: ₹1,20,000', status: 'DEBIT', color: 'text-red-500' },
+                                { t: '11:50 AM', msg: 'User called 1930 Helpline', status: 'REPORTED', color: 'text-amber-500' },
+                                { t: '11:51 AM', msg: 'Bank account freeze requested', status: 'BLOCKED', color: 'text-cyan-400' },
+                            ].map((log, i) => (
+                                <div key={i} className="bg-white/5 p-3 rounded-xl border border-white/5 flex justify-between items-center animate-in fade-in duration-500" style={{ animationDelay: `${i * 150}ms` }}>
+                                    <div>
+                                        <span className="text-white/20 text-[10px] block">{log.t}</span>
+                                        <span className={`text-sm font-black ${log.color}`}>{log.msg}</span>
+                                    </div>
+                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${log.color === 'text-red-500' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
+                                        log.color === 'text-amber-500' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                            log.color === 'text-cyan-400' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' :
+                                                'bg-white/5 border-white/10 text-white/40'
+                                        }`}>{log.status}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-red-600/10 border-2 border-red-600/30 p-6 rounded-2xl mb-8">
+                            <h2 className="text-red-500 text-lg font-black uppercase tracking-wider mb-2">Total Lost to Hacker</h2>
+                            <span className="text-4xl font-black text-white font-mono">-₹1,20,000</span>
+                        </div>
+
+                        <div className="flex gap-4 justify-center">
+                            <button onClick={() => { adjustAssets(-120000); adjustLives(-1); setGameState('cafe'); setCluesFound([]); setActiveNetwork(null); setOutcomeType(null); }}
+                                className="bg-slate-800 hover:bg-slate-700 text-white font-black px-8 py-4 rounded-xl text-sm transition-all border border-white/10">
+                                Try Again
+                            </button>
+                            <button onClick={() => { adjustAssets(-120000); adjustLives(-1); completeLevel(false, 0, 0); }}
+                                className="bg-red-600 hover:bg-red-500 text-white font-black px-8 py-4 rounded-xl text-sm transition-all">
+                                Accept Loss & Continue
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+    }
+
+    return null;
 };
 
 export default Level7;

@@ -282,12 +282,18 @@ const Prologue = () => {
                     <span className="text-white font-mono text-xs tracking-[0.5em] uppercase opacity-70 animate-tracking-in">Departing for Estate...</span>
                     <div className="h-px w-32 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
                 </div>
-                <style jsx>{`
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @keyframes typing {
+                        from { width: 0 }
+                        to { width: 100% }
+                    }
+                    .animate-typing { overflow: hidden; white-space: nowrap; border-right: 4px solid #3b82f6; animation: typing 2.5s steps(40, end), blink-caret .75s step-end infinite; }
                     @keyframes zoom-slow { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
                     @keyframes tracking-in { 0% { letter-spacing: -0.5em; opacity: 0; } 40% { opacity: 0.6; } 100% { opacity: 0.7; } }
                     .animate-zoom-slow { animation: zoom-slow 10s ease-out forwards; }
                     .animate-tracking-in { animation: tracking-in 3s ease-out forwards; }
-                `}</style>
+                ` }} />
             </div>
         );
     }
