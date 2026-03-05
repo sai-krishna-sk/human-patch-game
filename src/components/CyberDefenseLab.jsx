@@ -9,6 +9,7 @@ import FileFortress from './minigames/FileFortress';
 import WiFiSentry from './minigames/WiFiSentry';
 import BrowserSentry from './minigames/BrowserSentry';
 import CryptoChase from './minigames/CryptoChase';
+import DDOSDefense from './minigames/DDOSDefense';
 
 const CyberDefenseLab = () => {
     const { enterLevel } = useGameState();
@@ -303,13 +304,29 @@ const CyberDefenseLab = () => {
                     </div>
                 </div>
 
+                {/* 2. DDOS Defense */}
+                <div
+                    onClick={() => { setActiveGame('DDOSDefense'); setView('playing'); }}
+                    className="group bg-slate-900/50 border border-slate-800 p-6 rounded-xl hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all cursor-pointer relative overflow-hidden"
+                >
+                    <div className="flex items-start justify-between mb-4">
+                        <span className="text-3xl">🛡️</span>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-950 px-2 py-1 rounded">ARCADE_02</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-tighter">DDoS Defense</h3>
+                    <p className="text-slate-400 text-sm mb-4">Protect the core from malicious traffic floods! Build firewalls and rate limiters to filter packets.</p>
+                    <div className="w-full h-1 bg-slate-800 rounded overflow-hidden">
+                        <div className="h-full bg-cyan-500 w-full animate-pulse"></div>
+                    </div>
+                </div>
+
                 {/* Placeholders */}
-                {[...Array(2)].map((_, i) => (
+                {[...Array(1)].map((_, i) => (
                     <div key={i} className="bg-slate-900/20 border border-slate-800/50 p-6 rounded-xl relative grayscale opacity-40 group overflow-hidden">
                         <div className="absolute inset-0 flex items-center justify-center rotate-12">
                             <span className="text-slate-700 font-black text-4xl opacity-10">CLASSIFIED</span>
                         </div>
-                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic uppercase">Mission_{i + 2}</h3>
+                        <h3 className="text-xl font-bold text-slate-500 mb-2 italic uppercase">Mission_{i + 3}</h3>
                         <p className="text-slate-600 text-sm">Awaiting mission parameters...</p>
                     </div>
                 ))}
@@ -360,6 +377,9 @@ const CyberDefenseLab = () => {
                 )}
                 {view === 'playing' && activeGame === 'CryptoChase' && (
                     <CryptoChase onBack={() => { setView('arcade'); setActiveGame(null); }} />
+                )}
+                {view === 'playing' && activeGame === 'DDOSDefense' && (
+                    <DDOSDefense onBack={() => { setView('arcade'); setActiveGame(null); }} />
                 )}
             </div>
 
