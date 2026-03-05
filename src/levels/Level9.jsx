@@ -522,7 +522,11 @@ const Level9 = () => {
             </p>
           </div>
 
-          <button onClick={() => completeLevel(true, 500, 200)} className="bg-indigo-600 hover:bg-indigo-500 px-24 py-10 rounded-[60px] text-2xl font-black italic uppercase transition-all shadow-[0_20px_50px_rgba(79,70,229,0.4)] hover:-translate-y-2">CONTINUE_MISSION_L10</button>
+          <button onClick={() => {
+            adjustAssets(200);
+            setSafetyScore(prev => prev + 500);
+            enterLevel(10);
+          }} className="bg-indigo-600 hover:bg-indigo-500 px-24 py-10 rounded-[60px] text-2xl font-black italic uppercase transition-all shadow-[0_20px_50px_rgba(79,70,229,0.4)] hover:-translate-y-2">CONTINUE_MISSION_L10</button>
         </div>
       ) : (
         <div className="space-y-12 animate-in zoom-in-95">

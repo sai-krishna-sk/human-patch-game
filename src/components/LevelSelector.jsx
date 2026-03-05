@@ -11,8 +11,8 @@ const levelNames = {
     7: 'The Open Network',
     8: 'The Ghost Store',
     9: 'The Invisible Hook',
-    10: 'Crypto Rug',
-    11: 'Dark Web',
+    10: 'The Voice That Wasn\'t',
+    11: 'The Password Paradox',
     12: 'Zero Day',
     13: 'APT Attack',
     14: 'Final Boss'
@@ -81,7 +81,7 @@ const LevelSelector = () => {
                 <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-5 pr-2 relative z-10 custom-scrollbar">
                     {[...Array(14)].map((_, i) => {
                         const levelNum = i + 1;
-                        const isUnlocked = levelNum <= 9;
+                        const isUnlocked = levelNum <= 11;
                         const difficulty = levelDifficulty[levelNum];
 
                         return (

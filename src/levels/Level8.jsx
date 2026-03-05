@@ -41,6 +41,12 @@ const CLUE_DATA = [
         name: 'Social Engineering Audit',
         description: 'Agent pushes artificial urgency ("Only 12 left!") and deflects questions about GST or card payments.',
         points: 20
+    },
+    {
+        id: 'fake_security',
+        name: 'False Security Badge',
+        description: 'The "Secured Checkout - 100% Safe" badge is a static image, not a verified SSL certificate. Scammers add these to build false trust.',
+        points: 15
     }
 ];
 
@@ -60,6 +66,8 @@ const Level8 = () => {
     const [showChat, setShowChat] = useState(false);
     const [chatStep, setChatStep] = useState(0);
     const [trustScoreLogs, setTrustScoreLogs] = useState([]);
+    const [showWhatsAppWarn, setShowWhatsAppWarn] = useState(false);
+    const [hasWarned, setHasWarned] = useState(false);
 
     // Movement State
     const [playerPos, setPlayerPos] = useState({ x: 750, y: 430 });
@@ -163,12 +171,17 @@ const Level8 = () => {
 
     // Handle Interaction Key 'E'
     useEffect(() => {
-        if (keys['e'] && interactionActive && !showWhatsApp) {
-            setIsPhoneVibrating(false);
-            setShowWhatsApp(true);
-            setKeys(k => ({ ...k, 'e': false }));
+        if (keys['e'] && interactionActive && gameState === 'living-room') {
+            if (!showWhatsApp && !hasWarned && !showWhatsAppWarn) {
+                setIsPhoneVibrating(false);
+                setShowWhatsApp(true);
+                setKeys(k => ({ ...k, 'e': false }));
+            } else if (hasWarned) {
+                setGameState('cybercrime-portal');
+                setKeys(k => ({ ...k, 'e': false }));
+            }
         }
-    }, [keys, interactionActive, showWhatsApp]);
+    }, [keys, interactionActive, showWhatsApp, hasWarned, showWhatsAppWarn, gameState]);
 
     // ═══ COMPONENTS ═══
 
@@ -330,41 +343,68 @@ const Level8 = () => {
                             </div>
                         </div>
 
-                        {/* PHONE (Interacable area on the coffee table) */}
-                        <div
-                            className="absolute z-30"
-                            style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
-                        >
+                        {/* PHONE OR LAPTOP (Interacable area on the coffee table) */}
+                        {!hasWarned ? (
                             <div
-                                className={`w-[40px] h-[75px] bg-[#0f172a] rounded-[8px] border-[2px] border-slate-600 shadow-2xl cursor-pointer hover:scale-110 flex flex-col items-center justify-center transition-all ${isPhoneVibrating ? 'animate-[shake_0.5s_infinite] ring-2 ring-emerald-500' : 'hover:ring-2 hover:ring-cyan-500'}`}
-                                onClick={() => {
-                                    setIsPhoneVibrating(false);
-                                    setShowWhatsApp(true);
-                                }}
+                                className="absolute z-30"
+                                style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
                             >
-                                <div className="w-[12px] h-[2px] bg-slate-700 rounded-full absolute top-[3px]"></div>
-                                <div className="flex-1 w-[32px] bg-slate-900 mt-2 mb-1 border border-slate-700 mx-[2px] flex items-center justify-center">
-                                    {isPhoneVibrating ? (
-                                        <div className="text-[12px] animate-pulse shadow-[0_0_10px_#22c55e] rounded-full">💬</div>
-                                    ) : (
-                                        <span className="text-white/40 text-[7px] font-black">19:29</span>
-                                    )}
+                                <div
+                                    className={`w-[40px] h-[75px] bg-[#0f172a] rounded-[8px] border-[2px] border-slate-600 shadow-2xl cursor-pointer hover:scale-110 flex flex-col items-center justify-center transition-all ${isPhoneVibrating ? 'animate-[shake_0.5s_infinite] ring-2 ring-emerald-500' : 'hover:ring-2 hover:ring-cyan-500'}`}
+                                    onClick={() => {
+                                        setIsPhoneVibrating(false);
+                                        setShowWhatsApp(true);
+                                    }}
+                                >
+                                    <div className="w-[12px] h-[2px] bg-slate-700 rounded-full absolute top-[3px]"></div>
+                                    <div className="flex-1 w-[32px] bg-slate-900 mt-2 mb-1 border border-slate-700 mx-[2px] flex items-center justify-center">
+                                        {isPhoneVibrating ? (
+                                            <div className="text-[12px] animate-pulse shadow-[0_0_10px_#22c55e] rounded-full">💬</div>
+                                        ) : (
+                                            <span className="text-white/40 text-[7px] font-black">19:29</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div
+                                className="absolute z-30"
+                                style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
+                            >
+                                <div
+                                    className="w-[90px] h-[60px] bg-slate-800 rounded-md shadow-2xl flex flex-col items-center justify-end p-1 border-b-4 border-slate-950 cursor-pointer hover:scale-110 hover:ring-2 hover:ring-indigo-500 transition-all group animate-[shake_2s_infinite]"
+                                    onClick={() => setGameState('cybercrime-portal')}
+                                >
+                                    <div className="w-full flex-1 bg-slate-950 border border-slate-700 mb-1 rounded-sm flex items-center justify-center relative overflow-hidden">
+                                        <div className="absolute inset-0 bg-blue-500/10"></div>
+                                        <div className="text-[8px] text-blue-400 font-mono text-center shadow-[0_0_10px_rgba(96,165,250,0.5)]">GOV.IN</div>
+                                    </div>
+                                    <div className="w-full h-[6px] bg-slate-600 rounded-b-sm flex items-center justify-center">
+                                        <div className="w-4 h-1 bg-slate-500 rounded-full"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* INTERACTION HINT UI */}
-                        {interactionActive && gameState === 'living-room' && !showWhatsApp && isPhoneVibrating && (
+                        {interactionActive && gameState === 'living-room' && !showWhatsApp && !hasWarned && isPhoneVibrating && (
                             <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
                                 <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-emerald-500 font-bold animate-bounce text-sm whitespace-nowrap">
                                     Press [E] to read message
                                 </div>
                             </div>
                         )}
-                        {interactionActive && gameState === 'living-room' && !showWhatsApp && !isPhoneVibrating && (
+                        {interactionActive && gameState === 'living-room' && !showWhatsApp && !hasWarned && !isPhoneVibrating && (
                             <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
                                 <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-slate-500 font-bold text-sm whitespace-nowrap">
                                     Press [E] to check phone
+                                </div>
+                            </div>
+                        )}
+                        {interactionActive && gameState === 'living-room' && hasWarned && (
+                            <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
+                                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-indigo-500 font-bold animate-bounce text-sm whitespace-nowrap">
+                                    Press [E] to open Cybercrime Portal
                                 </div>
                             </div>
                         )}
@@ -450,10 +490,180 @@ const Level8 = () => {
         </div>
     );
 
+    const WhatsAppWarnThread = () => (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-500">
+            <div className="w-[450px] bg-[#075e54] rounded-[45px] shadow-[0_60px_150px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="px-10 py-10 flex items-center gap-6 bg-[#075e54]">
+                    <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10">
+                        <span className="text-3xl">👩‍🍳</span>
+                    </div>
+                    <div className="flex flex-col">
+                        <h3 className="text-white font-black text-xl">Aunty Priya 💛</h3>
+                        <span className="text-white/60 text-xs font-medium">Online</span>
+                    </div>
+                </div>
+
+                {/* Chat Background */}
+                <div className="flex-1 bg-[#e5ddd5] p-8 space-y-6 overflow-y-auto" style={{
+                    backgroundImage: 'url("https://user-images.githubusercontent.com/1507727/101833400-33499000-3b4d-11eb-8283-bc7b9d6d23f3.png")',
+                    backgroundSize: '400px'
+                }}>
+                    <div className="flex flex-col gap-4">
+                        {/* Outgoing Message */}
+                        <div className="self-end max-w-[85%] bg-[#dcf8c6] p-4 rounded-l-2xl rounded-tr-2xl shadow-sm relative animate-in slide-in-from-right duration-300">
+                            <p className="text-sm font-medium leading-relaxed text-slate-800">
+                                Aunty STOP! 🛑 Do not buy anything and don't share this link! The website is a complete scam. They have no GST, the domain was created 19 days ago, and the security badges are fake images.
+                            </p>
+                            <div className="text-[10px] text-emerald-600 text-right mt-2 font-bold flex justify-end items-center gap-1">
+                                <span>20:15</span>
+                                <span>✓✓</span>
+                            </div>
+                        </div>
+
+                        {/* Aunty Priya Response */}
+                        <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm animate-in slide-in-from-left duration-500 delay-1000 fill-mode-both">
+                            <p className="text-sm font-medium leading-relaxed text-slate-800">
+                                Oh my god thank you Kannaa!! 🙏 I will block the sender immediately and delete the link. How do we stop this from spreading to others??
+                            </p>
+                            <div className="text-[10px] text-slate-400 text-right mt-2 font-bold">20:16</div>
+                        </div>
+
+                        {/* Outgoing Message 2 */}
+                        <div className="self-end max-w-[85%] bg-[#dcf8c6] p-4 rounded-l-2xl rounded-tr-2xl shadow-sm relative animate-in slide-in-from-right duration-500 delay-[2500ms] fill-mode-both">
+                            <p className="text-sm font-medium leading-relaxed text-slate-800">
+                                Don't worry, I have collected all the evidence on my Evidence Board. I need to go to my laptop right now and file an official report on the Cybercrime Portal. I'll handle it!
+                            </p>
+                            <div className="text-[10px] text-emerald-600 text-right mt-2 font-bold flex justify-end items-center gap-1">
+                                <span>20:16</span>
+                                <span>✓✓</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Action */}
+                <div className="p-6 bg-slate-900 border-t-4 border-slate-800">
+                    <button
+                        className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-5 rounded-2xl shadow-lg transition-all animate-pulse uppercase tracking-widest flex items-center justify-center gap-3"
+                        onClick={() => {
+                            setShowWhatsAppWarn(false);
+                            setHasWarned(true);
+                            setGameState('living-room');
+                        }}
+                    >
+                        <span>💻</span>
+                        <span>Go to Laptop & Report</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    const CybercrimePortal = () => {
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [isAttachmentAdded, setIsAttachmentAdded] = useState(false);
+
+        const handleSubmit = () => {
+            setIsSubmitting(true);
+            setTimeout(() => {
+                setOutcomeType('victory');
+                setGameState('outcome');
+            }, 2000); // simulate loading
+        };
+
+        return (
+            <div className="fixed inset-0 z-[1000] bg-zinc-900 flex items-center justify-center font-sans tracking-wide">
+                <div className="max-w-4xl w-full h-[90vh] bg-white rounded-t-lg shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-700">
+                    {/* Fake Browser Toolbar */}
+                    <div className="bg-zinc-200 h-10 border-b border-zinc-300 flex items-center px-4 gap-4">
+                        <div className="flex gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                            <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                            <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                        </div>
+                        <div className="flex-1 bg-white rounded-md h-6 px-3 flex items-center shadow-sm text-xs font-mono text-zinc-600">
+                            🔒 https://cybercrime.gov.in/report-incident
+                        </div>
+                    </div>
+
+                    {/* Portal Header */}
+                    <div className="bg-[#0b1f52] p-6 text-white flex items-center gap-6 border-b-4 border-amber-500">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center font-serif text-3xl font-bold text-[#0b1f52] shrink-0">In</div>
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-black uppercase tracking-wider font-serif">National Cyber Crime Reporting Portal</h1>
+                            <p className="text-cyan-200 text-xs md:text-sm italic font-medium">Ministry of Home Affairs, Government Of India</p>
+                        </div>
+                    </div>
+
+                    {/* Portal Content */}
+                    <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-slate-50 hide-scrollbar">
+                        <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm">
+                            <h2 className="text-lg md:text-xl font-bold text-slate-800 border-b-2 border-slate-100 pb-4 mb-6 uppercase flex items-center gap-3">
+                                <span>📝</span> File a Suspect Website Report
+                            </h2>
+
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Suspect URL / Domain name <span className="text-red-500">*</span></label>
+                                    <input type="text" readOnly value="https://techdeals-india.shop/sale24" className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 font-mono text-sm" />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Category of Fraud <span className="text-red-500">*</span></label>
+                                    <select disabled className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 font-medium text-sm">
+                                        <option>Online Shopping / E-Commerce Scam</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Incident Details <span className="text-red-500">*</span></label>
+                                    <textarea readOnly className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 h-24 text-sm" value="Fraudulent e-commerce store spreading via WhatsApp links. Offers massive fake discounts to steal money directly via UPI to personal accounts. Domain registered recently with masked identity. Uses fake pressure tactics."></textarea>
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Evidence / Logs Attached <span className="text-red-500">*</span></label>
+                                    {!isAttachmentAdded ? (
+                                        <button
+                                            className="w-full bg-amber-100 hover:bg-amber-200 border-2 border-dashed border-amber-400 text-amber-800 font-bold py-6 rounded-xl flex items-center justify-center gap-3 transition-colors outline-none"
+                                            onClick={() => setIsAttachmentAdded(true)}
+                                        >
+                                            <span className="text-2xl">📋</span>
+                                            <span>Attach Evidence Board Clues (7 Items)</span>
+                                        </button>
+                                    ) : (
+                                        <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between">
+                                            <div className="flex items-center gap-3 text-emerald-700 font-bold">
+                                                <span className="text-2xl">✅</span>
+                                                <span className="text-sm md:text-base">evidence_logs.zip (7 items successfully attached)</span>
+                                            </div>
+                                            <span className="text-xs text-emerald-600 font-mono">1.2MB</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Submit Actions */}
+                        <div className="mt-8 flex justify-end">
+                            <button
+                                disabled={!isAttachmentAdded || isSubmitting}
+                                onClick={handleSubmit}
+                                className={`font-black py-4 px-8 md:px-12 rounded-lg text-sm md:text-lg uppercase tracking-widest transition-all outline-none ${!isAttachmentAdded ? 'bg-slate-300 text-slate-500 cursor-not-allowed border-none' : isSubmitting ? 'bg-cyan-600 text-white animate-pulse' : 'bg-[#0b1f52] hover:bg-blue-900 text-white shadow-lg shadow-blue-900/40 hover:scale-105 active:scale-95'}`}
+                            >
+                                {isSubmitting ? 'Submitting to Cyber Cell...' : 'Submit Final Report'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     const GhostStore = () => (
         <div className={`absolute top-0 bottom-0 left-0 bg-[#f4f4f4] flex flex-col font-sans animate-in slide-in-from-bottom-20 duration-1000 overflow-y-auto transition-all ${showDetectiveBoard ? 'w-[65%]' : 'w-full'}`}>
             {/* Browser Header */}
-            <div className="sticky top-0 z-[100] bg-white border-b border-gray-200 p-3 flex flex-col gap-2 shadow-sm">
+            <div className="sticky top-0 z-[50] bg-white border-b border-gray-200 p-3 flex flex-col gap-2 shadow-sm">
                 <div className="flex items-center gap-4">
                     <div className="flex gap-2 ml-2">
                         <div className="w-3 h-3 rounded-full bg-red-400" />
@@ -481,7 +691,7 @@ const Level8 = () => {
                 </div>
 
                 {/* Main Nav Banner */}
-                <header className="py-5 px-12 flex justify-between items-center border-b border-gray-100">
+                <header className="py-5 px-12 pr-64 flex justify-between items-center border-b border-gray-100">
                     <div className="flex items-center gap-3">
                         <div className="text-blue-600 font-extrabold text-3xl tracking-tighter" style={{ fontFamily: 'Arial, sans-serif' }}>SAMSUNG</div>
                         <div className="h-6 w-px bg-gray-300 mx-2"></div>
@@ -489,6 +699,13 @@ const Level8 = () => {
                     </div>
 
                     <div className="flex items-center gap-6">
+                        <div
+                            className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200 cursor-pointer hover:bg-green-100 transition-colors shadow-sm ml-auto"
+                            onClick={() => handleClueDiscovery('fake_security')}
+                        >
+                            <span className="text-lg animate-pulse">🔒</span>
+                            <span className="font-bold text-sm">Secured Checkout <span className="font-medium opacity-80">— 100% Safe</span></span>
+                        </div>
                     </div>
                 </header>
 
@@ -837,14 +1054,14 @@ const Level8 = () => {
                 <div>
                     <h3 className="text-xs text-zinc-400 uppercase font-mono mb-2 flex justify-between">
                         <span>Threat Intelligence Meter</span>
-                        <span style={{ color: cluesFound.length > 2 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e' }}>{cluesFound.length}/6 CLUES</span>
+                        <span style={{ color: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e' }}>{cluesFound.length}/7 CLUES</span>
                     </h3>
                     <div className="w-full h-4 bg-zinc-950 rounded-full overflow-hidden shadow-inner">
                         <div
                             className="h-full transition-all duration-500"
                             style={{
-                                width: `${(cluesFound.length / 6) * 100}%`,
-                                backgroundColor: cluesFound.length > 2 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e'
+                                width: `${(cluesFound.length / 7) * 100}%`,
+                                backgroundColor: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e'
                             }}
                         ></div>
                     </div>
@@ -888,8 +1105,8 @@ const Level8 = () => {
                     <button
                         className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-12 px-12 rounded-[50px] shadow-3xl text-xl uppercase tracking-widest transition-all hover:scale-105"
                         onClick={() => {
-                            setOutcomeType('victory');
-                            setGameState('outcome');
+                            setShowWhatsAppWarn(true);
+                            setGameState('living-room');
                         }}
                     >
                         Warn Aunty Priya & Report
@@ -969,8 +1186,10 @@ const Level8 = () => {
             {gameState === 'website' && <GhostStore />}
             {gameState === 'outcome-pre' && <OutcomeDecision />}
             {gameState === 'outcome' && <OutcomeFinal />}
+            {gameState === 'cybercrime-portal' && <CybercrimePortal />}
 
             {showWhatsApp && <WhatsAppThread />}
+            {showWhatsAppWarn && <WhatsAppWarnThread />}
 
             {showDetectiveBoard && <EvidenceBoard />}
 

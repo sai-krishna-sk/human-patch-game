@@ -67,6 +67,10 @@ const Level5 = () => {
     const [innerThought, setInnerThought] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
     const [canInteract, setCanInteract] = useState(false);
+    const [callStep, setCallStep] = useState(0); // 0=ringing, 1=connecting, 2=connected, 3=dialogue
+    const [dialogueIndex, setDialogueIndex] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
+    const firstLineSpoken = React.useRef(false);
 
     // Handle Interaction Key (E)
     useEffect(() => {
@@ -89,6 +93,15 @@ const Level5 = () => {
             window.removeEventListener('keyup', uk);
             window.removeEventListener('resize', handleResize);
         };
+    }, []);
+
+    // Pre-load speech synthesis voices
+    useEffect(() => {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+        }
+        return () => { window.speechSynthesis?.cancel(); };
     }, []);
 
     useEffect(() => {
@@ -144,6 +157,29 @@ const Level5 = () => {
     const playerScale = 0.6 + (playerPos.y / ROOM_HEIGHT) * 0.4;
 
     const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
+
+    // Voice synthesis utility
+    const speakLine = (text, isNithya = false) => {
+        if (isMuted || typeof window === 'undefined' || !window.speechSynthesis) return;
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        const voices = window.speechSynthesis.getVoices();
+        if (isNithya) {
+            // Girl voice — higher pitch, female voice
+            const femaleVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google UK English Female') || v.name.toLowerCase().includes('female'));
+            if (femaleVoice) utter.voice = femaleVoice;
+            utter.pitch = 1.5;
+            utter.rate = 1.05;
+        } else {
+            // Boy voice — lower pitch, male voice
+            const maleVoice = voices.find(v => v.name.includes('David') || v.name.includes('Google UK English Male') || v.name.toLowerCase().includes('male'));
+            if (maleVoice) utter.voice = maleVoice;
+            utter.pitch = 0.7;
+            utter.rate = 0.9;
+        }
+        utter.volume = 0.9;
+        window.speechSynthesis.speak(utter);
+    };
 
     const FeedbackToast = () => feedbackMsg ? (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] bg-blue-500 text-white font-black px-10 py-4 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.5)] animate-bounce text-xl border-4 border-white">
@@ -286,11 +322,13 @@ const Level5 = () => {
                 <FeedbackToast />
 
                 {/* Phone container - matching Levels 1-3 style */}
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
+                <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
                     <StatusBar dark />
 
-                    {/* Notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl z-50"></div>
+                    {/* Dynamic Island */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                    </div>
 
                     <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-8">
                         {/* App header - simplified */}
@@ -385,11 +423,13 @@ const Level5 = () => {
             <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
+                <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
                     <StatusBar />
 
-                    {/* Notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl z-50"></div>
+                    {/* Dynamic Island */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                    </div>
 
                     <div className="w-full h-full bg-slate-50 overflow-hidden flex flex-col relative pt-8">
                         {/* Chat header - simplified */}
@@ -494,12 +534,14 @@ const Level5 = () => {
                 <FeedbackToast />
 
                 {/* Phone with profile - matching Levels 1-3 style */}
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
+                <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
                     style={{ transform: isDetectiveModeOpen ? 'translateX(-150px)' : 'translateX(0)' }}>
                     <StatusBar />
 
-                    {/* Notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl z-50"></div>
+                    {/* Dynamic Island */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                    </div>
 
                     <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-8">
                         {/* Profile header - simplified to match Levels 1-3 */}
@@ -961,133 +1003,284 @@ const Level5 = () => {
         );
     }
 
-    // CALL REAL NITHYA STATE
+    // CALL REAL NITHYA STATE — Split Screen
     if (gameState === 'call_real_nithya') {
         return (
-            <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
+            <div className="w-full h-full bg-gradient-to-br from-slate-950 via-zinc-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col"
-                    style={{
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
-                    }}>
-                    <StatusBar />
+                {/* Ambient glow */}
+                <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl animate-pulse" />
+                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                </div>
 
-                    {/* Modern notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-2xl z-50 flex items-center justify-center">
-                        <div className="w-12 h-5 bg-slate-900 rounded-full"></div>
-                    </div>
+                {/* Split Screen Container */}
+                <div className="flex items-center gap-8 z-10">
 
-                    {/* Side buttons */}
-                    <div className="absolute left-0 top-32 w-1 h-12 bg-slate-700 rounded-r-full"></div>
-                    <div className="absolute left-0 top-48 w-1 h-8 bg-slate-700 rounded-r-full"></div>
-                    <div className="absolute right-0 top-36 w-1 h-16 bg-slate-700 rounded-l-full"></div>
-
-                    <div className="w-full h-full overflow-hidden flex flex-col relative pt-12 rounded-[3rem] mt-2 bg-emerald-500">
-                        {/* Modern Call header */}
-                        <div className="px-6 py-4 pt-8 text-center text-white">
-                            <p className="text-xs opacity-80 mb-1">Calling...</p>
-                            <p className="font-black text-2xl">Nithya College</p>
-                            <div className="flex items-center justify-center gap-2 mt-2">
-                                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                                <span className="text-xs opacity-70">Connecting</span>
-                            </div>
+                    {/* LEFT — Player's Phone (Outgoing Call) */}
+                    <div className="w-[320px] max-h-[85vh] h-[680px] bg-zinc-900 border-[10px] border-black rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col">
+                        {/* Dynamic Island */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-50 flex items-center justify-center">
+                            <div className="w-2 h-2 bg-slate-700 rounded-full" />
                         </div>
 
-                        {/* Modern Call screen */}
-                        <div className="flex-1 flex flex-col items-center justify-center text-white px-6">
-                            <div className="w-36 h-36 bg-white/20 rounded-full flex items-center justify-center text-7xl mb-8 animate-pulse shadow-2xl backdrop-blur-sm">
-                                &#128105;
+                        <div className="w-full h-full bg-gradient-to-b from-blue-600 via-blue-500 to-indigo-600 flex flex-col items-center justify-center text-white relative overflow-hidden rounded-[1.5rem]">
+                            {/* Ripple effect */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="w-40 h-40 border-2 border-white/10 rounded-full animate-ping" />
+                                <div className="absolute w-56 h-56 border border-white/5 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
                             </div>
-                            <div className="text-center">
-                                <p className="font-black text-3xl mb-2">Nithya Krishnan</p>
-                                <p className="opacity-80 text-lg">Chennai, Tamil Nadu</p>
-                                <div className="flex items-center justify-center gap-2 mt-3">
+
+                            <div className="relative z-10 flex flex-col items-center">
+                                <p className="text-xs opacity-60 uppercase tracking-[0.3em] mb-2 font-bold">Outgoing Call</p>
+                                <div className="w-24 h-24 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center text-5xl mb-6 shadow-xl border-2 border-white/20">
+                                    👤
+                                </div>
+                                <p className="font-black text-2xl mb-1">You</p>
+                                <p className="text-sm opacity-70">Calling Nithya...</p>
+
+                                {/* Call duration indicator */}
+                                <div className="mt-8 flex items-center gap-2">
+                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                                    <span className="text-xs font-mono opacity-60">Ringing...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* CENTER — Connection pulse */}
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="flex gap-2">
+                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce" />
+                            <div className="w-3 h-3 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                            <div className="w-3 h-3 bg-emerald-300 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                        </div>
+                        <p className="text-white/40 text-xs font-bold uppercase tracking-[0.2em]">Connecting</p>
+                    </div>
+
+                    {/* RIGHT — Nithya's Phone (Incoming Call) */}
+                    <div className="w-[320px] max-h-[85vh] h-[680px] bg-zinc-900 border-[10px] border-black rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col">
+                        {/* Dynamic Island */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-50 flex items-center justify-center">
+                            <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                        </div>
+
+                        <div className="w-full h-full bg-gradient-to-b from-emerald-600 via-emerald-500 to-teal-600 flex flex-col items-center justify-between text-white relative overflow-hidden rounded-[1.5rem] py-12">
+                            {/* Ripple effect */}
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                <div className="w-40 h-40 border-2 border-white/10 rounded-full animate-ping" />
+                            </div>
+
+                            <div className="relative z-10 flex flex-col items-center flex-1 justify-center">
+                                <p className="text-xs opacity-60 uppercase tracking-[0.3em] mb-2 font-bold">Incoming Call</p>
+                                <div className="w-28 h-28 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center text-6xl mb-6 shadow-xl border-2 border-white/20 animate-pulse">
+                                    👩
+                                </div>
+                                <p className="font-black text-2xl mb-1">Nithya Krishnan</p>
+                                <p className="text-sm opacity-70">Chennai, Tamil Nadu</p>
+                                <div className="flex items-center gap-2 mt-2">
                                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                                     </svg>
                                     <span className="text-sm opacity-70">Mobile</span>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Modern Call controls */}
-                        <div className="p-8 flex justify-center">
-                            <button className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center text-white text-3xl shadow-2xl hover:scale-110 transition-all hover:bg-red-600 active:scale-95 border-4 border-red-600/30"
-                                onClick={() => {
-                                    setCalledRealNithya(true);
-                                    setGameState('call_confirmation');
-                                }}>
-                                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                                </svg>
-                            </button>
+                            {/* Answer Call Button */}
+                            <div className="relative z-10 flex flex-col items-center gap-3 pb-4">
+                                <p className="text-white/60 text-xs font-bold animate-pulse">Tap to answer</p>
+                                <button
+                                    className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-emerald-600 text-3xl shadow-[0_8px_30px_rgba(255,255,255,0.3)] hover:scale-110 transition-all active:scale-95 border-4 border-white/50"
+                                    onClick={() => {
+                                        setCalledRealNithya(true);
+                                        setCallStep(0);
+                                        setDialogueIndex(0);
+                                        firstLineSpoken.current = false;
+                                        setGameState('call_confirmation');
+                                    }}
+                                >
+                                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-white/60 text-sm font-black animate-pulse bg-black/20 px-6 py-3 rounded-full backdrop-blur-sm">
-                    Tap to answer the call...
+                {/* Label */}
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-800/80 backdrop-blur-sm px-6 py-2 rounded-full border border-slate-700/50">
+                    <p className="text-white/80 text-sm font-bold tracking-wider">📞 VERIFYING REAL IDENTITY</p>
                 </div>
             </div>
         );
     }
 
-    // CALL CONFIRMATION STATE
+    // CALL CONFIRMATION STATE — Voice Dialogue
     if (gameState === 'call_confirmation') {
+        const dialogueLines = [
+            { sender: 'you', text: "Nithya, are you in Coimbatore? Are you at a hospital?" },
+            { sender: 'nithya', text: "What?! No! I'm at home in Chennai, just finished dinner. Why? Did someone message you pretending to be me??" },
+            { sender: 'you', text: "Yes. A fake account in your name asked me to send ₹8,000 for a hospital emergency in Coimbatore. I didn't send anything — I verified first. But the account has 12 of our mutual friends added. We should warn them." },
+            { sender: 'nithya', text: "Oh my god. My account was not hacked — they made a COPY. I'm going to report this right now. Can you help me send a warning to our group?" },
+        ];
+
+        const showNextLine = () => {
+            if (dialogueIndex < dialogueLines.length - 1) {
+                const nextIdx = dialogueIndex + 1;
+                setDialogueIndex(nextIdx);
+                const nextLine = dialogueLines[nextIdx];
+                speakLine(nextLine.text, nextLine.sender === 'nithya');
+            }
+        };
+
+        // Speak first line when entering this state
+        if (dialogueIndex === 0 && !firstLineSpoken.current) {
+            firstLineSpoken.current = true;
+            setTimeout(() => {
+                speakLine(dialogueLines[0].text, dialogueLines[0].sender === 'nithya');
+            }, 800);
+        }
+
         return (
-            <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
+            <div className="w-full h-full bg-gradient-to-br from-slate-950 via-zinc-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-full max-w-2xl bg-white rounded-[3rem] p-10 shadow-2xl border-4 border-white/10">
-                    <div className="text-center mb-8">
-                        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-4">✓</div>
-                        <h2 className="text-3xl font-black text-gray-900 mb-2">Call Connected</h2>
-                        <p className="text-gray-600">Real Nithya is safe in Chennai</p>
+                {/* Ambient glow */}
+                <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-1/3 left-1/3 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
+                    <div className="absolute bottom-1/3 right-1/3 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
+                </div>
+
+                {/* Split Screen — Connected Call */}
+                <div className="flex items-stretch gap-6 z-10 max-w-5xl w-full">
+
+                    {/* LEFT — Player's side */}
+                    <div className="w-48 flex-shrink-0 bg-gradient-to-b from-blue-700 to-indigo-800 rounded-3xl p-6 flex flex-col items-center justify-center text-white shadow-2xl border border-blue-600/30">
+                        <div className="w-20 h-20 bg-white/15 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-white/20">
+                            👤
+                        </div>
+                        <p className="font-black text-lg mb-1">You</p>
+                        <div className="flex items-center gap-2 mt-2">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                            <span className="text-xs opacity-70 font-mono">Connected</span>
+                        </div>
+
+                        {/* Audio wave animation */}
+                        <div className="flex items-end gap-1 mt-6 h-8">
+                            {[3, 5, 2, 6, 4, 3, 5].map((h, i) => (
+                                <div key={i} className="w-1 bg-white/40 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.1}s` }} />
+                            ))}
+                        </div>
                     </div>
 
-                    <div className="space-y-4 mb-8">
-                        <div className="bg-blue-50 p-4 rounded-2xl border-l-4 border-blue-500">
-                            <p className="font-black text-blue-900 mb-1">You:</p>
-                            <p className="text-gray-700">"Nithya, are you in Coimbatore? Are you at a hospital?"</p>
+                    {/* CENTER — Dialogue */}
+                    <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-emerald-600/20 border-b border-emerald-500/20 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
+                                <h2 className="text-white font-black text-lg">Call Connected</h2>
+                                <span className="text-emerald-300/60 text-xs font-mono">— Real Nithya is safe in Chennai</span>
+                            </div>
+                            <button
+                                onClick={() => setIsMuted(!isMuted)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isMuted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'}`}
+                            >
+                                {isMuted ? '🔇 Muted' : '🔊 Audio On'}
+                            </button>
                         </div>
 
-                        <div className="bg-green-50 p-4 rounded-2xl border-l-4 border-green-500">
-                            <p className="font-black text-green-900 mb-1">Nithya (Real):</p>
-                            <p className="text-gray-700">"What?! No! I'm at home in Chennai, just finished dinner. Why? Did someone message you pretending to be me??"</p>
+                        {/* Dialogue bubbles */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                            {dialogueLines.slice(0, dialogueIndex + 1).map((line, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`flex ${line.sender === 'you' ? 'justify-start' : 'justify-end'} animate-in slide-in-from-bottom-2 duration-500`}
+                                    style={{ animationDelay: `${idx * 0.1}s` }}
+                                >
+                                    <div className={`max-w-[80%] p-4 rounded-2xl shadow-lg ${line.sender === 'you'
+                                        ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100 rounded-tl-sm'
+                                        : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-100 rounded-tr-sm'
+                                        }`}>
+                                        <p className={`text-xs font-black uppercase tracking-wider mb-2 ${line.sender === 'you' ? 'text-blue-400' : 'text-emerald-400'}`}>
+                                            {line.sender === 'you' ? '👤 You:' : '👩 Nithya (Real):'}
+                                        </p>
+                                        <p className="text-sm leading-relaxed">"{line.text}"</p>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Typing indicator */}
+                            {dialogueIndex < dialogueLines.length - 1 && (
+                                <div className="flex justify-center">
+                                    <div className="flex gap-1 p-3">
+                                        <div className="w-2 h-2 bg-white/30 rounded-full animate-bounce" />
+                                        <div className="w-2 h-2 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                                        <div className="w-2 h-2 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
                         </div>
 
-                        <div className="bg-blue-50 p-4 rounded-2xl border-l-4 border-blue-500">
-                            <p className="font-black text-blue-900 mb-1">You:</p>
-                            <p className="text-gray-700">"Yes. A fake account in your name asked me to send ₹8,000 for a hospital emergency in Coimbatore. I didn't send anything — I verified first. But the account has 12 of our mutual friends added. We should warn them."</p>
-                        </div>
-
-                        <div className="bg-green-50 p-4 rounded-2xl border-l-4 border-green-500">
-                            <p className="font-black text-green-900 mb-1">Nithya (Real):</p>
-                            <p className="text-gray-700">"Oh my god. My account was not hacked — they made a COPY. I'm going to report this right now. Can you help me send a warning to our group?"</p>
+                        {/* Action buttons */}
+                        <div className="p-4 border-t border-white/10 flex-shrink-0">
+                            {dialogueIndex < dialogueLines.length - 1 ? (
+                                <button
+                                    className="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
+                                    onClick={showNextLine}
+                                >
+                                    <span>Continue Conversation</span>
+                                    <span className="animate-bounce">→</span>
+                                </button>
+                            ) : (
+                                <div className="space-y-3">
+                                    {!scamReported && (
+                                        <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                                            onClick={() => setGameState('report_fake_account')}>
+                                            🚨 Report Fake Account
+                                        </button>
+                                    )}
+                                    {!communityAlerted && (
+                                        <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                                            onClick={() => setGameState('alert_community')}>
+                                            👥 Alert Mutual Friends
+                                        </button>
+                                    )}
+                                    {scamReported && communityAlerted && (
+                                        <button className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 animate-pulse flex items-center justify-center gap-2"
+                                            onClick={() => {
+                                                window.speechSynthesis?.cancel();
+                                                setGameState('correct_path');
+                                            }}>
+                                            ✅ All Done — View Results
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        {!scamReported && (
-                            <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95"
-                                onClick={() => setGameState('report_fake_account')}>
-                                Report Fake Account &#128690;
-                            </button>
-                        )}
-                        {!communityAlerted && (
-                            <button className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95"
-                                onClick={() => setGameState('alert_community')}>
-                                Alert Mutual Friends &#128101;
-                            </button>
-                        )}
-                        {scamReported && communityAlerted && (
-                            <button className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95 animate-pulse"
-                                onClick={() => setGameState('correct_path')}>
-                                ✅ All Done — View Results
-                            </button>
-                        )}
+                    {/* RIGHT — Nithya's side */}
+                    <div className="w-48 flex-shrink-0 bg-gradient-to-b from-emerald-700 to-teal-800 rounded-3xl p-6 flex flex-col items-center justify-center text-white shadow-2xl border border-emerald-600/30">
+                        <div className="w-20 h-20 bg-white/15 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-white/20">
+                            👩
+                        </div>
+                        <p className="font-black text-lg mb-1">Nithya</p>
+                        <p className="text-xs opacity-60">Chennai</p>
+                        <div className="flex items-center gap-2 mt-2">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                            <span className="text-xs opacity-70 font-mono">Connected</span>
+                        </div>
+
+                        {/* Audio wave animation */}
+                        <div className="flex items-end gap-1 mt-6 h-8">
+                            {[4, 2, 6, 3, 5, 4, 2].map((h, i) => (
+                                <div key={i} className="w-1 bg-white/40 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.15}s` }} />
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1100,74 +1293,69 @@ const Level5 = () => {
             <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col"
+                <div className="w-[380px] max-h-[90vh] h-[700px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col"
                     style={{
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
                         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
                     }}>
                     <StatusBar />
 
-                    {/* Modern notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-2xl z-50 flex items-center justify-center">
-                        <div className="w-12 h-5 bg-slate-900 rounded-full"></div>
+                    {/* Dynamic Island */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
                     </div>
 
-                    {/* Side buttons */}
-                    <div className="absolute left-0 top-32 w-1 h-12 bg-slate-700 rounded-r-full"></div>
-                    <div className="absolute left-0 top-48 w-1 h-8 bg-slate-700 rounded-r-full"></div>
-                    <div className="absolute right-0 top-36 w-1 h-16 bg-slate-700 rounded-l-full"></div>
-
-                    <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-12 rounded-[3rem] mt-2">
-                        {/* Modern Reporting interface */}
-                        <div className="bg-gradient-to-r from-red-600 to-orange-600 px-6 py-4 pt-8 text-white shadow-lg">
-                            <h2 className="font-black text-2xl">Report Profile</h2>
-                            <p className="text-xs opacity-80 mt-1">Help keep our community safe</p>
+                    <div className="w-full h-full bg-white flex flex-col relative pt-10 rounded-[3rem] mt-2 overflow-hidden">
+                        {/* Reporting interface header */}
+                        <div className="bg-gradient-to-r from-red-600 to-orange-600 px-5 py-3 text-white shadow-lg flex-shrink-0">
+                            <h2 className="font-black text-xl">Report Profile</h2>
+                            <p className="text-xs opacity-80 mt-0.5">Help keep our community safe</p>
                         </div>
 
-                        <div className="flex-1 p-6 space-y-6">
-                            <div className="bg-gray-50 p-5 rounded-3xl border border-gray-200">
-                                <p className="font-black mb-3 text-lg">Reporting:</p>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-14 h-14 bg-gray-300 rounded-full flex items-center justify-center text-xl font-black shadow-md">N</div>
+                        <div className="flex-1 p-4 space-y-4 overflow-y-auto hide-scrollbar">
+                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+                                <p className="font-black mb-2 text-sm text-gray-800">Reporting:</p>
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-lg font-black shadow-md">N</div>
                                     <div>
-                                        <p className="font-black text-sm">Nithya Krishnan</p>
+                                        <p className="font-black text-sm text-gray-900">Nithya Krishnan</p>
                                         <p className="text-xs text-gray-500">@nithya_krishnan</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                <p className="font-black text-lg">Reason for report:</p>
-                                <label className="flex items-center gap-4 p-4 bg-red-50 border-2 border-red-500 rounded-2xl cursor-pointer hover:bg-red-100 transition-all">
-                                    <input type="radio" name="report" className="w-5 h-5" defaultChecked />
-                                    <span className="font-black text-red-900">Impersonation</span>
+                            <div className="space-y-3">
+                                <p className="font-black text-sm text-gray-800">Reason for report:</p>
+                                <label className="flex items-center gap-3 p-3 bg-red-50 border-2 border-red-500 rounded-xl cursor-pointer hover:bg-red-100 transition-all">
+                                    <input type="radio" name="report" className="w-4 h-4" defaultChecked />
+                                    <span className="font-black text-red-900 text-sm">Impersonation</span>
                                 </label>
-                                <label className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all">
-                                    <input type="radio" name="report" className="w-5 h-5" />
-                                    <span className="text-gray-700 font-medium">Spam</span>
+                                <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-all">
+                                    <input type="radio" name="report" className="w-4 h-4" />
+                                    <span className="text-gray-700 font-medium text-sm">Spam</span>
                                 </label>
-                                <label className="flex items-center gap-4 p-4 bg-gray-50 border border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 transition-all">
-                                    <input type="radio" name="report" className="w-5 h-5" />
-                                    <span className="text-gray-700 font-medium">Fake Account</span>
+                                <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-all">
+                                    <input type="radio" name="report" className="w-4 h-4" />
+                                    <span className="text-gray-700 font-medium text-sm">Fake Account</span>
                                 </label>
                             </div>
 
-                            <div className="bg-blue-50 p-5 rounded-3xl border border-blue-200">
-                                <p className="font-black text-blue-900 mb-3">Additional Details:</p>
-                                <p className="text-sm text-gray-700 leading-relaxed">This account is impersonating my real friend Nithya Krishnan to solicit money through fake emergency stories. The profile uses stock photos and was recently created.</p>
+                            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200">
+                                <p className="font-black text-blue-900 mb-2 text-sm">Additional Details:</p>
+                                <p className="text-xs text-gray-700 leading-relaxed">This account is impersonating my real friend Nithya Krishnan to solicit money through fake emergency stories. The profile uses stock photos and was recently created.</p>
                             </div>
                         </div>
 
-                        <div className="p-6 bg-white border-t border-gray-100 space-y-4">
-                            <button className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-black py-5 rounded-2xl transition-all shadow-xl active:scale-95"
+                        <div className="p-4 bg-white border-t border-gray-100 space-y-3 flex-shrink-0">
+                            <button className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95"
                                 onClick={() => {
                                     setScamReported(true);
                                     showFeedback("✅ Fake account reported!");
                                     setGameState('call_confirmation');
                                 }}>
-                                Submit Report &#128690;
+                                Submit Report 🚨
                             </button>
-                            <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-4 rounded-2xl transition-all"
+                            <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-3 rounded-2xl transition-all text-sm"
                                 onClick={() => setGameState('call_confirmation')}>
                                 Cancel
                             </button>
@@ -1184,74 +1372,69 @@ const Level5 = () => {
             <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
                 <FeedbackToast />
 
-                <div className="w-[400px] h-[820px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col"
+                <div className="w-[380px] max-h-[90vh] h-[700px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col"
                     style={{
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
                         background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
                     }}>
                     <StatusBar dark />
 
-                    {/* Modern notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-2xl z-50 flex items-center justify-center">
-                        <div className="w-12 h-5 bg-slate-900 rounded-full"></div>
+                    {/* Dynamic Island */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
                     </div>
 
-                    {/* Side buttons */}
-                    <div className="absolute left-0 top-32 w-1 h-12 bg-slate-700 rounded-r-full"></div>
-                    <div className="absolute left-0 top-48 w-1 h-8 bg-slate-700 rounded-r-full"></div>
-                    <div className="absolute right-0 top-36 w-1 h-16 bg-slate-700 rounded-l-full"></div>
-
-                    <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-12 rounded-[3rem] mt-2">
-                        {/* Modern Group chat interface */}
-                        <div className="bg-gradient-to-r from-green-600 to-blue-600 px-6 py-4 pt-8 text-white shadow-lg">
-                            <h2 className="font-black text-2xl">College Friends Group</h2>
-                            <p className="text-xs opacity-80 mt-1">12 members</p>
+                    <div className="w-full h-full bg-white flex flex-col relative pt-10 rounded-[3rem] mt-2 overflow-hidden">
+                        {/* Group chat header */}
+                        <div className="bg-gradient-to-r from-green-600 to-blue-600 px-5 py-3 text-white shadow-lg flex-shrink-0">
+                            <h2 className="font-black text-xl">College Friends Group</h2>
+                            <p className="text-xs opacity-80 mt-0.5">12 members</p>
                         </div>
 
-                        <div className="flex-1 p-6 space-y-6 bg-gray-50">
-                            <div className="bg-yellow-50 border-2 border-yellow-400 p-5 rounded-3xl shadow-lg">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center text-white font-black text-lg shadow-md">!</div>
-                                    <p className="font-black text-yellow-900 text-lg">⚠️ SECURITY ALERT</p>
+                        <div className="flex-1 p-4 space-y-4 bg-gray-50 overflow-y-auto hide-scrollbar">
+                            <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-2xl shadow-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md">!</div>
+                                    <p className="font-black text-yellow-900 text-sm">⚠️ SECURITY ALERT</p>
                                 </div>
-                                <p className="text-sm text-gray-700 leading-relaxed">A fake account impersonating Nithya Krishnan is sending fraud messages asking for money. DO NOT send any money. Report the account immediately. The real Nithya is safe in Chennai.</p>
+                                <p className="text-xs text-gray-700 leading-relaxed">A fake account impersonating Nithya Krishnan is sending fraud messages asking for money. DO NOT send any money. Report the account immediately. The real Nithya is safe in Chennai.</p>
                             </div>
 
-                            <div className="space-y-4">
-                                <div className="flex gap-4">
-                                    <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-black shadow-md">A</div>
-                                    <div className="bg-white p-4 rounded-3xl flex-1 shadow-sm border border-gray-100">
-                                        <p className="font-black text-sm mb-1">Arjun</p>
-                                        <p className="text-sm text-gray-700">Thanks for the warning! I almost sent money yesterday</p>
+                            <div className="space-y-3">
+                                <div className="flex gap-3 items-start">
+                                    <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">A</div>
+                                    <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
+                                        <p className="font-black text-xs mb-0.5 text-gray-900">Arjun</p>
+                                        <p className="text-xs text-gray-700">Thanks for the warning! I almost sent money yesterday</p>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-4">
-                                    <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-black shadow-md">P</div>
-                                    <div className="bg-white p-4 rounded-3xl flex-1 shadow-sm border border-gray-100">
-                                        <p className="font-black text-sm mb-1">Priya</p>
-                                        <p className="text-sm text-gray-700">Just reported the account! Everyone stay safe &#128583;</p>
+                                <div className="flex gap-3 items-start">
+                                    <div className="w-9 h-9 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">P</div>
+                                    <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
+                                        <p className="font-black text-xs mb-0.5 text-gray-900">Priya</p>
+                                        <p className="text-xs text-gray-700">Just reported the account! Everyone stay safe 🙏</p>
                                     </div>
                                 </div>
 
-                                <div className="flex gap-4">
-                                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-black shadow-md">R</div>
-                                    <div className="bg-white p-4 rounded-3xl flex-1 shadow-sm border border-gray-100">
-                                        <p className="font-black text-sm mb-1">Rahul</p>
-                                        <p className="text-sm text-gray-700">You saved us all! Thank you for being careful &#128583;</p>
+                                <div className="flex gap-3 items-start">
+                                    <div className="w-9 h-9 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">R</div>
+                                    <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
+                                        <p className="font-black text-xs mb-0.5 text-gray-900">Rahul</p>
+                                        <p className="text-xs text-gray-700">You saved us all! Thank you for being careful 🙏</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="p-6 bg-white border-t border-gray-100">
-                            <button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-black py-5 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3"
+                        <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
+                            <button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
                                 onClick={() => {
                                     setCommunityAlerted(true);
                                     showFeedback("✅ Community alerted!");
                                     setGameState('call_confirmation');
                                 }}>
-                                <span className="text-xl">&#128226;</span>
+                                <span className="text-lg">📢</span>
                                 <span>Send Alert</span>
                             </button>
                         </div>
@@ -1358,10 +1541,10 @@ const Level5 = () => {
         const currentMsg = escalationStep < escalationMessages.length ? escalationMessages[escalationStep] : null;
 
         return (
-            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-4 relative overflow-y-auto hide-scrollbar">
                 <div className="absolute inset-0 bg-red-600/5 animate-pulse"></div>
 
-                <div className="z-10 w-full max-w-2xl bg-[#0a0c10] border-t-8 border-red-600 rounded-[3rem] p-10 shadow-[0_0_150px_rgba(220,38,38,0.4)] animate-in slide-in-from-bottom duration-500">
+                <div className="z-10 w-full max-w-2xl bg-[#0a0c10] border-t-8 border-red-600 rounded-[3rem] p-10 shadow-[0_0_150px_rgba(220,38,38,0.4)] animate-in slide-in-from-bottom duration-500 max-h-[95vh] overflow-y-auto hide-scrollbar">
                     <div className="flex items-center gap-10 mb-12 pb-12 border-b border-white/5">
                         <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-6xl font-black shrink-0 shadow-[0_0_50px_rgba(220,38,38,0.8)] animate-bounce italic">!</div>
                         <div>
@@ -1404,6 +1587,7 @@ const Level5 = () => {
                                     <button className="bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl text-sm shadow-xl transition-all active:scale-95 border-2 border-red-400/30"
                                         onClick={() => {
                                             setStolenAmount(prev => prev + currentMsg.amount);
+                                            adjustAssets(-currentMsg.amount);
                                             setEscalationStep(prev => prev + 1);
                                         }}>
                                         💸 Send ₹{currentMsg.amount.toLocaleString('en-IN')}
@@ -1441,9 +1625,10 @@ const Level5 = () => {
                                 }}>
                                 Accept Defeat
                             </button>
-                            <button className="bg-red-600 hover:bg-red-500 text-white font-black py-6 rounded-2xl text-2xl shadow-[0_20px_60px_rgba(220,38,38,0.5)] uppercase tracking-widest animate-pulse border-4 border-white/10 transition-transform active:scale-95"
+                            <button className="bg-red-600 hover:bg-red-500 text-white font-black py-6 rounded-2xl text-2xl shadow-[0_20px_60px_rgba(220,38,38,0.5)] uppercase tracking-widest animate-pulse border-4 border-red-400 flex items-center justify-center gap-4 transition-transform hover:scale-105 active:scale-95"
                                 onClick={() => setGameState('recovery_screen')}>
-                                &#128690; CALL 1930 Helpline
+                                <span className="text-3xl">🚨</span>
+                                <span>CALL 1930 HELPLINE</span>
                             </button>
                         </div>
                     )}
@@ -1455,13 +1640,13 @@ const Level5 = () => {
     // RECOVERY SCREEN STATE
     if (gameState === 'recovery_screen') {
         return (
-            <div className="w-full h-full bg-[#0a0c10] flex items-center justify-center p-12 overflow-hidden relative">
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0%,transparent_70%)]"></div>
+            <div className="w-full h-full bg-[#0a0c10] flex items-center justify-center p-6 md:p-12 overflow-y-auto hide-scrollbar relative">
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0%,transparent_70%)] pointer-events-none"></div>
 
-                <div className="z-10 w-full max-w-4xl bg-white rounded-[4rem] p-16 shadow-[0_50px_100px_rgba(0,0,0,0.5)] text-center animate-in zoom-in duration-500">
-                    <div className="w-32 h-32 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-6xl mx-auto mb-10 shadow-inner">&#26a1;</div>
-                    <h2 className="text-slate-900 font-black text-5xl uppercase tracking-tighter mb-4 italic">PARTIAL RECOVERY</h2>
-                    <p className="text-slate-600 text-xl font-serif italic leading-relaxed mb-12 px-12 opacity-80">
+                <div className="z-10 w-full max-w-4xl bg-white rounded-[3rem] md:rounded-[4rem] p-10 md:p-16 shadow-[0_50px_100px_rgba(0,0,0,0.5)] text-center animate-in zoom-in duration-500 my-auto">
+                    <div className="w-24 h-24 md:w-32 md:h-32 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl md:text-6xl mx-auto mb-8 md:mb-10 shadow-inner">⚡</div>
+                    <h2 className="text-slate-900 font-black text-4xl md:text-5xl uppercase tracking-tighter mb-4 italic">PARTIAL RECOVERY</h2>
+                    <p className="text-slate-600 text-lg md:text-xl font-serif italic leading-relaxed mb-10 px-4 md:px-12 opacity-80">
                         "The 1930 Cyber Helpline initiated financial tracking. Since you reported quickly, some funds were frozen in mule accounts, but the scammer had already transferred most of the money."
                     </p>
                     <div className="bg-emerald-50 border-4 border-emerald-500/20 p-10 rounded-[3rem] mb-12 flex justify-between items-center shadow-inner">
