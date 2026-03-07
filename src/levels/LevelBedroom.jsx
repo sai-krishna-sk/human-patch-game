@@ -170,7 +170,7 @@ const LevelBedroom = () => {
                 // Give 42L
                 adjustAssets(4200000);
                 setTimeout(() => {
-                    enterLevel(-1); // To Level Selector
+                    enterLevel(1); // To Level 1
                 }, 5000);
             }
         }

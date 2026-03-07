@@ -1,811 +1,590 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Player from '../components/Player';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
+import Player from '../components/Player';
 
-const ROOM_WIDTH = 1200;
-const ROOM_HEIGHT = 800;
-const SPEED = 9;
+const ROOM_WIDTH = 1600;
+const ROOM_HEIGHT = 1100;
+const VIEWPORT_WIDTH = 1200;
+const VIEWPORT_HEIGHT = 800;
 const PLAYER_SIZE = 40;
-const DESK_ZONE = { x: 500, y: 280, w: 200, h: 100 };
+const SPEED = 12;
 
-const checkCollision = (px, py, rect) => (
-    px < rect.x + rect.w && px + PLAYER_SIZE > rect.x &&
-    py < rect.y + rect.h && py + PLAYER_SIZE > rect.y
+// Interactive Area Constants (Relative to Room)
+const DESK_PARTS = [
+    { x: 600, y: 400, w: 400, h: 140 }, // Top
+    { x: 600, y: 540, w: 140, h: 210 }  // Left Return
+];
+const LAPTOP_AREA = { x: 740, y: 420, w: 140, h: 100 };
+const STICKY_NOTE_AREA = { x: 650, y: 560, w: 70, h: 70 };
+const PHOTO_AREA = { x: 770, y: 10, w: 140, h: 160 };
+const BOOK_AREA = { x: 60, y: 350, w: 150, h: 450 }; // Left Bookshelf
+const POSTER_AREA = { x: 1250, y: 50, w: 250, h: 180 };
+
+const CLUE_INFO = {
+    'alert_received': {
+        title: "Critical Security Alert",
+        desc: "Someone just used your password to try to sign in to your account from Moscow.",
+        icon: "🚨",
+        hint: "Check the red alert on your laptop."
+    },
+    'rule_symbols': {
+        title: "Rule #1: Mix Your Tools",
+        desc: "'A strong lock is built from different materials.' Always use special characters (!@#$) and numbers.",
+        icon: "⚙️",
+        hint: "Check the sticky note on your desk."
+    },
+    'rule_length': {
+        title: "Rule #2: The Great Wall",
+        desc: "'A long wall is harder to climb than a thick one.' Length is your best defense—use at least 15 characters.",
+        icon: "🧱",
+        hint: "Look at the books in the shelf."
+    },
+    'rule_pii': {
+        title: "Rule #3: Family Secrets",
+        desc: "'Never share our names with the digital winds.' Avoid PII like our names, birthdays, or locations.",
+        icon: "🖼️",
+        hint: "Inspect the family photo on the wall."
+    },
+    'rule_patterns': {
+        title: "Rule #4: No Straight Paths",
+        desc: "'A straight path is easily followed.' Avoid keyboard patterns like 'qwerty' or '123456'.",
+        icon: "🗺️",
+        hint: "Look at the map/poster above the desk."
+    }
+};
+
+const GmailAlert = ({ onProceed }) => (
+    <div className="fixed inset-0 z-[3000] bg-zinc-950/80 backdrop-blur-xl flex items-center justify-center p-6 font-sans">
+        <div className="max-w-xl w-full bg-white shadow-2xl rounded-xl border border-zinc-200 overflow-hidden animate-in zoom-in duration-300">
+            <div className="bg-[#f8f9fa] px-6 py-5 flex items-center gap-4 border-b border-zinc-200">
+                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">G</div>
+                <div>
+                    <span className="text-sm font-bold text-zinc-900 block">Google Account</span>
+                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Security Notification</span>
+                </div>
+            </div>
+            <div className="p-10">
+                <div className="flex items-start gap-8 mb-10">
+                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-600 text-4xl shrink-0 border-2 border-red-100 animate-pulse">⚠️</div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-zinc-900 leading-tight mb-3">Critical Security Alert</h1>
+                        <p className="text-sm text-zinc-600 leading-relaxed">Someone just used your password to try to sign in to your account. Google blocked them, but you should check what happened and secure your account.</p>
+                    </div>
+                </div>
+
+                <div className="bg-zinc-50 rounded-2xl p-8 mb-10 border border-zinc-200 shadow-inner">
+                    <table className="w-full text-sm border-separate border-spacing-y-3">
+                        <tbody>
+                            <tr>
+                                <td className="text-zinc-500 font-medium">Activity</td>
+                                <td className="text-zinc-900 font-bold text-right">Unauthorized sign-in</td>
+                            </tr>
+                            <tr>
+                                <td className="text-zinc-500 font-medium">Location</td>
+                                <td className="text-red-600 font-bold text-right">Moscow, Russia</td>
+                            </tr>
+                            <tr>
+                                <td className="text-zinc-500 font-medium">Device</td>
+                                <td className="text-zinc-900 font-bold text-right">Linux x86_64 (Chrome)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <button
+                    onClick={onProceed}
+                    className="w-full py-4 bg-[#1a73e8] hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-xl uppercase tracking-[0.2em] text-xs"
+                >
+                    Secure Account & Change Password
+                </button>
+            </div>
+        </div>
+    </div>
 );
 
-const CLUE_DATA = [
-    { id: 1, title: 'Developer Identity', desc: "Developer is 'Digital Finance Solutions Pvt Ltd' — not 'State Bank of India'." },
-    { id: 2, title: 'Download Count', desc: 'Only 4,200 downloads for a supposed major bank update? Official has 100M+.' },
-    { id: 3, title: 'Dangerous Permissions', desc: 'Requests SMS, Contacts, Microphone, Location, and Device Admin rights.' },
-    { id: 4, title: 'Update Gap', desc: 'App has not been updated in 11 months. Official app updates monthly.' },
-    { id: 5, title: 'Fabricated Ratings', desc: '5.0 stars from only 47 reviews — all generic praise, no real feedback.' },
-];
+const SecurityTerminal = ({ onComplete, onFail, rulesFound }) => {
+    const [password, setPassword] = useState('');
+    const [entropy, setEntropy] = useState(0);
+    const [crackTime, setCrackTime] = useState('Seconds');
 
-const MINI_GAME_APPS = [
-    { id: 1, name: 'SBI YONO', dev: 'State Bank of India', safe: true },
-    { id: 2, name: 'YONO 2024 Pro', dev: 'Digital Finance Solutions', safe: false },
-    { id: 3, name: 'BHIM UPI', dev: 'NPCI', safe: true },
-    { id: 4, name: 'QuickLoan SBI', dev: 'FastCash Digital', safe: false },
-    { id: 5, name: 'Google Pay', dev: 'Google LLC', safe: true },
-    { id: 6, name: 'SBI SecureOTP', dev: 'AppTech India', safe: false },
-];
+    const PII_KEYWORDS = ['rajan', 'vkram', 'grandfather', 'india'];
+
+    useEffect(() => {
+        let e = 0;
+        if (password.length > 0) e += password.length * 4;
+        if (/[A-Z]/.test(password)) e += 10;
+        if (/[0-9]/.test(password)) e += 10;
+        if (/[^A-Za-z0-9]/.test(password)) e += 15;
+
+        PII_KEYWORDS.forEach(word => {
+            if (password.toLowerCase().includes(word)) e -= 40;
+        });
+
+        const finalE = Math.min(100, Math.max(0, e));
+        setEntropy(finalE);
+
+        if (password.length === 0) setCrackTime('Seconds');
+        else if (finalE < 20) setCrackTime('< 1 Second');
+        else if (finalE < 40) setCrackTime('< 10 Seconds');
+        else if (finalE < 60) setCrackTime('5 Minutes');
+        else if (finalE < 80) setCrackTime('10 Years');
+        else setCrackTime('20,000+ Centuries');
+    }, [password]);
+
+    const handleConfirm = () => {
+        const hasSymbols = /[^A-Za-z0-9]/.test(password) || /[0-9]/.test(password);
+        const isLong = password.length >= 15;
+        const hasPII = PII_KEYWORDS.some(word => password.toLowerCase().includes(word));
+        const isPattern = /(123|abc|qwerty|asdf)/i.test(password);
+
+        if (isLong && hasSymbols && !hasPII && !isPattern && entropy > 85) {
+            onComplete();
+        } else {
+            let error = "Password does not meet the safety requirements.";
+            if (!isLong) error = "Rule #2: Too short. Remember the Great Wall (15+ chars).";
+            else if (!hasSymbols) error = "Rule #1: Missing 'metals' (Special characters or numbers).";
+            else if (hasPII) error = "Rule #3: Personal details detected! Keep names out of it.";
+            else if (isPattern) error = "Rule #4: Do not follow a straight path (No patterns).";
+            onFail(error);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[3000] bg-zinc-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white overflow-hidden">
+            <div className="w-full max-w-4xl bg-zinc-900 border border-white/10 rounded-3xl p-12 shadow-2xl relative overflow-hidden animate-in scale-in-95 duration-500">
+                <div className="flex justify-between items-start mb-12">
+                    <div>
+                        <h2 className="text-4xl font-black uppercase tracking-tighter text-white mb-2 italic">Secure Your Account</h2>
+                        <p className="text-cyan-500 font-mono text-[10px] uppercase tracking-[0.3em] font-black">Authentication Shield v2.0</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-10">
+                        <div>
+                            <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4">Set New Passphrase:</label>
+                            <input
+                                type="text"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-black border-2 border-white/10 rounded-2xl px-8 py-6 text-3xl font-black text-white focus:border-cyan-500 outline-none transition-all placeholder:text-zinc-800"
+                                placeholder="........"
+                                autoFocus
+                            />
+                        </div>
+
+                        <div className="bg-white/5 border border-white/5 p-8 rounded-3xl backdrop-blur-md">
+                            <h3 className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.3em] mb-6 flex justify-between">
+                                <span>Grandfather's Rules</span>
+                                <span className="text-cyan-400">{rulesFound}/4 FOUND</span>
+                            </h3>
+                            <div className="space-y-6">
+                                {['rule_symbols', 'rule_length', 'rule_pii', 'rule_patterns'].map((r, i) => (
+                                    <div key={r} className={`flex gap-4 ${rulesFound > i ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                                        <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black border mt-1 ${rulesFound > i ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-black/40 border-white/5'}`}>
+                                            {rulesFound > i ? '✓' : i + 1}
+                                        </div>
+                                        <div className="flex flex-col gap-1">
+                                            <span className={`text-[11px] font-black tracking-widest uppercase ${rulesFound > i ? 'text-white' : ''}`}>
+                                                {rulesFound > i ? CLUE_INFO[r].title : 'RULE UNDISCOVERED'}
+                                            </span>
+                                            {rulesFound > i && (
+                                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
+                                                    {CLUE_INFO[r].desc}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col justify-between">
+                        <div className="text-center bg-zinc-950 border border-white/5 rounded-[3rem] p-12 relative overflow-hidden group shadow-2xl">
+                            <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none" />
+                            <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.5em] block mb-6">Breach Resilience</span>
+                            <div className="text-5xl font-black text-white group-hover:scale-110 transition-transform duration-700">
+                                {crackTime}
+                            </div>
+                            <div className="mt-12">
+                                <div className="flex justify-between text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">
+                                    <span>Entropy Level</span>
+                                    <span className="text-cyan-400">{entropy}%</span>
+                                </div>
+                                <div className="h-3 bg-zinc-900 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full bg-cyan-500 transition-all duration-700 rounded-full" style={{ width: `${entropy}%` }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleConfirm}
+                            className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-xl text-sm"
+                        >
+                            Update Credentials
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Level3 = () => {
-    const { completeLevel, adjustAssets, adjustLives } = useGameState();
-    const [playerPos, setPlayerPos] = useState({ x: 580, y: 700 });
+    const { completeLevel, setSafetyScore } = useGameState();
+    const [gameState, setGameState] = useState('room');
+    const [playerPos, setPlayerPos] = useState({ x: 800, y: 700 });
     const [keys, setKeys] = useState({});
-    const [gameState, setGameState] = useState('walk');
-    const [canInteract, setCanInteract] = useState(false);
-    const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+    // State
+    const [interactionTarget, setInteractionTarget] = useState(null);
     const [cluesFound, setCluesFound] = useState([]);
-    const [isDetectiveModeOpen, setIsDetectiveModeOpen] = useState(true);
-    const [permissionStep, setPermissionStep] = useState(0);
-    const [clickedSmsLink, setClickedSmsLink] = useState(false);
-    const [reportReason, setReportReason] = useState(null);
+    const [isDetectiveModeOpen, setIsDetectiveModeOpen] = useState(false);
+    const [feedbackMsg, setFeedbackMsg] = useState(null);
+    const [hackerProgress, setHackerProgress] = useState(0);
 
-    // Mini-game state
-    const [safeBucket, setSafeBucket] = useState([]);
-    const [maliciousBucket, setMaliciousBucket] = useState([]);
-    const [draggedApp, setDraggedApp] = useState(null);
-    const [miniGameOver, setMiniGameOver] = useState(false);
-    const [miniGameMsg, setMiniGameMsg] = useState('');
-
-    const usedClueBoard = cluesFound.length >= 3;
-    const unassignedApps = MINI_GAME_APPS.filter(a => !safeBucket.find(s => s.id === a.id) && !maliciousBucket.find(m => m.id === a.id));
-
-    useEffect(() => {
-        const dk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
-        const uk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
-        window.addEventListener('keydown', dk);
-        window.addEventListener('keyup', uk);
-        return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
-    }, []);
-
-    // E key interaction
-    useEffect(() => {
-        const handleKey = (e) => {
-            if (e.key.toLowerCase() === 'e' && canInteract && gameState === 'walk') {
-                setGameState('sms_ui');
-            }
-        };
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [canInteract, gameState]);
-
-    useEffect(() => {
-        if (gameState !== 'walk') return;
-        let frameId;
-        const loop = () => {
-            setPlayerPos(p => {
-                let nx = p.x, ny = p.y;
-                if (keys['w'] || keys['arrowup']) ny -= SPEED;
-                if (keys['s'] || keys['arrowdown']) ny += SPEED;
-                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
-                if (keys['d'] || keys['arrowright']) nx += SPEED;
-                nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
-                ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
-                if (checkCollision(nx, ny, DESK_ZONE)) {
-                    if (p.x + PLAYER_SIZE <= DESK_ZONE.x || p.x >= DESK_ZONE.x + DESK_ZONE.w) nx = p.x;
-                    if (p.y + PLAYER_SIZE <= DESK_ZONE.y || p.y >= DESK_ZONE.y + DESK_ZONE.h) ny = p.y;
-                }
-                setCanInteract(checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 }));
-                return { x: nx, y: ny };
-            });
-            frameId = requestAnimationFrame(loop);
-        };
-        frameId = requestAnimationFrame(loop);
-        return () => cancelAnimationFrame(frameId);
-    }, [keys, gameState]);
-
-    const unlockClue = useCallback((id) => {
-        if (cluesFound.includes(id)) return;
-        setCluesFound(prev => [...prev, id]);
-        setFeedbackMsg(`🔍 Clue ${cluesFound.length + 1}/6 Found!`);
-        setTimeout(() => setFeedbackMsg(null), 2000);
-    }, [cluesFound]);
-
-    const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
-
-    // Mini-game handlers
-    const handleDragStart = (e, app) => { setDraggedApp(app); e.dataTransfer.effectAllowed = 'move'; };
-    const handleDragOver = (e) => e.preventDefault();
-    const handleDrop = (e, bucket) => {
-        e.preventDefault();
-        if (!draggedApp) return;
-        if (bucket === 'safe') setSafeBucket(prev => [...prev, draggedApp]);
-        else setMaliciousBucket(prev => [...prev, draggedApp]);
-        setDraggedApp(null);
+    const showFeedback = (msg) => {
+        setFeedbackMsg(msg);
+        setTimeout(() => setFeedbackMsg(null), 3500);
     };
-    const checkMiniGame = () => {
-        const safeCorrect = safeBucket.every(a => a.safe);
-        const malCorrect = maliciousBucket.every(a => !a.safe);
-        if (safeCorrect && malCorrect) {
-            setMiniGameMsg('🎉 Perfect! All apps sorted correctly!');
-        } else {
-            setMiniGameMsg('❌ Some apps were misplaced. Review the clues!');
+
+    const discoverClue = (id) => {
+        if (!cluesFound.includes(id)) {
+            setCluesFound(prev => [...prev, id]);
+            showFeedback(`🔍 RULE UNLOCKED: ${CLUE_INFO[id]?.title}`);
         }
-        setMiniGameOver(true);
     };
 
-    // ─── FEEDBACK TOAST ───
-    const FeedbackToast = () => feedbackMsg ? (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] bg-amber-500 text-black font-bold px-8 py-3 rounded-full shadow-2xl animate-bounce text-lg">
-            {feedbackMsg}
-        </div>
-    ) : null;
+    const checkCollision = (px, py, rect) => (
+        px < rect.x + rect.w && px + PLAYER_SIZE > rect.x &&
+        py < rect.y + rect.h && py + PLAYER_SIZE > rect.y
+    );
 
-    // ═══════════════════════════════════════════
-    // WALK STATE — Thatha's Study
-    // ═══════════════════════════════════════════
-    if (gameState === 'walk') {
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
-                <FeedbackToast />
-                <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                    {/* Wood Floor */}
-                    <div className="absolute inset-0 bg-amber-900" style={{
-                        backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.3) 48px, rgba(0,0,0,0.3) 50px),
-                        linear-gradient(90deg, rgba(120,53,15,0.7), rgba(160,75,20,0.7)),
-                        repeating-linear-gradient(0deg, transparent, transparent 200px, rgba(0,0,0,0.3) 200px, rgba(0,0,0,0.3) 202px)`
-                    }}></div>
+    // Movement Loop
+    useEffect(() => {
+        const handleKD = (e) => setKeys(prev => ({ ...prev, [e.key.toLowerCase()]: true }));
+        const handleKU = (e) => setKeys(prev => ({ ...prev, [e.key.toLowerCase()]: false }));
+        window.addEventListener('keydown', handleKD);
+        window.addEventListener('keyup', handleKU);
 
-                    {/* Top Wall */}
-                    <div className="absolute top-0 left-0 right-0 h-[120px] bg-gradient-to-b from-slate-700 to-slate-600 z-0 border-b-4 border-amber-800">
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-500/30"></div>
-                        <div className="absolute -bottom-1 left-0 right-0 h-2 bg-amber-900"></div>
-                    </div>
+        let rafId;
+        const loop = () => {
+            if (gameState === 'room') {
+                setPlayerPos(p => {
+                    let nx = p.x, ny = p.y;
+                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                    if (keys['d'] || keys['arrowright']) nx += SPEED;
 
-                    {/* Window (morning light) */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-slate-950 border-8 border-amber-800 z-[5] rounded-t-lg overflow-hidden" style={{ boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute inset-0 bg-gradient-to-b from-sky-300/60 to-amber-100/40"></div>
-                        <div className="absolute bottom-0 left-0 right-0 h-6 flex items-end gap-1 px-2">
-                            <div className="w-8 h-4 bg-emerald-800/60 rounded-t-full"></div>
-                            <div className="w-6 h-6 bg-emerald-700/60 rounded-t-full"></div>
-                            <div className="w-10 h-3 bg-emerald-800/60 rounded-t-full"></div>
-                            <div className="w-5 h-5 bg-emerald-700/60 rounded-t-full"></div>
-                        </div>
-                        <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-amber-800 -translate-x-1/2"></div>
-                        <div className="absolute left-0 right-0 top-1/2 h-1 bg-amber-800 -translate-y-1/2"></div>
-                    </div>
+                    // Obstacle check: DESK (L-Shape)
+                    DESK_PARTS.forEach(part => {
+                        if (checkCollision(nx, ny, part)) {
+                            if (p.x + PLAYER_SIZE <= part.x || p.x >= part.x + part.w) nx = p.x;
+                            if (p.y + PLAYER_SIZE <= part.y || p.y >= part.y + part.h) ny = p.y;
+                        }
+                    });
 
-                    {/* Picture frames */}
-                    <div className="absolute top-6 left-[140px] w-16 h-12 bg-zinc-700 border-4 border-amber-700 z-[5] rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                        <div className="w-full h-full bg-gradient-to-br from-emerald-900/40 to-cyan-900/40"></div>
-                    </div>
-                    <div className="absolute top-8 right-[140px] w-14 h-10 bg-zinc-700 border-4 border-amber-700 z-[5] rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                        <div className="w-full h-full bg-gradient-to-br from-amber-900/40 to-red-900/40"></div>
-                    </div>
+                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                    ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
 
-                    {/* Rug */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/4 w-[600px] h-[400px] bg-red-950 border-[10px] border-red-900/80 rounded-lg z-0 overflow-hidden" style={{ boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
-                        <div className="w-[92%] h-[90%] m-auto mt-[5%] border-2 border-yellow-700/40 flex justify-center items-center">
-                            <div className="w-[85%] h-[85%] border-2 border-red-800/60 flex justify-center items-center">
-                                <div className="w-28 h-28 bg-yellow-700/20 rotate-45 border border-yellow-800/30"></div>
-                            </div>
-                        </div>
-                    </div>
+                    // Check interaction triggers
+                    const range = 60;
+                    let target = null;
 
-                    {/* Bookshelf left */}
-                    <div className="absolute top-[120px] left-12 w-44 h-20 bg-amber-950 z-10 flex p-2 gap-1 items-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <div className="w-3 h-14 bg-red-800 rounded-t-sm"></div>
-                        <div className="w-4 h-12 bg-blue-800 rounded-t-sm"></div>
-                        <div className="w-3 h-10 bg-green-800 rounded-t-sm -rotate-6"></div>
-                        <div className="w-4 h-14 bg-yellow-700 rounded-t-sm ml-2"></div>
-                        <div className="w-3 h-13 bg-slate-600 rounded-t-sm"></div>
-                        <div className="w-4 h-11 bg-indigo-700 rounded-t-sm"></div>
-                        <div className="w-3 h-14 bg-rose-700 rounded-t-sm"></div>
-                    </div>
+                    const testArea = (area) => checkCollision(nx, ny, {
+                        x: area.x - range, y: area.y - range,
+                        w: area.w + range * 2, h: area.h + range * 2
+                    });
 
-                    {/* Bookshelf right */}
-                    <div className="absolute top-[120px] right-12 w-44 h-20 bg-amber-950 z-10 flex p-2 gap-1 items-end justify-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <div className="w-3 h-12 bg-indigo-800 rounded-t-sm rotate-6"></div>
-                        <div className="w-4 h-14 bg-rose-800 rounded-t-sm"></div>
-                        <div className="w-5 h-10 bg-emerald-700 rounded-t-sm ml-2"></div>
-                        <div className="w-3 h-14 bg-slate-700 rounded-t-sm"></div>
-                        <div className="w-4 h-12 bg-cyan-800 rounded-t-sm"></div>
-                        <div className="w-3 h-11 bg-amber-700 rounded-t-sm"></div>
-                    </div>
+                    if (testArea(LAPTOP_AREA)) target = 'laptop';
+                    else if (testArea(STICKY_NOTE_AREA)) target = 'rule_symbols';
+                    else if (testArea(PHOTO_AREA)) target = 'rule_pii';
+                    else if (testArea(BOOK_AREA)) target = 'rule_length';
+                    else if (testArea(POSTER_AREA)) target = 'rule_patterns';
 
-                    {/* Desk */}
-                    <div className="absolute bg-amber-800 shadow-2xl rounded-md z-10" style={{ left: DESK_ZONE.x, top: DESK_ZONE.y, width: DESK_ZONE.w, height: DESK_ZONE.h, boxShadow: '0 6px 20px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute top-2 left-3 w-6 h-4 bg-amber-100/80 border border-amber-600 rounded-sm"></div>
-                        <div className="absolute top-2 left-12 w-8 h-5 bg-slate-800 border border-slate-600 rounded-sm"></div>
-                        <div className="absolute top-2 right-3 w-5 h-7 bg-slate-300 border border-slate-400 rounded-sm">
-                            <div className="w-3 h-1 bg-blue-500 mx-auto mt-1 rounded-full animate-pulse"></div>
-                        </div>
-                        <div className="absolute bottom-0 left-4 w-2 h-6 bg-amber-950"></div>
-                        <div className="absolute bottom-0 right-4 w-2 h-6 bg-amber-950"></div>
-                    </div>
+                    setInteractionTarget(target);
+                    return { x: nx, y: ny };
+                });
 
-                    {/* Phone notification bubble */}
-                    {canInteract && (
-                        <div className="absolute z-30 animate-bounce" style={{ left: DESK_ZONE.x + DESK_ZONE.w - 20, top: DESK_ZONE.y - 30 }}>
-                            <div className="bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg">1</div>
-                        </div>
-                    )}
+                setHackerProgress(prev => Math.min(100, prev + 0.01));
+            }
+            rafId = requestAnimationFrame(loop);
+        };
+        rafId = requestAnimationFrame(loop);
 
-                    {/* Potted Plant left */}
-                    <div className="absolute top-[130px] left-4 z-20 flex flex-col items-center">
-                        <div className="w-20 relative" style={{ height: 72 }}>
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-5 bg-red-800 rounded-b-lg rounded-t-sm border-2 border-red-900"></div>
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1 h-10 bg-green-900"></div>
-                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 bg-green-700 rounded-full opacity-80" style={{ filter: 'blur(2px)' }}></div>
-                            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-10 h-10 bg-green-600 rounded-full opacity-70" style={{ filter: 'blur(1px)' }}></div>
-                        </div>
-                    </div>
+        return () => {
+            window.removeEventListener('keydown', handleKD);
+            window.removeEventListener('keyup', handleKU);
+            cancelAnimationFrame(rafId);
+        };
+    }, [gameState, keys]);
 
-                    <Player x={playerPos.x} y={playerPos.y} />
-
-                    {/* Interaction Prompt */}
-                    {canInteract && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-amber-500/60 text-amber-400 font-bold px-8 py-4 rounded-xl animate-bounce cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.3)] z-50 select-none"
-                            onClick={() => setGameState('sms_ui')}>
-                            <span className="text-amber-300 mr-2">[ E ]</span> CHECK PHONE 📱
-                        </div>
-                    )}
-
-                    {/* Day/Location label */}
-                    <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
-                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">DAY 3 — MORNING</p>
-                        <p className="text-slate-400 text-[10px] font-mono">THATHA'S STUDY</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // SMS UI — Single message, report option
-    // ═══════════════════════════════════════════
-    if (gameState === 'sms_ui') {
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
-                <FeedbackToast />
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
-                    {/* Status bar */}
-                    <div className="w-full flex justify-between items-center px-8 pt-3 pb-1 text-[10px] text-slate-400 font-mono">
-                        <span>9:41 AM</span>
-                        <span>●●●● WiFi 🔋</span>
-                    </div>
-
-                    {/* SMS Header with Report */}
-                    <div className="w-full bg-slate-800 flex items-center gap-3 px-4 py-3 border-b border-slate-700">
-                        <button className="text-slate-400 text-sm" onClick={() => setGameState('walk')}>← Back</button>
-                        <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center text-white text-xs font-bold">!</div>
-                        <div className="flex-1">
-                            <h3 className="font-bold text-white text-sm">VM-SBINFO</h3>
-                            <p className="text-[10px] text-slate-500">SMS</p>
-                        </div>
-                        <button className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border border-slate-600"
-                            onClick={() => { setClickedSmsLink(false); setGameState('report_sms'); }}>
-                            ⚑ Report
-                        </button>
-                    </div>
-
-                    {/* Single SMS Message */}
-                    <div className="flex-1 w-full flex flex-col p-4 gap-3 overflow-y-auto">
-                        <p className="text-slate-600 text-[10px] text-center mb-2">Today, 9:38 AM</p>
-                        <div className="bg-slate-800 text-slate-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-slate-700/50 text-sm leading-relaxed">
-                            Dear Customer, your SBI YONO app access will expire in 24hrs due to incomplete KYC verification. To avoid account suspension, update your app immediately. Download the latest secure version: <span className="text-blue-400 font-mono text-xs break-all cursor-pointer hover:underline" onClick={() => { setClickedSmsLink(true); setGameState('sms_clicked'); }}>https://sbi-kyc-update24.app/download</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // REPORT SMS — Select reason, then go to comparison
-    // ═══════════════════════════════════════════
-    if (gameState === 'report_sms') {
-        const reasons = [
-            'Suspicious link / phishing attempt',
-            'Impersonating a bank or company',
-            'Unsolicited financial message',
-            'Promoting fake app / software',
-        ];
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
-                <div className="w-[380px] bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl">
-                    <div className="text-center mb-6">
-                        <div className="text-4xl mb-3">⚑</div>
-                        <h2 className="text-xl font-bold text-white uppercase tracking-widest">Report SMS</h2>
-                        <p className="text-slate-500 text-xs mt-2">Why are you reporting this message?</p>
-                    </div>
-                    <div className="space-y-3 mb-6">
-                        {reasons.map((r, i) => (
-                            <button key={i}
-                                className={`w-full text-left p-3 rounded-xl text-sm font-medium transition-colors border ${reportReason === i ? 'bg-slate-700 border-slate-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-750 hover:text-slate-300'}`}
-                                onClick={() => setReportReason(i)}>
-                                {r}
-                            </button>
-                        ))}
-                    </div>
-                    {reportReason !== null && (
-                        <div>
-                            <div className="bg-emerald-900/30 border border-emerald-700/50 rounded-xl p-4 mb-4 text-center">
-                                <p className="text-emerald-400 font-bold text-sm">🎯 +10 BONUS — Smart decision to report!</p>
-                            </div>
-                            <p className="text-slate-400 text-xs mb-4 text-center italic">Report submitted. You still need the real SBI YONO app for Thatha's accounts — let's search the Play Store.</p>
-                            <button className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-colors"
-                                onClick={() => setGameState('comparison_ui')}>
-                                🔍 Open Play Store
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // SMS CLICKED — Penalty, then comparison
-    // ═══════════════════════════════════════════
-    if (gameState === 'sms_clicked') {
-        return (
-            <div className="w-full h-full bg-slate-950 flex items-center justify-center p-8">
-                <div className="max-w-lg bg-slate-900 border border-red-500/30 rounded-3xl p-10 shadow-2xl text-center">
-                    <div className="text-6xl mb-6">⚠️</div>
-                    <h2 className="text-2xl font-black text-red-400 uppercase tracking-widest mb-4">RISKY CLICK!</h2>
-                    <p className="text-slate-300 leading-relaxed mb-3">You clicked on a suspicious link from an unknown SMS. This could have led to malware being installed on your device.</p>
-                    <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-4 mb-8">
-                        <p className="text-red-400 font-bold text-sm">💸 -₹5,000 PENALTY — Data exposure risk</p>
-                    </div>
-                    <p className="text-slate-400 text-sm mb-6 italic">The link opened an app store page. Be careful which app you install...</p>
-                    <button className="bg-slate-700 hover:bg-slate-600 text-white px-10 py-4 rounded-xl font-bold transition-colors"
-                        onClick={() => { adjustAssets(-5000); setGameState('comparison_ui'); }}>
-                        Continue to App Store
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    if (gameState === 'comparison_ui') {
-        const circleClue = (id) => {
-            if (!cluesFound.includes(id)) {
-                setCluesFound(prev => [...prev, id]);
-                setFeedbackMsg(`🔴 Circled! Clue ${cluesFound.length + 1}/5 found`);
-                setTimeout(() => setFeedbackMsg(null), 2000);
+    // Action Handler
+    useEffect(() => {
+        const handleE = (e) => {
+            if (e.key.toLowerCase() === 'e' && gameState === 'room' && interactionTarget) {
+                if (interactionTarget === 'laptop') {
+                    if (!cluesFound.includes('alert_received')) {
+                        setGameState('alert');
+                        discoverClue('alert_received');
+                    } else if (cluesFound.length < Object.keys(CLUE_INFO).length) {
+                        showFeedback("I need to find all of my late grandfather's rules before updating my password.");
+                    } else {
+                        setGameState('terminal');
+                    }
+                } else {
+                    discoverClue(interactionTarget);
+                }
             }
         };
+        window.addEventListener('keydown', handleE);
+        return () => window.removeEventListener('keydown', handleE);
+    }, [interactionTarget, cluesFound, gameState]);
 
-        // Clickable element — no highlight, shows hand-drawn red circle on click
-        const Circleable = ({ clueId, children, className = '' }) => {
-            const found = cluesFound.includes(clueId);
-            return (
-                <span
-                    className={`cursor-pointer relative select-none transition-all duration-300 inline-block ${className}`}
-                    onClick={() => circleClue(clueId)}
-                    style={found ? {
-                        outline: '3px dashed #ef4444',
-                        outlineOffset: '4px',
-                        borderRadius: '12px',
-                        backgroundColor: 'rgba(239,68,68,0.08)',
-                        transform: 'scale(1.03)',
-                    } : {}}
-                >
-                    {children}
-                    {found && <span className="absolute -top-2 -right-2 text-red-500 text-lg font-black drop-shadow-md" style={{ lineHeight: 1 }}>⭕</span>}
-                </span>
-            );
-        };
+    const rulesFoundCount = cluesFound.filter(c => c.startsWith('rule_')).length;
 
-        return (
-            <div className="w-full h-full bg-zinc-900 p-4 flex flex-row items-stretch gap-3 relative">
-                <FeedbackToast />
-
-                {/* LEFT — App Store Comparison */}
-                <div className="flex-1 min-w-0 bg-slate-950 rounded-2xl border-[6px] border-black shadow-2xl flex flex-col overflow-hidden">
-
-                    {/* Store Header */}
-                    <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-b border-slate-700">
-                        <div className="flex items-center gap-3">
-                            <div className="w-6 h-6 bg-emerald-500 rounded-md shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                            <span className="text-white font-bold tracking-wider text-sm">Play Store</span>
-                        </div>
-                        <div className="text-slate-400 text-[11px] font-mono">Click on suspicious elements to circle them</div>
+    // Assets Rendering (Ported from Level 1)
+    const renderPlant = (x, y) => (
+        <div className="absolute z-20" style={{ left: x, top: y }}>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] bg-[#c05a3c] rounded-full border-[8px] border-[#9c452e] shadow-xl"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] pointer-events-none">
+                {[0, 45, 90, 135].map(deg => (
+                    <div key={deg} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[30px] bg-[#3e8549] rounded-full flex items-center`} style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 5px 15px rgba(0,0,0,0.4)', zIndex: deg }}>
+                        <div className="w-full h-[2px] bg-[#2d6335]"></div>
                     </div>
+                ))}
+            </div>
+        </div>
+    );
 
-                    {/* App Cards */}
-                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                        <h2 className="text-white text-lg font-black mb-5 uppercase tracking-widest">Search: "SBI YONO"</h2>
+    const renderBookshelf = (x, y) => (
+        <div className="absolute z-10 bg-[#e08e50] border-[12px] border-[#b86b35] shadow-2xl flex flex-col justify-evenly p-2" style={{ left: x, top: y, width: 150, height: 450 }}>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+            <div className={`flex items-end h-[60px] px-2 gap-1 ${interactionTarget === 'rule_length' ? 'scale-110' : ''}`}>
+                <div className={`w-5 h-12 ${interactionTarget === 'rule_length' ? 'bg-cyan-400 ring-4 ring-cyan-500/50' : 'bg-red-600'}`}></div>
+                <div className="w-4 h-14 bg-yellow-500 shadow-sm border-l border-white/20"></div>
+                <div className="w-4 h-10 bg-blue-600 shadow-sm border-l border-white/20"></div>
+            </div>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+            <div className="flex items-end h-[60px] px-2 gap-1 justify-end">
+                <div className="w-6 h-12 bg-emerald-600"></div><div className="w-4 h-9 bg-purple-600"></div>
+            </div>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+            <div className="flex items-end h-[60px] px-2 gap-1">
+                <div className="w-5 h-14 bg-cyan-600"></div><div className="w-4 h-12 bg-red-500"></div>
+            </div>
+            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
+        </div>
+    );
 
-                        <div className="grid grid-cols-2 gap-5">
-                            {/* App A — Official */}
-                            <div className="bg-white rounded-2xl p-5 shadow-xl">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-14 h-14 bg-gradient-to-br from-blue-700 to-blue-900 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-lg">YONO</div>
-                                    <div>
-                                        <h3 className="font-black text-lg">SBI YONO</h3>
-                                        <p className="text-green-700 font-bold text-xs flex items-center gap-1">State Bank of India <span className="bg-green-100 text-green-700 px-1 rounded text-[10px]">✓ Verified</span></p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 text-center mb-4 text-xs">
-                                    <div className="bg-slate-100 p-2 rounded"><p className="font-bold text-slate-800">⭐ 4.2</p><p className="text-slate-500">1.2M reviews</p></div>
-                                    <div className="bg-slate-100 p-2 rounded"><p className="font-bold text-slate-800">100M+</p><p className="text-slate-500">Downloads</p></div>
-                                    <div className="bg-slate-100 p-2 rounded"><p className="font-bold text-slate-800">Mar 2024</p><p className="text-slate-500">Updated</p></div>
-                                </div>
-                                <p className="text-slate-600 text-xs mb-4">Official banking app by State Bank of India. Manage accounts, transfers, and investments securely.</p>
-                                <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg"
-                                    onClick={() => setGameState('report_ui')}>
-                                    ✅ INSTALL OFFICIAL
-                                </button>
-                            </div>
+    const renderWindow = (x, y) => (
+        <div className="absolute z-5 bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-xl overflow-hidden" style={{ left: x, top: y, width: 450, height: 180 }}>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
+            <div className="absolute bottom-0 left-0 right-0 h-[80px] flex items-end gap-[1px]">
+                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
+                    <div key={i} className="flex-1 bg-[#090e1a]" style={{ height: h }}></div>
+                ))}
+            </div>
+            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
+        </div>
+    );
 
-                            {/* App B — Fake (clickable elements, NO visual hints) */}
-                            <div className="bg-white rounded-2xl p-5 shadow-xl relative">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center text-white font-black text-[10px] shadow-lg leading-tight text-center">YONO<br />PRO</div>
-                                    <div>
-                                        <h3 className="font-black text-lg">SBI YONO 2024 Pro</h3>
-                                        <Circleable clueId={1} className="text-slate-500 font-bold text-xs block">
-                                            Digital Finance Solutions Pvt Ltd
-                                        </Circleable>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-3 gap-2 text-center mb-4 text-xs">
-                                    <div className="bg-slate-100 p-2 rounded">
-                                        <Circleable clueId={5}><p className="font-bold text-slate-800">⭐ 5.0</p><p className="text-slate-500">47 reviews</p></Circleable>
-                                    </div>
-                                    <div className="bg-slate-100 p-2 rounded">
-                                        <Circleable clueId={2}><p className="font-bold text-slate-800">4,200</p><p className="text-slate-500">Downloads</p></Circleable>
-                                    </div>
-                                    <div className="bg-slate-100 p-2 rounded">
-                                        <Circleable clueId={4}><p className="font-bold text-slate-800">Apr 2023</p><p className="text-slate-500">Updated</p></Circleable>
-                                    </div>
-                                </div>
-                                <Circleable clueId={3} className="text-slate-500 text-[11px] block mb-3">
-                                    Permissions: READ_SMS, READ_CONTACTS, RECORD_AUDIO, ACCESS_FINE_LOCATION, BIND_DEVICE_ADMIN
-                                </Circleable>
+    const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
+    const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
-                                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-colors"
-                                    onClick={() => setGameState('permission_cascade')}>
-                                    📥 INSTALL PRO VERSION
-                                </button>
+    return (
+        <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+            {gameState === 'alert' && <GmailAlert onProceed={() => setGameState('room')} />}
+            {gameState === 'terminal' && <SecurityTerminal onComplete={() => setGameState('outcome')} onFail={showFeedback} rulesFound={rulesFoundCount} />}
+
+            {gameState === 'outcome' && (
+                <div className="fixed inset-0 z-[4000] bg-zinc-950 flex flex-col items-center justify-center p-12 text-white">
+                    <h1 className="text-6xl font-black text-emerald-400 mb-8 uppercase tracking-widest">Account Secured</h1>
+                    <p className="text-xl max-w-2xl text-center mb-12">By applying your grandfather's legacy rules, you've made your digital identity impenetrable.</p>
+                    <button onClick={() => completeLevel(true, 100, 0)} className="px-12 py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full transition-all shadow-xl uppercase tracking-widest">Next Case</button>
+                </div>
+            )}
+
+            <div className={`relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900 transition-all duration-1000 ${hackerProgress > 70 ? 'shadow-[0_0_100px_rgba(220,38,38,0.3)]' : ''}`} style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+
+                <div className="absolute inset-0 transition-transform duration-100 ease-out" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT, transform: `translate(${-cameraX}px, ${-cameraY}px)` }}>
+
+                    <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
+                        {/* Wood Floor */}
+                        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
+
+                        {/* Top Wall */}
+                        <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
+
+                        {/* Windows */}
+                        {renderWindow(320, 0)}
+                        {renderWindow(930, 0)}
+
+                        {/* Photo (Between Windows) */}
+                        <div className={`absolute z-10 transition-all cursor-pointer ${interactionTarget === 'rule_pii' ? 'scale-110 ring-4 ring-cyan-400' : ''}`} style={{ left: PHOTO_AREA.x, top: PHOTO_AREA.y, width: PHOTO_AREA.w, height: PHOTO_AREA.h }}>
+                            <div className="w-full h-full bg-[#3d2a25] border-[12px] border-[#b86b35] shadow-xl p-4 flex flex-col items-center justify-center">
+                                <div className="w-full h-full bg-black/40 border border-white/10 flex items-center justify-center grayscale text-4xl">🖼️</div>
+                                <div className="text-[10px] text-white/40 mt-2 font-bold uppercase tracking-widest">FAMILY</div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Bottom Bar */}
-                    <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-t border-slate-700">
-                        <button className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
-                            onClick={() => setGameState('sms_ui')}>
-                            ← Back
-                        </button>
-                        <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-sm border border-indigo-400 transition-transform hover:scale-105"
-                            onClick={() => setGameState('mini_game')}>
-                            🎓 TRAINING
-                        </button>
+                        {/* Poster (Right Wall) */}
+                        <div className={`absolute z-10 transition-all cursor-pointer ${interactionTarget === 'rule_patterns' ? 'scale-110 ring-4 ring-cyan-400' : ''}`} style={{ left: POSTER_AREA.x, top: POSTER_AREA.y, width: POSTER_AREA.w, height: POSTER_AREA.h }}>
+                            <div className="w-full h-full bg-[#0d101d] border-8 border-[#1e2a47] shadow-xl p-4 flex items-center justify-center text-cyan-400/40 text-xs font-bold text-center italic">
+                                VOYAGE MAP:<br />NO STRAIGHT PATHS
+                            </div>
+                        </div>
+
+                        {/* Bookshelves */}
+                        {renderBookshelf(60, 350)}
+                        {renderBookshelf(1400, 350)}
+
+                        {/* Potted Plants */}
+                        {renderPlant(180, 850)}
+                        {renderPlant(1420, 850)}
+
+                        {/* The Desk */}
+                        <div className="absolute z-10" style={{ left: 600, top: 400, width: 400, height: 350 }}>
+                            <div className="absolute right-0 top-0 w-full h-[140px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '16px solid #b86b35', borderRight: '12px solid #b86b35', borderLeft: '12px solid #b86b35' }}></div>
+                            <div className="absolute left-0 top-[140px] w-[140px] h-[210px] bg-[#e08e50] shadow-2xl rounded-b-sm" style={{ borderBottom: '16px solid #b86b35', borderLeft: '12px solid #b86b35', borderRight: '12px solid #b86b35' }}></div>
+
+                            {/* Laptop (Upgraded Visuals) */}
+                            <div className={`absolute transition-all cursor-pointer ${interactionTarget === 'laptop' ? 'scale-110' : ''}`} style={{ left: 160, top: 20, width: 140, height: 100 }}>
+                                {/* Screen Part */}
+                                <div className={`w-full h-[85px] bg-slate-900 border-[6px] ${interactionTarget === 'laptop' ? 'border-cyan-400 ring-8 ring-cyan-500/30 shadow-[0_0_30px_#22d3ee]' : 'border-zinc-800'} rounded-t-xl shadow-2xl flex flex-col items-center justify-center p-3 relative overflow-hidden transition-all duration-300`}>
+                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+                                    <div className={`w-full h-1.5 mb-2 rounded-full ${cluesFound.includes('alert_received') ? 'bg-cyan-500 animate-pulse shadow-[0_0_10px_#22d3ee]' : 'bg-red-500 animate-bounce shadow-[0_0_10px_#ef4444]'}`}></div>
+                                    <span className={`text-[9px] font-black uppercase tracking-tighter ${cluesFound.includes('alert_received') ? 'text-cyan-400' : 'text-red-500'}`}>
+                                        {cluesFound.includes('alert_received') ? "TERMINAL ACTIVE" : "SECURITY ALERT"}
+                                    </span>
+                                    {/* Scanline effect */}
+                                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, #fff 2px, #fff 4px)', backgroundSize: '100% 4px' }}></div>
+                                </div>
+                                {/* Base Part */}
+                                <div className="w-[160px] h-[15px] bg-zinc-800 rounded-lg absolute -bottom-4 left-1/2 -translate-x-1/2 border-t-2 border-zinc-700 shadow-xl flex justify-center">
+                                    <div className="w-12 h-1 bg-zinc-900 mt-1 rounded-full opacity-50"></div>
+                                </div>
+                            </div>
+
+                            {/* Sticky Note */}
+                            <div className={`absolute transition-all cursor-pointer ${interactionTarget === 'rule_symbols' ? 'scale-150 rotate-0 ring-4 ring-yellow-400 shadow-2xl' : '-rotate-12'}`} style={{ left: 60, top: 180, width: 60, height: 60 }}>
+                                <div className="w-full h-full bg-yellow-300 p-2 shadow-xl flex flex-col justify-end border-b-4 border-yellow-500 rounded-sm">
+                                    <div className="w-full h-[1px] bg-black/10 mb-1"></div>
+                                    <div className="w-2/3 h-[1px] bg-black/10 mb-2"></div>
+                                    <div className="text-[7px] font-black text-black/60 uppercase text-center tracking-widest truncate">RULE #1</div>
+                                </div>
+                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-red-600 shadow-lg border border-red-800"></div>
+                            </div>
+                        </div>
+
+                        {/* Chair */}
+                        <div className="absolute w-[100px] h-[100px] z-10 flex flex-col items-center drop-shadow-2xl" style={{ left: 750, top: 600 }}>
+                            <div className="w-[70px] h-[45px] bg-[#3a4f6d] rounded-t-2xl border-x-[6px] border-t-[6px] border-[#2c3e50] absolute -top-4"></div>
+                            <div className="w-[85px] h-[55px] bg-[#4a6285] rounded-b-[40px] border-b-[8px] border-[#2c3e50] relative shadow-xl"></div>
+                        </div>
+
+                        <Player x={playerPos.x} y={playerPos.y} />
                     </div>
                 </div>
 
-                {/* RIGHT — Evidence Board (always visible) */}
-                <div
-                    className="flex-shrink-0 flex-grow-0 min-h-0 bg-amber-100 rounded-lg shadow-[-10px_0_40px_rgba(0,0,0,0.6)] flex flex-col border-[12px] border-[#5c3a21] overflow-hidden"
-                    style={{
-                        width: 380, minWidth: 380, maxWidth: 380,
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`,
-                        backgroundColor: '#e6c280'
-                    }}
-                >
-                    {/* Board Header */}
-                    <div className="p-3 bg-[#5c3a21] border-b-2 border-amber-900/50">
-                        <h2 className="text-sm font-black text-amber-100 uppercase tracking-widest font-mono flex items-center gap-2">
-                            📌 INVESTIGATION BOARD
+                {/* HUD Overlay */}
+                <div className="absolute top-4 left-4 flex flex-col gap-2 z-[400]">
+                    <div className="bg-black/80 p-4 rounded-xl border border-white/10 backdrop-blur-md min-w-[250px]">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-1">Status</span>
+                        <h2 className="text-white text-sm font-bold">
+                            {!cluesFound.includes('alert_received') ? "Investigate the laptop alert." :
+                                rulesFoundCount < 4 ? `Find the Rules (${rulesFoundCount}/4)` :
+                                    "Secure account at the laptop."}
                         </h2>
-                        <p className="text-amber-300/60 text-[10px] mt-1">Read the hints. Click suspicious elements on the left.</p>
                     </div>
 
-                    {/* Clue Slots */}
-                    <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                        <div className="grid grid-cols-2 gap-3">
-                            {CLUE_DATA.map((clue, idx) => {
-                                const found = cluesFound.includes(clue.id);
+                    <div className="bg-black/80 p-4 rounded-xl border border-white/10 backdrop-blur-md">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Hacking Progress</span>
+                            <span className="text-red-500 text-[10px] font-bold">{Math.floor(hackerProgress)}%</span>
+                        </div>
+                        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className={`h-full transition-all duration-500 ${hackerProgress > 70 ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${hackerProgress}%` }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Interaction Prompt Overlay */}
+                {interactionTarget && (
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-[500] animate-bounce">
+                        <div className="bg-white text-black font-black px-8 py-4 rounded-full shadow-2xl flex items-center gap-4">
+                            <span className="bg-black text-white px-2 py-1 rounded text-sm">E</span>
+                            <span className="uppercase tracking-widest text-xs">
+                                {interactionTarget === 'laptop' ? (cluesFound.includes('alert_received') ? "Open Terminal" : "Check Alert") : "Recall Rule"}
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Journal Trigger */}
+                <div className="absolute bottom-6 right-6 z-[500]">
+                    <button
+                        onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)}
+                        className="w-16 h-16 bg-zinc-900 border-2 border-white/10 rounded-2xl flex items-center justify-center text-4xl shadow-2xl hover:bg-emerald-600 transition-all hover:scale-110"
+                    >
+                        📓
+                    </button>
+                    {cluesFound.length > 0 && (
+                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-4 border-zinc-900 animate-in zoom-in">
+                            {cluesFound.length}
+                        </span>
+                    )}
+                </div>
+
+                {/* Journal Overlay */}
+                {isDetectiveModeOpen && (
+                    <div className="absolute inset-y-12 right-12 w-[400px] z-[1000] bg-zinc-950/95 border-2 border-white/10 shadow-2xl rounded-3xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-500 backdrop-blur-xl">
+                        <div className="p-8 border-b border-white/10 flex justify-between items-center">
+                            <h3 className="text-white font-bold uppercase tracking-widest">Grandfather's Archive</h3>
+                            <button onClick={() => setIsDetectiveModeOpen(false)} className="text-zinc-500 hover:text-white">✕</button>
+                        </div>
+                        <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+                            {Object.keys(CLUE_INFO).map(cid => {
+                                const found = cluesFound.includes(cid);
                                 return (
-                                    <div
-                                        key={clue.id}
-                                        className={`p-3 rounded-lg shadow-md border-l-4 transition-all relative min-h-[90px] ${found ? 'bg-yellow-50 border-red-600' : 'bg-stone-200/60 border-stone-400/50 border-dashed'}`}
-                                        style={{ transform: `rotate(${(idx % 2 === 0 ? -1 : 1) * (0.5 + idx * 0.3)}deg)` }}
-                                    >
-                                        {found && (
-                                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-800 z-10">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-white/40 absolute top-0.5 right-0.5"></div>
-                                            </div>
-                                        )}
-                                        {found ? (
-                                            <>
-                                                <h4 className="font-bold text-xs text-red-800 mb-1 mt-1">🔴 {clue.title}</h4>
-                                                <p className="text-[10px] text-amber-900 font-mono leading-relaxed">{clue.desc}</p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <h4 className="font-bold text-xs text-stone-500 mb-2">🔒 Clue #{clue.id}</h4>
-                                                <p className="text-[10px] text-stone-400 italic leading-relaxed">
-                                                    {clue.id === 1 && 'Hint: Check who made the app...'}
-                                                    {clue.id === 2 && 'Hint: How many people downloaded it?'}
-                                                    {clue.id === 3 && 'Hint: What access does it want?'}
-                                                    {clue.id === 4 && 'Hint: When was it last updated?'}
-                                                    {clue.id === 5 && 'Hint: Are the reviews realistic?'}
+                                    <div key={cid} className={`p-6 rounded-2xl border transition-all ${found ? 'bg-white/5 border-white/10' : 'bg-transparent border-white/5 opacity-50 filter grayscale'}`}>
+                                        <div className="flex gap-4 items-start">
+                                            <div className="text-3xl">{found ? CLUE_INFO[cid].icon : '🔒'}</div>
+                                            <div>
+                                                <div className="text-[10px] font-bold text-cyan-400 uppercase mb-2">{found ? CLUE_INFO[cid].title : 'UNKNOWN'}</div>
+                                                <p className="text-xs text-zinc-400 italic">
+                                                    {found ? <span>"{CLUE_INFO[cid].desc}"</span> : <span>Search near: {CLUE_INFO[cid].hint}</span>}
                                                 </p>
-                                            </>
-                                        )}
+                                            </div>
+                                        </div>
                                     </div>
                                 );
                             })}
                         </div>
-
-                        {usedClueBoard && (
-                            <div className="mt-4 text-center text-emerald-700 font-bold text-sm bg-emerald-100 p-2 rounded border border-emerald-300 animate-pulse">
-                                ⭐ Investigation Bonus — {cluesFound.length}/5 clues found!
-                            </div>
-                        )}
                     </div>
+                )}
 
-                    {/* Board Footer */}
-                    <div className="p-3 bg-[#5c3a21]/30 border-t border-amber-900/30 text-center">
-                        <p className="text-[10px] text-stone-600 font-mono">{cluesFound.length}/5 suspicious elements circled</p>
+                {/* Feedback */}
+                {feedbackMsg && (
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[4000] animate-in slide-in-from-top duration-500">
+                        <div className="bg-red-600 text-white px-8 py-4 rounded-xl shadow-2xl font-bold text-xs uppercase tracking-widest border border-red-400">
+                            {feedbackMsg}
+                        </div>
                     </div>
+                )}
+
+                {/* Progress Overlay */}
+                <div className="absolute inset-0 pointer-events-none transition-opacity duration-1000 z-[2000]"
+                    style={{
+                        opacity: hackerProgress > 60 ? (hackerProgress - 60) / 40 : 0,
+                        background: 'radial-gradient(circle at center, transparent 40%, rgba(220,38,38,0.3) 100%)'
+                    }}>
                 </div>
             </div>
-        );
-    }
-
-
-    // ═══════════════════════════════════════════
-    // REPORT UI — Official App Installed
-    // ═══════════════════════════════════════════
-    if (gameState === 'report_ui') {
-        return (
-            <div className="w-full h-full bg-slate-900 p-8 flex flex-col items-center justify-center text-white">
-                <div className="bg-slate-800 p-10 rounded-2xl shadow-2xl max-w-md text-center border border-slate-700">
-                    <div className="text-5xl mb-6">✅</div>
-                    <h2 className="text-2xl font-bold mb-4 uppercase tracking-widest">Official App Installed</h2>
-                    <p className="text-slate-400 mb-8 text-sm leading-relaxed">You've installed the real SBI YONO app from the Play Store. Now report the scam SMS to protect others.</p>
-                    <button className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-xl font-bold shadow-lg transition-colors" onClick={() => setGameState('report_ui_final')}>
-                        🚔 REPORT TO CYBER CELL
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // REPORT FINAL — Cyber Cell Filing
-    // ═══════════════════════════════════════════
-    if (gameState === 'report_ui_final') {
-        return (
-            <div className="w-full h-full bg-slate-950 p-8 flex items-center justify-center">
-                <div className="w-[500px] bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl">
-                    <div className="text-center mb-8">
-                        <div className="text-5xl mb-4">👮</div>
-                        <h2 className="text-xl font-bold text-white uppercase tracking-widest">CYBER CELL REPORT</h2>
-                        <p className="text-slate-500 text-xs mt-2">cybercrime.gov.in</p>
-                    </div>
-                    <div className="space-y-4 mb-8">
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Incident Type</p><p className="text-white font-mono text-sm">Phishing / Malicious APK Distribution via SMS</p></div>
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Sender ID</p><p className="text-white font-mono text-sm">VM-SBINFO</p></div>
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Malicious URL</p><p className="text-red-400 font-mono text-xs">https://sbi-kyc-update24.app/download</p></div>
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Evidence Collected</p><p className="text-amber-400 font-mono text-sm">{cluesFound.length} / 6 clues documented</p></div>
-                    </div>
-                    <button className="w-full bg-emerald-600 py-4 rounded-xl font-bold text-white shadow-lg hover:bg-emerald-500 transition-colors" onClick={() => setGameState('mini_game')}>
-                        ✅ SUBMIT COMPLAINT
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // MINI GAME — App Authenticity Sort
-    // ═══════════════════════════════════════════
-    if (gameState === 'mini_game') {
-        const isComplete = unassignedApps.length === 0;
-        return (
-            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-900/20 rounded-full blur-[100px]"></div>
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-900/20 rounded-full blur-[100px]"></div>
-                </div>
-
-                <div className="z-10 w-full max-w-4xl">
-                    <div className="flex items-center justify-between mb-8">
-                        <div>
-                            <h2 className="text-3xl font-black text-white uppercase tracking-wider">App Authenticity Training</h2>
-                            <p className="text-slate-400 text-sm mt-1">Drag each app into the correct bucket</p>
-                        </div>
-                    </div>
-
-                    {!miniGameOver ? (
-                        <>
-                            {/* App Cards */}
-                            <div className="flex flex-wrap gap-3 justify-center mb-8 min-h-[80px]">
-                                {unassignedApps.length > 0 ? unassignedApps.map(app => (
-                                    <div key={app.id} draggable className="bg-white text-slate-900 px-5 py-3 rounded-lg shadow-lg border-2 border-slate-300 cursor-grab active:cursor-grabbing hover:scale-105 transition-transform"
-                                        onDragStart={(e) => handleDragStart(e, app)}>
-                                        <p className="font-bold text-sm">{app.name}</p>
-                                        <p className="text-[10px] text-slate-500">{app.dev}</p>
-                                    </div>
-                                )) : (
-                                    <div className="text-xl text-slate-500 italic">All apps sorted!</div>
-                                )}
-                            </div>
-
-                            {/* Buckets */}
-                            <div className="flex justify-center gap-8 w-full">
-                                <div className="flex-1 border-4 border-dashed border-emerald-600/50 bg-emerald-900/20 rounded-xl flex flex-col items-center p-4 min-h-[200px] transition-colors hover:bg-emerald-900/40"
-                                    onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'safe')}>
-                                    <h3 className="text-lg font-bold text-emerald-500 mb-3 bg-emerald-950 px-4 py-2 rounded-full border border-emerald-800">✅ SAFE APPS</h3>
-                                    <div className="w-full flex flex-col gap-2">
-                                        {safeBucket.map(a => (<div key={a.id} className="bg-emerald-100 text-emerald-900 px-3 py-2 rounded text-sm font-bold border border-emerald-300">{a.name}</div>))}
-                                    </div>
-                                </div>
-                                <div className="flex-1 border-4 border-dashed border-red-600/50 bg-red-900/20 rounded-xl flex flex-col items-center p-4 min-h-[200px] transition-colors hover:bg-red-900/40"
-                                    onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'malicious')}>
-                                    <h3 className="text-lg font-bold text-red-500 mb-3 bg-red-950 px-4 py-2 rounded-full border border-red-800">🚨 MALICIOUS</h3>
-                                    <div className="w-full flex flex-col gap-2">
-                                        {maliciousBucket.map(a => (<div key={a.id} className="bg-red-100 text-red-900 px-3 py-2 rounded text-sm font-bold border border-red-300">{a.name}</div>))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {isComplete && (
-                                <div className="mt-8 flex justify-center">
-                                    <button className="bg-indigo-600 hover:bg-indigo-500 text-white text-xl font-bold px-12 py-3 rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] animate-bounce" onClick={checkMiniGame}>
-                                        Verify My Sorting
-                                    </button>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-12">
-                            <h2 className="text-5xl mb-6">{miniGameMsg.includes('Perfect') ? '🎉' : '❌'}</h2>
-                            <h3 className="text-3xl font-bold text-white mb-8">{miniGameMsg}</h3>
-                            <button className="bg-emerald-600 hover:bg-emerald-500 px-10 py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-colors"
-                                onClick={() => setGameState('victory_outcome')}>
-                                Continue to Results →
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // PERMISSION CASCADE (Wrong Path)
-    // ═══════════════════════════════════════════
-    if (gameState === 'permission_cascade') {
-        const permissions = ['📇 Contacts & Call Logs', '💬 SMS Messages', '🎤 Microphone, 📍 Location, 🔐 Device Admin'];
-        return (
-            <div className="w-full h-full bg-black/90 flex items-center justify-center p-6 backdrop-blur-sm">
-                <div className="bg-white rounded-2xl shadow-2xl w-[360px] overflow-hidden">
-                    <div className="bg-slate-800 p-4 text-white flex items-center gap-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-xs font-bold">YP</div>
-                        <span className="font-bold">YONO 2024 Pro</span>
-                    </div>
-                    <div className="p-6">
-                        <p className="text-slate-500 text-xs uppercase tracking-wider mb-2">Permission {permissionStep + 1} of 3</p>
-                        <p className="text-slate-800 font-bold text-lg mb-6">Allow access to {permissions[permissionStep]}?</p>
-                        <div className="flex flex-col gap-3">
-                            <button className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-full transition-colors"
-                                onClick={() => { if (permissionStep < 2) setPermissionStep(p => p + 1); else setGameState('scam_outcome'); }}>
-                                ALLOW
-                            </button>
-                            <button className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-full transition-colors"
-                                onClick={() => { setPermissionStep(0); setGameState('comparison_ui'); }}>
-                                DENY
-                            </button>
-                        </div>
-                        <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                            <p className="text-amber-700 text-[10px] font-mono">⚠️ Legitimate banking apps never require Device Admin or Microphone access.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // SCAM OUTCOME (Wrong Path)
-    // ═══════════════════════════════════════════
-    if (gameState === 'scam_outcome') {
-        return (
-            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-red-950/40 z-0"></div>
-                <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)] pointer-events-none"></div>
-                <div className="w-[800px] h-[800px] absolute bg-red-600/10 rounded-full blur-[150px] z-0 animate-pulse"></div>
-
-                <div className="z-10 text-center max-w-3xl">
-                    <span className="text-8xl mb-6 inline-block drop-shadow-[0_0_30px_rgba(239,68,68,0.8)] animate-bounce">💸</span>
-                    <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-400 to-red-700 uppercase tracking-[0.2em] mb-4">DEVICE COMPROMISED</h1>
-
-                    <div className="bg-slate-900/60 p-10 rounded-3xl border border-red-500/30 mb-10 backdrop-blur-xl text-left shadow-[0_0_50px_rgba(239,68,68,0.1)]">
-                        <p className="text-red-100 text-xl mb-4 font-light leading-relaxed">You installed a malicious APK and granted it full device access. The malware intercepted your OTPs and initiated unauthorized transactions.</p>
-                        <div className="h-px w-full bg-gradient-to-r from-transparent via-red-500/50 to-transparent my-6"></div>
-                        <div className="flex justify-between items-center text-2xl font-mono text-red-400 bg-red-950/40 p-5 rounded-xl border border-red-500/20 shadow-inner">
-                            <span className="uppercase tracking-widest font-bold">FUNDS LOST:</span>
-                            <span className="font-black text-3xl">-₹6,50,000</span>
-                        </div>
-                        <div className="flex justify-between items-center text-lg font-black text-red-500 mt-4 animate-pulse uppercase tracking-widest bg-red-950 p-3 rounded border border-red-800">
-                            <span>LIVES LOST:</span><span>-1 LIFE</span>
-                        </div>
-                    </div>
-
-                    <button className="bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white px-12 py-5 rounded-xl font-bold tracking-[0.3em] uppercase transition-all border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:shadow-[0_0_50px_rgba(239,68,68,0.6)] hover:-translate-y-1"
-                        onClick={() => { adjustAssets(-650000); adjustLives(-1); completeLevel(false, 0, 0); }}>
-                        Accept Consequences
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // VICTORY OUTCOME
-    // ═══════════════════════════════════════════
-    if (gameState === 'victory_outcome') {
-        return (
-            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-                <div className="absolute inset-0 bg-emerald-950/30 z-0"></div>
-                <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)] pointer-events-none"></div>
-                <div className="w-[800px] h-[800px] absolute bg-emerald-600/10 rounded-full blur-[150px] z-0 animate-pulse"></div>
-
-                <div className="z-10 text-center max-w-3xl">
-                    <span className="text-8xl mb-6 inline-block drop-shadow-[0_0_30px_rgba(16,185,129,0.8)] animate-bounce">🛡️</span>
-                    <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-emerald-600 uppercase tracking-[0.2em] mb-4">THREAT NEUTRALIZED</h1>
-
-                    <div className="bg-slate-900/60 p-10 rounded-3xl border border-emerald-500/30 mb-10 backdrop-blur-xl text-left shadow-[0_0_50px_rgba(16,185,129,0.1)]">
-                        <div className="flex items-center gap-3 mb-6">
-                            <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg">💡</span>
-                            <h3 className="text-emerald-400 font-bold uppercase tracking-widest text-xl">Cyber Tip: Fake Apps</h3>
-                        </div>
-                        <p className="text-emerald-50 text-xl mb-4 leading-relaxed font-light">
-                            Always download apps from <strong className="text-emerald-300 font-bold">official app stores</strong>. Never install APKs from links received via SMS or messaging apps.
-                        </p>
-                        <p className="text-emerald-100/70 text-lg leading-relaxed mb-6">
-                            Check the developer name, download count, ratings, and permissions <strong>before</strong> installing. When in doubt, visit the bank's official website.
-                        </p>
-                        <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent my-6"></div>
-
-                        {/* Score breakdown */}
-                        <div className="space-y-3 mb-4">
-                            <div className="flex justify-between items-center text-sm font-mono text-slate-300 bg-slate-800/50 p-3 rounded-lg">
-                                <span>Base Score:</span><span className="text-emerald-400 font-bold">+10 PTS</span>
-                            </div>
-                            {!clickedSmsLink && (
-                                <div className="flex justify-between items-center text-sm font-mono text-slate-300 bg-emerald-900/30 p-3 rounded-lg border border-emerald-700/30">
-                                    <span>🛡️ Ignored Scam SMS:</span><span className="text-emerald-400 font-bold">+10 PTS</span>
-                                </div>
-                            )}
-                            {clickedSmsLink && (
-                                <div className="flex justify-between items-center text-sm font-mono text-slate-300 bg-red-900/30 p-3 rounded-lg border border-red-700/30">
-                                    <span>⚠️ Clicked Scam Link:</span><span className="text-red-400 font-bold">+0 PTS</span>
-                                </div>
-                            )}
-                            {usedClueBoard && (
-                                <div className="flex justify-between items-center text-sm font-mono text-slate-300 bg-amber-900/30 p-3 rounded-lg border border-amber-700/30">
-                                    <span>⭐ Investigation Bonus:</span><span className="text-amber-400 font-bold">+5 PTS</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-between items-center text-2xl font-mono text-emerald-400 bg-emerald-950/40 p-5 rounded-xl border border-emerald-500/20 shadow-inner">
-                            <span className="uppercase tracking-widest font-bold text-lg">TOTAL:</span>
-                            <span className="font-black text-3xl">+{10 + (!clickedSmsLink ? 10 : 0) + (usedClueBoard ? 5 : 0)} PTS</span>
-                        </div>
-                    </div>
-
-                    <button className="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white px-12 py-5 rounded-xl font-bold tracking-[0.3em] uppercase transition-all border border-emerald-400/50 shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:shadow-[0_0_50px_rgba(16,185,129,0.6)] hover:-translate-y-1"
-                        onClick={() => completeLevel(true, 10 + (!clickedSmsLink ? 10 : 0) + (usedClueBoard ? 5 : 0), 0)}>
-                        Continue to Overworld
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    return null;
+        </div>
+    );
 };
 
 export default Level3;

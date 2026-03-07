@@ -1,1211 +1,697 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameState } from '../context/GameStateContext';
-import Player from '../components/Player';
 
-// ═══ CONSTANTS ═══
+// ═══ CLUE DATA ═══
 const CLUE_DATA = [
-    {
-        id: 'domain_lookup',
-        name: 'WHOIS Domain Record',
-        description: 'Domain registered 19 days ago via offshore privacy proxy. Amazon.in is from 2010. 19-day-old domains selling discounted phones are scams.',
-        points: 20
-    },
+    { id: 'secure_net_props', name: 'SBI_SecureNet Properties', desc: 'BSSID prefix E4:FA:C4 — identified as a mobile phone hotspot, NOT a commercial router. Banks never host open Wi-Fi in public spaces.', points: 25, icon: '📡' },
+    { id: 'wifi_card', name: 'Brew & Bond Wi-Fi Card', desc: 'The café\'s only official network is BrewConnect_Guest with WPA2 encryption. Password: coffee2024.', points: 15, icon: '📋' },
+    { id: 'hacker_corner', name: 'Suspicious Customer (Hacker)', desc: 'Laptop running network monitoring tools. A portable router hidden in his backpack is broadcasting SBI_SecureNet.', points: 30, icon: '🕵️' },
+    { id: 'customer_screen', name: 'Victim\'s Screen (MITM Demo)', desc: 'Her banking URL shows http:// instead of https://. The hacker is silently capturing her login credentials.', points: 20, icon: '💻' },
+    { id: 'mobile_data', name: '4G Mobile Data Safety', desc: 'Mobile data uses direct tower-to-device encryption. It is the safest option for banking in public places.', points: 10, icon: '📶' },
+    { id: 'vpn_clue', name: 'VPN Protection', desc: 'A VPN encrypts all traffic even on public Wi-Fi. If you must use public Wi-Fi, always enable VPN first.', points: 10, icon: '🛡️' },
+];
 
-    {
-        id: 'contact_forensics',
-        name: 'Business Identity Check',
-        description: 'Free @gmail.com address, no landline, unverifiable address, and crucially: NO GSTIN number. Not a registered business.',
-        points: 20
-    },
-    {
-        id: 'fake_reviews',
-        name: 'Review Pattern Analysis',
-        description: 'Same day posting, identical sentence structure, default gray avatars, and generic names. 94% text similarity indicates bulk-generation.',
-        points: 15
-    },
-    {
-        id: 'payment_trap',
-        name: 'Transaction Channel Risk',
-        description: 'Direct UPI/NEFT to a personal "ybl" (PhonePe) account. No COD, no cards. Zero consumer protection or chargeback rights.',
-        points: 25
-    },
-    {
-        id: 'vague_policy',
-        name: 'Return Policy Red Flag',
-        description: '"45-60 working days" refund period is designed to stall consumers until the bank dispute window expires.',
-        points: 15
-    },
-
-    {
-        id: 'pressure_chat',
-        name: 'Social Engineering Audit',
-        description: 'Agent pushes artificial urgency ("Only 12 left!") and deflects questions about GST or card payments.',
-        points: 20
-    },
-    {
-        id: 'fake_security',
-        name: 'False Security Badge',
-        description: 'The "Secured Checkout - 100% Safe" badge is a static image, not a verified SSL certificate. Scammers add these to build false trust.',
-        points: 15
-    }
+const NETWORKS = [
+    { id: 'brew_connect', name: 'BrewConnect_Guest', signal: 3, locked: true, security: 'WPA2-PSK (AES-256)', mac: '00:1A:2B:3C:4D:5E', created: 'Router — Active 2+ years', desc: 'Official café network. Password protected with WPA2 encryption.', safe: true },
+    { id: 'sbi_secure', name: 'SBI_SecureNet', signal: 4, locked: false, security: 'NONE (Open Network)', mac: 'E4:FA:C4:29:11:AB — Mobile Hotspot', created: 'Today, 09:47 AM (2 hours ago)', desc: 'Banks do NOT set up Wi-Fi networks in public spaces. This is a honeypot trap.', safe: false },
+    { id: 'android_hotspot', name: 'AndroidHotspot_7291', signal: 1, locked: true, security: 'WPA2-PSK', mac: 'A0:B1:C2:D3:E4:F5', created: 'Personal device', desc: 'A customer\'s personal mobile hotspot. Low signal.', safe: true },
+    { id: 'bsnl_fiber', name: 'BSNL_Fiber_Home42', signal: 1, locked: true, security: 'WPA2-PSK', mac: '00:FF:AA:BB:CC:DD', created: 'Router — Residential', desc: 'A home router from the building above. Very faint signal.', safe: true },
 ];
 
 const Level8 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
 
-    // ═══ STATE ═══
-    const [gameState, setGameState] = useState('living-room'); // living-room, whatsapp, website, trust-score, outcome
+    const [gameState, setGameState] = useState('cafe');
     const [cluesFound, setCluesFound] = useState([]);
-    const [showWhatsApp, setShowWhatsApp] = useState(false);
-    const [activeClue, setActiveClue] = useState(null);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
-    const [showDetectiveBoard, setShowDetectiveBoard] = useState(false);
-    const [isPhoneVibrating, setIsPhoneVibrating] = useState(false);
-    const [scamProgress, setScamProgress] = useState(0); // For trust score meter
-    const [outcomeType, setOutcomeType] = useState(null); // 'victory', 'scam'
-    const [showChat, setShowChat] = useState(false);
-    const [chatStep, setChatStep] = useState(0);
-    const [trustScoreLogs, setTrustScoreLogs] = useState([]);
-    const [showWhatsAppWarn, setShowWhatsAppWarn] = useState(false);
-    const [hasWarned, setHasWarned] = useState(false);
+    const [activeNetwork, setActiveNetwork] = useState(null);
+    const [outcomeType, setOutcomeType] = useState(null);
+    const [activeCluePanel, setActiveCluePanel] = useState(null);
+    const [showCluesSidebar, setShowCluesSidebar] = useState(false);
 
-    // Movement State
-    const [playerPos, setPlayerPos] = useState({ x: 750, y: 430 });
-    const [keys, setKeys] = useState({});
-    const [interactionActive, setInteractionActive] = useState(false);
-
-    // ═══ HELPERS ═══
     const showFeedback = (msg, color = 'cyan') => {
         setFeedbackMsg({ text: msg, color });
         setTimeout(() => setFeedbackMsg(null), 3500);
     };
 
-    const handleClueDiscovery = useCallback((clueId) => {
-        if (cluesFound.some(c => c.id === clueId)) return;
-        const clueDef = CLUE_DATA.find(c => c.id === clueId);
+    const handleClueClick = (clueId) => {
+        if (cluesFound.includes(clueId)) {
+            setActiveCluePanel(clueId);
+            return;
+        }
+        const clue = CLUE_DATA.find(c => c.id === clueId);
+        setCluesFound(prev => [...prev, clueId]);
+        setActiveCluePanel(clueId);
+        showFeedback(`🔍 CLUE FOUND: ${clue.name} (+${clue.points} pts)`, 'emerald');
+    };
 
-        // Calculate grid-based position to prevent stacking
-        const gridPositions = [
-            { x: 140, y: 160 },
-            { x: 380, y: 200 },
-            { x: 150, y: 380 },
-            { x: 380, y: 400 },
-            { x: 260, y: 550 },
-            { x: 200, y: 280 },
-            { x: 150, y: 500 },
-            { x: 380, y: 500 }
-        ];
-        const pos = gridPositions[cluesFound.length % gridPositions.length];
-        const x = pos.x + (Math.random() * 40 - 20);
-        const y = pos.y + (Math.random() * 40 - 20);
-
-        const newClue = {
-            id: clueDef.id,
-            title: clueDef.name,
-            desc: clueDef.description,
-            points: clueDef.points,
-            x,
-            y
-        };
-
-        setCluesFound(prev => [...prev, newClue]);
-        setActiveClue(clueDef);
-        setShowDetectiveBoard(true);
-        showFeedback(`New Evidence: ${clueDef.name}`, 'emerald');
-    }, [cluesFound]);
-
-    useEffect(() => {
-        // Initial phone vibration after 2 seconds
-        const timer = setTimeout(() => {
-            setIsPhoneVibrating(true);
-            showFeedback("WhatsApp Notification from Aunty Priya", "indigo");
-        }, 2000);
-        return () => clearTimeout(timer);
-    }, []);
-
-    // ═══ MOVEMENT LOGIC ═══
-    useEffect(() => {
-        const handleKeyDown = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
-        const handleKeyUp = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (gameState !== 'living-room' || showWhatsApp) return;
-
-        let animationFrameId;
-        const speed = 7;
-        const ROOM_WIDTH = 1600;
-        const ROOM_HEIGHT = 1100;
-
-        const gameLoop = () => {
-            setPlayerPos(prev => {
-                let newX = prev.x;
-                let newY = prev.y;
-
-                if (keys['w'] || keys['arrowup']) newY -= speed;
-                if (keys['s'] || keys['arrowdown']) newY += speed;
-                if (keys['a'] || keys['arrowleft']) newX -= speed;
-                if (keys['d'] || keys['arrowright']) newX += speed;
-
-                // Simple boundaries matching the room walls
-                newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
-                newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
-
-                // Interaction zone for the phone on the central rug/sofa area
-                const nearPhone = Math.abs(newX - 740) < 150 && Math.abs(newY - 550) < 150;
-                setInteractionActive(nearPhone);
-
-                return { x: newX, y: newY };
-            });
-            animationFrameId = requestAnimationFrame(gameLoop);
-        };
-        animationFrameId = requestAnimationFrame(gameLoop);
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [keys, gameState, showWhatsApp]);
-
-    // Handle Interaction Key 'E'
-    useEffect(() => {
-        if (keys['e'] && interactionActive && gameState === 'living-room') {
-            if (!showWhatsApp && !hasWarned && !showWhatsAppWarn) {
-                setIsPhoneVibrating(false);
-                setShowWhatsApp(true);
-                setKeys(k => ({ ...k, 'e': false }));
-            } else if (hasWarned) {
-                setGameState('cybercrime-portal');
-                setKeys(k => ({ ...k, 'e': false }));
+    const handleFinalChoice = (choice) => {
+        if (choice === 'sbi_secure') {
+            setOutcomeType('scam');
+            setGameState('outcome');
+        } else if (choice === 'safe') {
+            if (cluesFound.length >= 3) {
+                setOutcomeType('victory');
+                setGameState('outcome');
+            } else {
+                showFeedback("Collect at least 3 clues before making your decision!", 'orange');
             }
         }
-    }, [keys, interactionActive, showWhatsApp, hasWarned, showWhatsAppWarn, gameState]);
+    };
 
-    // ═══ COMPONENTS ═══
+    // ═══════════════════════════════════════
+    // FEEDBACK TOAST
+    // ═══════════════════════════════════════
+    const FeedbackToast = () => feedbackMsg && (
+        <div className={`fixed top-8 left-1/2 -translate-x-1/2 py-4 px-8 rounded-2xl shadow-2xl z-[600] animate-in slide-in-from-top duration-500 font-black tracking-wider text-sm flex items-center gap-3 border backdrop-blur-xl ${feedbackMsg.color === 'emerald' ? 'bg-emerald-950/90 border-emerald-500/50 text-emerald-200' :
+            feedbackMsg.color === 'orange' ? 'bg-amber-950/90 border-amber-500/50 text-amber-200' :
+                'bg-cyan-950/90 border-cyan-500/50 text-cyan-200'
+            }`}>
+            <div className={`w-3 h-3 rounded-full animate-pulse ${feedbackMsg.color === 'emerald' ? 'bg-emerald-400' :
+                feedbackMsg.color === 'orange' ? 'bg-amber-400' : 'bg-cyan-400'
+                }`} />
+            {feedbackMsg.text}
+        </div>
+    );
 
-    const LivingRoom = () => {
-        const VIEWPORT_WIDTH = 1200;
-        const VIEWPORT_HEIGHT = 800;
-        const ROOM_WIDTH = 1600;
-        const ROOM_HEIGHT = 1100;
+    // ═══════════════════════════════════════
+    // CLUES SIDEBAR (compact)
+    // ═══════════════════════════════════════
+    const CluesSidebar = () => (
+        <div className={`fixed right-0 top-0 bottom-0 w-[340px] bg-slate-950/95 backdrop-blur-xl border-l border-white/10 z-[400] transform transition-transform duration-500 flex flex-col ${showCluesSidebar ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+                <div>
+                    <h3 className="text-white font-black text-lg uppercase tracking-wider">Evidence Found</h3>
+                    <p className="text-slate-500 text-xs font-bold mt-1">{cluesFound.length} / {CLUE_DATA.length} clues</p>
+                </div>
+                <button onClick={() => setShowCluesSidebar(false)} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 transition-all">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {CLUE_DATA.map(clue => {
+                    const found = cluesFound.includes(clue.id);
+                    return (
+                        <div key={clue.id} className={`p-4 rounded-xl border transition-all ${found ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/5 border-white/5 opacity-40'}`}>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xl">{found ? clue.icon : '❓'}</span>
+                                <div>
+                                    <h4 className={`text-sm font-black ${found ? 'text-emerald-300' : 'text-slate-500'}`}>{found ? clue.name : 'Undiscovered'}</h4>
+                                    {found && <p className="text-xs text-slate-400 mt-1 leading-relaxed">{clue.desc}</p>}
+                                </div>
+                            </div>
+                            {found && <div className="mt-2 text-right"><span className="text-emerald-400 text-xs font-black">+{clue.points} pts</span></div>}
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="p-4 border-t border-white/10">
+                <div className="h-3 bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-1000 ${cluesFound.length >= 3 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${(cluesFound.length / CLUE_DATA.length) * 100}%` }} />
+                </div>
+                <p className="text-center text-xs text-slate-500 mt-2 font-bold">{cluesFound.length >= 3 ? '✓ Ready to make your choice' : `Find ${3 - cluesFound.length} more clues`}</p>
+            </div>
+        </div>
+    );
 
-        const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
-        const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
+    // ═══════════════════════════════════════
+    // CLUE DETAIL PANEL (modal overlay)
+    // ═══════════════════════════════════════
+    const ClueDetailPanel = () => {
+        if (!activeCluePanel) return null;
+        const clue = CLUE_DATA.find(c => c.id === activeCluePanel);
+        if (!clue) return null;
+
+        const details = {
+            secure_net_props: {
+                title: 'Network Analysis', items: [
+                    { label: 'Network Name (SSID)', value: 'SBI_SecureNet' },
+                    { label: 'Security', value: 'NONE (Open — No Encryption)', danger: true },
+                    { label: 'MAC Address', value: 'E4:FA:C4:29:11:AB — Mobile Phone Hotspot', danger: true },
+                    { label: 'Network Created', value: 'Today, 09:47 AM (2 hours ago)', danger: true },
+                ], warning: 'Banks do NOT set up Wi-Fi networks in public spaces. Any network named after a bank should be treated as a scam.'
+            },
+            wifi_card: {
+                title: 'Official Wi-Fi Credentials', items: [
+                    { label: 'Network', value: 'BrewConnect_Guest' },
+                    { label: 'Password', value: 'coffee2024' },
+                    { label: 'Security', value: 'WPA2 Encrypted ✓' },
+                ], warning: 'A password-protected Wi-Fi with WPA2 encryption is safer than an open network. The password creates a basic encryption layer.'
+            },
+            hacker_corner: {
+                title: 'Suspicious Individual Report', items: [
+                    { label: 'Equipment', value: 'Laptop + Portable Router in Backpack', danger: true },
+                    { label: 'Software', value: 'Network monitoring & packet sniffing tools', danger: true },
+                    { label: 'Broadcasting', value: 'SBI_SecureNet (the fake network)', danger: true },
+                    { label: 'Connected Devices', value: '6 victims currently connected', danger: true },
+                ], warning: 'This person has set up a HONEYPOT. He is intercepting all data from devices connected to SBI_SecureNet.'
+            },
+            customer_screen: {
+                title: 'Man-in-the-Middle Attack Demo', items: [
+                    { label: 'Victim', value: 'College student checking bank balance' },
+                    { label: 'Connection', value: 'SBI_SecureNet (the fake network)' },
+                    { label: 'URL Displayed', value: 'http:// (NOT https://)', danger: true },
+                    { label: 'Data Captured', value: 'Login credentials, session tokens', danger: true },
+                ], warning: 'A MITM attack captures data silently. The victim never knows. The attacker can read passwords, OTPs, account numbers.'
+            },
+            mobile_data: {
+                title: 'Mobile Data vs Public Wi-Fi', items: [
+                    { label: 'Public Wi-Fi (Open)', value: 'No encryption, hackable, MITM risk HIGH', danger: true },
+                    { label: 'Mobile Data (4G/5G)', value: 'Tower-encrypted, personal, MITM risk VERY LOW' },
+                ], warning: 'Mobile data costs just a few paise per MB for banking. It is the SAFEST option for financial transactions in public.'
+            },
+            vpn_clue: {
+                title: 'VPN Protection', items: [
+                    { label: 'Status', value: 'Currently OFF (Not Protected)', danger: true },
+                    { label: 'Function', value: 'Encrypts ALL internet traffic end-to-end' },
+                ], warning: 'A VPN makes MITM attacks ineffective. If you MUST use public Wi-Fi for banking, always turn on a trusted VPN first.'
+            },
+        };
+
+        const d = details[activeCluePanel] || { title: clue.name, items: [], warning: clue.desc };
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000">
-                {/* Viewport Container */}
-                <div
-                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900"
-                    style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
-                >
-                    {/* World Container (Camera) */}
-                    <div
-                        className="absolute inset-0 transition-transform duration-100 ease-out"
-                        style={{
-                            width: ROOM_WIDTH,
-                            height: ROOM_HEIGHT,
-                            transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-                            backgroundColor: '#2c3e50'
-                        }}
-                    >
-
-                        {/* Wood Floor (from Level 1) */}
-                        <div className="absolute inset-0 opacity-80" style={{
-                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
-                        }}></div>
-
-                        {/* DOORS AND OPENINGS */}
-                        {/* Top Double Door (Solid, no glass) */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10">
-                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center">
-                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
-                            </div>
-                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
-                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
-                            </div>
-                            {/* Handles */}
-                            <div className="absolute top-[40px] left-[110px] w-4 h-1 bg-black"></div>
-                            <div className="absolute top-[40px] right-[110px] w-4 h-1 bg-black"></div>
+            <div className="fixed inset-0 z-[500] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setActiveCluePanel(null)}>
+                <div className="max-w-lg w-full bg-slate-900 border-2 border-white/10 rounded-3xl p-8 shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-3xl border border-emerald-500/30">{clue.icon}</div>
+                        <div>
+                            <h3 className="text-white font-black text-xl">{d.title}</h3>
+                            <p className="text-emerald-400 text-xs font-bold mt-1 uppercase tracking-wider">+{clue.points} Detective Points</p>
                         </div>
-
-                        {/* Bottom Door (Solid, no glass) */}
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-b-0 flex z-10">
-                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center">
-                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
-                            </div>
-                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
-                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
-                            </div>
-                            {/* Handles */}
-                            <div className="absolute bottom-[40px] left-[110px] w-4 h-1 bg-black"></div>
-                            <div className="absolute bottom-[40px] right-[110px] w-4 h-1 bg-black"></div>
-                        </div>
-
-                        {/* Right Single Door */}
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-r-0 p-3 flex items-center z-10">
-                            <div className="w-[30px] h-[140px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
-                            {/* Handle */}
-                            <div className="absolute left-2 bottom-6 w-1 h-6 bg-black"></div>
-                        </div>
-
-                        {/* HORIZONTAL RED RUG (Left to Right) */}
-                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black flex justify-between items-center px-0 z-0">
-                            {/* Left Fringes */}
-                            <div className="flex flex-col justify-between h-[240px] -ml-2">
-                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
-                            </div>
-                            {/* Right Fringes */}
-                            <div className="flex flex-col justify-between h-[240px] -mr-2">
-                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
-                            </div>
-                        </div>
-
-                        {/* VERTICAL RED RUG (Top to Bottom) */}
-                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black flex flex-col justify-between items-center py-0 z-0">
-                            {/* Top Fringes */}
-                            <div className="flex justify-between w-[240px] -mt-2">
-                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
-                            </div>
-                            {/* Bottom Fringes */}
-                            <div className="flex justify-between w-[240px] -mb-2">
-                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
-                            </div>
-                        </div>
-
-                        {/* SINGLE SOFA (Right side, facing left towards TV) */}
-                        <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start pr-4 pb-0 z-20 shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
-                            {/* Seating surface (left side of the component) */}
-                            <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
-                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2"></div>
-                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mb-2"></div>
-                            </div>
-                            {/* Backrest (right side of the component) */}
-                            <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black"></div>
-
-                            {/* Armrests (top and bottom of the component) */}
-                            <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black"></div>
-                            <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black"></div>
-                        </div>
-
-                        {/* COFFEE TABLE */}
-                        <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-xl flex items-center justify-center">
-                            <div className="w-[80px] h-[160px] border border-white/10"></div>
-                        </div>
-
-                        {/* WARM LAMPS WITH TABLES */}
-                        {/* Top/Right Lamp Table */}
-                        <div className="absolute right-[410px] top-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_20px_30px_rgba(0,0,0,0.5)]">
-                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
-                        </div>
-                        {/* Bottom/Right Lamp Table */}
-                        <div className="absolute right-[410px] bottom-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_20px_30px_rgba(0,0,0,0.5)]">
-                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
-                        </div>
-
-                        {/* LEFT WALL TV UNIT */}
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[180px] h-[340px] bg-[#222938] border-4 border-l-0 border-black flex items-center z-20 shadow-[20px_0_40px_rgba(0,0,0,0.6)]">
-                            <div className="w-[120px] h-[260px] bg-[#1e4868] border-4 border-[#122336] ml-4 flex flex-col items-center justify-center relative overflow-hidden shadow-black">
-                                {/* Glint on TV */}
-                                <div className="w-[180px] h-[40px] bg-white/10 -rotate-45 absolute top-4 -left-8"></div>
-                                <div className="w-[180px] h-[20px] bg-white/10 -rotate-45 absolute bottom-12 -left-8"></div>
-                                {/* TV Screen Glow */}
-                                <div className="absolute inset-x-0 bottom-0 h-[50%] bg-blue-500/20 blur-xl animate-pulse"></div>
-                            </div>
-                        </div>
-
-
-
-                        {/* CORNER PLANTS */}
-                        {/* Top Left */}
-                        <div className="absolute left-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
-                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center">
-                                <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
-                                <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
-                            </div>
-                        </div>
-                        {/* Top Right */}
-                        <div className="absolute right-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
-                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center">
-                                <div className="w-[60px] h-[10px] bg-[#22c55e] rotate-45 absolute shadow-[0_0_10px_#22c55e]"></div>
-                                <div className="w-[60px] h-[10px] bg-[#22c55e] border border-[#14532d] -rotate-45 absolute"></div>
-                                <div className="w-[10px] h-[60px] bg-[#22c55e] absolute shadow-[0_0_10px_#22c55e]"></div>
-                            </div>
-                        </div>
-                        {/* Bottom Left */}
-                        <div className="absolute left-[30px] bottom-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
-                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center">
-                                <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
-                                <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
-                                <div className="w-[10px] h-[60px] bg-[#3a6b57] absolute"></div>
-                            </div>
-                        </div>
-
-                        {/* PHONE OR LAPTOP (Interacable area on the coffee table) */}
-                        {!hasWarned ? (
-                            <div
-                                className="absolute z-30"
-                                style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
-                            >
-                                <div
-                                    className={`w-[40px] h-[75px] bg-[#0f172a] rounded-[8px] border-[2px] border-slate-600 shadow-2xl cursor-pointer hover:scale-110 flex flex-col items-center justify-center transition-all ${isPhoneVibrating ? 'animate-[shake_0.5s_infinite] ring-2 ring-emerald-500' : 'hover:ring-2 hover:ring-cyan-500'}`}
-                                    onClick={() => {
-                                        setIsPhoneVibrating(false);
-                                        setShowWhatsApp(true);
-                                    }}
-                                >
-                                    <div className="w-[12px] h-[2px] bg-slate-700 rounded-full absolute top-[3px]"></div>
-                                    <div className="flex-1 w-[32px] bg-slate-900 mt-2 mb-1 border border-slate-700 mx-[2px] flex items-center justify-center">
-                                        {isPhoneVibrating ? (
-                                            <div className="text-[12px] animate-pulse shadow-[0_0_10px_#22c55e] rounded-full">💬</div>
-                                        ) : (
-                                            <span className="text-white/40 text-[7px] font-black">19:29</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                className="absolute z-30"
-                                style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
-                            >
-                                <div
-                                    className="w-[90px] h-[60px] bg-slate-800 rounded-md shadow-2xl flex flex-col items-center justify-end p-1 border-b-4 border-slate-950 cursor-pointer hover:scale-110 hover:ring-2 hover:ring-indigo-500 transition-all group animate-[shake_2s_infinite]"
-                                    onClick={() => setGameState('cybercrime-portal')}
-                                >
-                                    <div className="w-full flex-1 bg-slate-950 border border-slate-700 mb-1 rounded-sm flex items-center justify-center relative overflow-hidden">
-                                        <div className="absolute inset-0 bg-blue-500/10"></div>
-                                        <div className="text-[8px] text-blue-400 font-mono text-center shadow-[0_0_10px_rgba(96,165,250,0.5)]">GOV.IN</div>
-                                    </div>
-                                    <div className="w-full h-[6px] bg-slate-600 rounded-b-sm flex items-center justify-center">
-                                        <div className="w-4 h-1 bg-slate-500 rounded-full"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* INTERACTION HINT UI */}
-                        {interactionActive && gameState === 'living-room' && !showWhatsApp && !hasWarned && isPhoneVibrating && (
-                            <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-emerald-500 font-bold animate-bounce text-sm whitespace-nowrap">
-                                    Press [E] to read message
-                                </div>
-                            </div>
-                        )}
-                        {interactionActive && gameState === 'living-room' && !showWhatsApp && !hasWarned && !isPhoneVibrating && (
-                            <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-slate-500 font-bold text-sm whitespace-nowrap">
-                                    Press [E] to check phone
-                                </div>
-                            </div>
-                        )}
-                        {interactionActive && gameState === 'living-room' && hasWarned && (
-                            <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-indigo-500 font-bold animate-bounce text-sm whitespace-nowrap">
-                                    Press [E] to open Cybercrime Portal
-                                </div>
-                            </div>
-                        )}
-
-                        {/* THE PLAYER AVATAR */}
-                        {gameState === 'living-room' && (
-                            <div className="absolute z-40 transition-all duration-[50ms]" style={{ left: playerPos.x, top: playerPos.y, transform: 'translate(-50%, -50%)' }}>
-                                <Player x={0} y={0} isFixed={true} />
-                            </div>
-                        )}
                     </div>
+
+                    <div className="space-y-3 mb-6">
+                        {d.items.map((item, i) => (
+                            <div key={i} className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                <span className="text-slate-500 text-xs font-bold uppercase tracking-wider block mb-1">{item.label}</span>
+                                <span className={`text-sm font-black ${item.danger ? 'text-red-400' : 'text-white'}`}>{item.value}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {d.warning && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl mb-6">
+                            <p className="text-amber-200 text-sm leading-relaxed">⚠️ {d.warning}</p>
+                        </div>
+                    )}
+
+                    <button onClick={() => setActiveCluePanel(null)} className="w-full bg-white/10 hover:bg-white/15 text-white font-black py-4 rounded-xl transition-all">
+                        Close
+                    </button>
                 </div>
             </div>
         );
     };
 
-    const WhatsAppThread = () => (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
-            <div className="w-[450px] bg-[#075e54] rounded-[45px] shadow-[0_60px_150px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
-                {/* Header */}
-                <div className="px-10 py-10 flex items-center gap-6 bg-[#075e54]">
-                    <button onClick={() => setShowWhatsApp(false)} className="text-white text-2xl hover:bg-white/10 w-10 h-10 rounded-full flex items-center justify-center transition-all">←</button>
-                    <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10">
-                        <span className="text-3xl">👩‍🍳</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <h3 className="text-white font-black text-xl">Aunty Priya 💛</h3>
-                        <span className="text-white/60 text-xs font-medium">Online</span>
-                    </div>
+    // ═══════════════════════════════════════
+    // CAFÉ SCENE
+    // ═══════════════════════════════════════
+    if (gameState === 'cafe') {
+        return (
+            <div className="w-full h-full bg-[#1a0e08] relative overflow-hidden">
+                <FeedbackToast />
+                <CluesSidebar />
+                <ClueDetailPanel />
+
+                {/* Warm café background */}
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, #2d1810 0%, #1a0e08 60%, #0d0705 100%)' }} />
+
+                {/* Brick wall texture */}
+                <div className="absolute inset-x-0 top-0 h-[55%] opacity-20" style={{
+                    backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(139,90,43,0.3) 18px, rgba(139,90,43,0.3) 20px), repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(139,90,43,0.2) 38px, rgba(139,90,43,0.2) 40px)',
+                    backgroundSize: '40px 20px'
+                }} />
+
+                {/* Warm light rays from windows */}
+                <div className="absolute top-0 left-[10%] w-[250px] h-[600px] bg-gradient-to-b from-amber-400/15 to-transparent skew-x-[-15deg] blur-[40px] pointer-events-none" />
+                <div className="absolute top-0 left-[50%] w-[200px] h-[500px] bg-gradient-to-b from-amber-300/10 to-transparent skew-x-[-10deg] blur-[60px] pointer-events-none" />
+
+                {/* Window (left) */}
+                <div className="absolute left-[5%] top-[5%] w-[30%] h-[45%] bg-gradient-to-b from-indigo-950/40 to-slate-950/60 border-[12px] border-[#3d2415] rounded-t-lg overflow-hidden">
+                    <div className="absolute bottom-4 left-4 w-20 h-10 bg-amber-400/10 rounded blur-lg animate-pulse" />
+                    <div className="absolute bottom-8 right-8 w-12 h-8 bg-white/5 rounded blur-sm" />
+                    <div className="absolute top-4 right-4 text-xs text-white/20 font-mono">STREET VIEW</div>
                 </div>
 
-                {/* Chat Background */}
-                <div className="flex-1 bg-[#e5ddd5] p-8 space-y-6 overflow-y-auto" style={{
-                    backgroundImage: 'url("https://user-images.githubusercontent.com/1507727/101833400-33499000-3b4d-11eb-8283-bc7b9d6d23f3.png")',
-                    backgroundSize: '400px'
-                }}>
-                    <div className="flex flex-col gap-4">
-                        <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm relative">
-                            <div className="flex items-center gap-2 mb-2 text-[10px] text-slate-400 border-b border-slate-100 pb-1">
-                                <span className="font-bold">Forwarded many times</span>
+                {/* Window (right) */}
+                <div className="absolute right-[5%] top-[5%] w-[25%] h-[40%] bg-gradient-to-b from-indigo-950/30 to-slate-950/50 border-[12px] border-[#3d2415] rounded-t-lg" />
+
+                {/* Floor */}
+                <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-[#0a0604] to-[#1a0e08]" style={{
+                    backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(100,60,20,0.05) 60px, rgba(100,60,20,0.05) 62px)',
+                }} />
+
+                {/* Edison bulbs */}
+                {[15, 35, 55, 75].map((left, i) => (
+                    <div key={i} className="absolute z-10 pointer-events-none" style={{ left: `${left}%`, top: 0 }}>
+                        <div className="w-px h-16 bg-amber-900/60 mx-auto" />
+                        <div className="w-4 h-6 bg-amber-400/60 rounded-full mx-auto shadow-[0_0_20px_rgba(245,158,11,0.4)] animate-pulse" style={{ animationDelay: `${i * 0.7}s` }} />
+                    </div>
+                ))}
+
+                {/* ═══ INTERACTIVE HOTSPOTS ═══ */}
+
+                {/* 1. Wi-Fi Card on table */}
+                <div className="absolute bottom-[38%] right-[25%] cursor-pointer group z-20" onClick={() => handleClueClick('wifi_card')}>
+                    <div className={`w-32 h-20 bg-white rounded-lg p-3 shadow-xl transform rotate-[-3deg] transition-all group-hover:rotate-0 group-hover:scale-110 ${cluesFound.includes('wifi_card') ? 'ring-2 ring-emerald-400' : ''}`}>
+                        <div className="text-[7px] font-black text-stone-800 border-b border-stone-200 pb-1 mb-1">☕ Brew & Bond</div>
+                        <div className="text-[8px] font-bold text-stone-600">WiFi: BrewConnect_Guest</div>
+                        <div className="text-[8px] font-mono text-stone-500">Pass: coffee2024</div>
+                    </div>
+
+                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[9px] text-amber-300 font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Click to inspect</div>
+                </div>
+
+                {/* 2. Hacker in corner */}
+                <div className="absolute left-[3%] bottom-[10%] w-48 h-72 cursor-pointer group z-20" onClick={() => handleClueClick('hacker_corner')}>
+                    <div className={`relative w-full h-full transition-all group-hover:scale-105 ${cluesFound.includes('hacker_corner') ? 'ring-2 ring-red-400 rounded-xl' : ''}`}>
+                        {/* Person silhouette */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-32 flex flex-col items-center">
+                            <div className="w-14 h-14 bg-zinc-900 rounded-full border-2 border-zinc-800 flex items-center justify-center">
+                                <div className="w-8 h-1 bg-cyan-400/30 rounded blur-[1px]" />
                             </div>
-                            <p className="text-sm font-medium leading-relaxed">
-                                AMAZING SALE!!! 🤯🔥 Buy Samsung S24 for only ₹4,999!!! Limited stock!! Only 47 left!!!
-                                My neighbour bought two yesterday! I just ordered one for Karthik’s birthday!
-                            </p>
-                            <div
-                                className="mt-4 p-4 bg-slate-50 border rounded-xl flex items-start gap-4 cursor-pointer hover:bg-slate-100 transition-all group"
-                                onClick={() => {
-                                    setGameState('website');
-                                    setShowWhatsApp(false);
-                                }}
-                            >
-                                <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center text-4xl">📱</div>
-                                <div className="flex-1">
-                                    <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-1">techdeals-india.shop</div>
-                                    <div className="text-xs font-bold text-slate-800 group-hover:underline">Samsung Galaxy S24 Ultra - Flash Sale Live!</div>
-                                    <div className="text-[10px] text-slate-400 mt-1 italic">Click now for 94% off...</div>
+                            <div className="w-28 h-40 bg-gradient-to-b from-zinc-900 to-black rounded-t-[40px] mt-1 relative overflow-hidden">
+                                <div className="absolute top-2 inset-x-6 h-full bg-zinc-800/30" />
+                            </div>
+                        </div>
+                        {/* Laptop on table */}
+                        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-36 h-24 bg-zinc-950 border-4 border-zinc-800 rounded-lg overflow-hidden">
+                            <div className="w-full h-4 bg-zinc-900 flex items-center px-2 gap-1">
+                                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                                <div className="w-1.5 h-1.5 bg-green-500/30 rounded-full" />
+                            </div>
+                            <div className="p-1 space-y-0.5">
+                                <div className="text-[5px] font-mono text-green-400/60">$ airodump-ng wlan0</div>
+                                <div className="text-[5px] font-mono text-red-400/80">CAPTURING: 6 devices...</div>
+                            </div>
+                        </div>
+                        {/* Backpack with blinking router */}
+                        <div className="absolute bottom-0 right-0 w-16 h-20 bg-zinc-900 rounded-lg border border-zinc-800">
+                            <div className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full shadow-[0_0_8px_red] animate-pulse" />
+                        </div>
+                    </div>
+
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] text-amber-300 font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Suspicious customer</div>
+                </div>
+
+                {/* 3. Victim customer */}
+                <div className="absolute left-[35%] bottom-[30%] w-44 h-56 cursor-pointer group z-20" onClick={() => handleClueClick('customer_screen')}>
+                    <div className={`relative w-full h-full transition-all group-hover:scale-105 ${cluesFound.includes('customer_screen') ? 'ring-2 ring-amber-400 rounded-xl' : ''}`}>
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-24 flex flex-col items-center">
+                            <div className="w-12 h-12 bg-amber-900/40 rounded-full" />
+                            <div className="w-20 h-32 bg-gradient-to-b from-rose-900/30 to-zinc-900/50 rounded-t-[30px] mt-1" />
+                        </div>
+                        {/* Her laptop */}
+                        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-32 h-20 bg-white border-4 border-zinc-300 rounded-lg overflow-hidden">
+                            <div className="w-full h-3 bg-slate-100 flex items-center px-2">
+                                <div className="text-[4px] font-mono text-red-500">⚠ http://bank.sbi</div>
+                            </div>
+                            <div className="p-2 flex items-center gap-2">
+                                <div className="w-6 h-6 bg-indigo-500 rounded text-white text-[6px] flex items-center justify-center font-bold">SBI</div>
+                                <div className="space-y-1">
+                                    <div className="w-12 h-1.5 bg-slate-200 rounded" />
+                                    <div className="w-8 h-1.5 bg-slate-100 rounded" />
                                 </div>
                             </div>
-                            <div className="text-[10px] text-slate-400 text-right mt-2 font-bold">19:29 ✓✓</div>
+                        </div>
+                        {/* Data leak animation on hover */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-red-500/90 text-white text-[8px] font-black px-2 py-1 rounded animate-bounce">DATA BEING CAPTURED</div>
+                        </div>
+                    </div>
+
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] text-amber-300 font-bold opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity">Another customer's laptop</div>
+                </div>
+
+                {/* 4. THE PHONE (center table) with VPN + 4G clues */}
+                <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 z-30">
+                    {/* Table surface */}
+                    <div className="w-[400px] h-[200px] bg-gradient-to-b from-[#8B5A2C] to-[#6B4423] rounded-t-xl border-t-4 border-[#A0724A] relative shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                        {/* Coffee mug */}
+                        <div className="absolute left-8 top-4 w-14 h-16 bg-white rounded-b-[20px] border-2 border-stone-200 shadow-lg">
+                            <div className="absolute -top-1 inset-x-0 h-4 bg-amber-900/80 rounded-full" />
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-2">
+                                <div className="w-1 h-6 bg-white/20 rounded-full blur animate-bounce" style={{ animationDelay: '0s' }} />
+                                <div className="w-1 h-8 bg-white/15 rounded-full blur animate-bounce" style={{ animationDelay: '0.5s' }} />
+                            </div>
                         </div>
 
-                        <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-[#075e54]/20 rounded-full flex items-center justify-center">▶️</div>
-                                <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                    <div className="w-1/2 h-full bg-blue-500" />
+                        {/* Phone on table */}
+                        <div className="absolute right-12 top-2 w-[140px] h-[260px] bg-black rounded-[24px] border-4 border-zinc-800 shadow-xl overflow-hidden cursor-pointer group" onClick={() => setGameState('radar')}>
+                            {/* Notch */}
+                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-5 bg-black rounded-b-xl z-10" />
+                            {/* Status bar */}
+                            <div className="pt-7 px-3 flex justify-between items-center">
+                                <span className="text-[8px] text-white font-bold">11:45</span>
+                                <div className="flex items-center gap-1">
+                                    {/* 4G icon - clickable */}
+                                    <div className="flex items-end gap-[1px] h-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleClueClick('mobile_data'); }}>
+                                        {[...Array(4)].map((_, i) => <div key={i} className="w-[2px] bg-white rounded-full" style={{ height: `${(i + 1) * 25}%` }} />)}
+                                        <span className="text-[6px] text-white font-bold ml-[2px]">4G</span>
+                                    </div>
+                                    <div className="w-5 h-[8px] border border-white/40 rounded-sm p-[1px]">
+                                        <div className="h-full bg-green-400 rounded-sm" style={{ width: '80%' }} />
+                                    </div>
                                 </div>
-                                <span className="text-[10px] text-slate-400 font-bold">0:12</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 italic mt-3">"Dei, this is real da, my neighbour actually got the phone already, share with everyone!"</p>
-                        </div>
-                    </div>
-                </div>
+                            {/* Screen content */}
+                            <div className="p-3 flex flex-col gap-2 flex-1">
+                                {/* Bank notification */}
+                                <div className="bg-white/10 p-2 rounded-lg border border-white/10 animate-pulse">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 bg-indigo-500 rounded-md text-[6px] text-white flex items-center justify-center font-bold">SBI</div>
+                                        <div>
+                                            <div className="text-[7px] text-white font-bold">Bank Alert</div>
+                                            <div className="text-[6px] text-white/50">Review ₹12,000 charge</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {/* VPN app */}
+                                <div className="cursor-pointer hover:scale-105 transition-all bg-white/5 p-2 rounded-lg border border-white/5" onClick={(e) => { e.stopPropagation(); handleClueClick('vpn_clue'); }}>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-lg">🛡️</div>
+                                        <div>
+                                            <div className="text-[7px] text-white font-bold">VPN App</div>
+                                            <div className="text-[6px] text-red-400">OFF — Not Protected</div>
+                                        </div>
+                                    </div>
 
-                {/* Footer */}
-                <div className="p-6 bg-[#f0f2f5] flex items-center gap-4">
-                    <div className="w-10 h-10 text-xl flex items-center justify-center">😊</div>
-                    <div className="flex-1 bg-white h-12 rounded-full px-6 flex items-center text-slate-400 text-sm">Type a message...</div>
-                    <div className="w-10 h-10 text-xl flex items-center justify-center">🎙️</div>
-                </div>
-            </div>
-        </div>
-    );
-
-    const WhatsAppWarnThread = () => (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-500">
-            <div className="w-[450px] bg-[#075e54] rounded-[45px] shadow-[0_60px_150px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
-                {/* Header */}
-                <div className="px-10 py-10 flex items-center gap-6 bg-[#075e54]">
-                    <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10">
-                        <span className="text-3xl">👩‍🍳</span>
-                    </div>
-                    <div className="flex flex-col">
-                        <h3 className="text-white font-black text-xl">Aunty Priya 💛</h3>
-                        <span className="text-white/60 text-xs font-medium">Online</span>
-                    </div>
-                </div>
-
-                {/* Chat Background */}
-                <div className="flex-1 bg-[#e5ddd5] p-8 space-y-6 overflow-y-auto" style={{
-                    backgroundImage: 'url("https://user-images.githubusercontent.com/1507727/101833400-33499000-3b4d-11eb-8283-bc7b9d6d23f3.png")',
-                    backgroundSize: '400px'
-                }}>
-                    <div className="flex flex-col gap-4">
-                        {/* Outgoing Message */}
-                        <div className="self-end max-w-[85%] bg-[#dcf8c6] p-4 rounded-l-2xl rounded-tr-2xl shadow-sm relative animate-in slide-in-from-right duration-300">
-                            <p className="text-sm font-medium leading-relaxed text-slate-800">
-                                Aunty STOP! 🛑 Do not buy anything and don't share this link! The website is a complete scam. They have no GST, the domain was created 19 days ago, and the security badges are fake images.
-                            </p>
-                            <div className="text-[10px] text-emerald-600 text-right mt-2 font-bold flex justify-end items-center gap-1">
-                                <span>20:15</span>
-                                <span>✓✓</span>
+                                </div>
+                                {/* Scan networks button */}
+                                <div className="mt-auto">
+                                    <div className="bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-[8px] font-black py-2 rounded-lg text-center uppercase tracking-wider shadow-lg group-hover:shadow-cyan-500/30">
+                                        📡 Scan Wi-Fi Networks
+                                    </div>
+                                </div>
                             </div>
+                            {/* Home bar */}
+                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-16 h-1 bg-white/30 rounded-full" />
                         </div>
 
-                        {/* Aunty Priya Response */}
-                        <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm animate-in slide-in-from-left duration-500 delay-1000 fill-mode-both">
-                            <p className="text-sm font-medium leading-relaxed text-slate-800">
-                                Oh my god thank you Kannaa!! 🙏 I will block the sender immediately and delete the link. How do we stop this from spreading to others??
-                            </p>
-                            <div className="text-[10px] text-slate-400 text-right mt-2 font-bold">20:16</div>
-                        </div>
+                        {/* Croissant */}
+                        <div className="absolute left-28 top-8 w-12 h-8 bg-amber-400/60 rounded-[50%] rotate-12 border border-amber-600/30 shadow-md" />
+                    </div>
+                </div>
 
-                        {/* Outgoing Message 2 */}
-                        <div className="self-end max-w-[85%] bg-[#dcf8c6] p-4 rounded-l-2xl rounded-tr-2xl shadow-sm relative animate-in slide-in-from-right duration-500 delay-[2500ms] fill-mode-both">
-                            <p className="text-sm font-medium leading-relaxed text-slate-800">
-                                Don't worry, I have collected all the evidence on my Evidence Board. I need to go to my laptop right now and file an official report on the Cybercrime Portal. I'll handle it!
-                            </p>
-                            <div className="text-[10px] text-emerald-600 text-right mt-2 font-bold flex justify-end items-center gap-1">
-                                <span>20:16</span>
-                                <span>✓✓</span>
-                            </div>
+                {/* Counter / Barista area */}
+                <div className="absolute right-0 bottom-0 w-[35%] h-[55%] bg-gradient-to-t from-[#0a0604] to-[#2d1810] border-l-[10px] border-[#3d2415]">
+                    {/* Barista */}
+                    <div className="absolute -top-20 left-12 flex flex-col items-center">
+                        <div className="w-12 h-12 bg-amber-900/40 rounded-full" />
+                        <div className="w-24 h-32 bg-gradient-to-b from-emerald-900/40 to-black rounded-t-[30px] mt-1 relative">
+                            <div className="absolute top-0 inset-x-4 h-full bg-emerald-800/20 border-x border-emerald-700/10" />
+                        </div>
+                    </div>
+                    {/* Menu board */}
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[80%] h-24 bg-zinc-900 rounded-lg border-4 border-[#3d2415] p-3">
+                        <div className="text-[8px] text-amber-400 font-black text-center mb-1">☕ MENU</div>
+                        <div className="text-[6px] text-stone-400 space-y-0.5 text-center font-mono">
+                            <p>Filter Coffee ₹80 | Latte ₹150</p>
+                            <p>Croissant ₹120 | Sandwich ₹200</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Footer Action */}
-                <div className="p-6 bg-slate-900 border-t-4 border-slate-800">
-                    <button
-                        className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-5 rounded-2xl shadow-lg transition-all animate-pulse uppercase tracking-widest flex items-center justify-center gap-3"
-                        onClick={() => {
-                            setShowWhatsAppWarn(false);
-                            setHasWarned(true);
-                            setGameState('living-room');
-                        }}
-                    >
-                        <span>💻</span>
-                        <span>Go to Laptop & Report</span>
+                {/* ═══ BOTTOM HUD ═══ */}
+                <div className="absolute bottom-4 left-4 flex gap-3 z-40">
+                    <button onClick={() => setShowCluesSidebar(!showCluesSidebar)} className="bg-slate-900/90 backdrop-blur border border-white/10 hover:border-amber-500 text-white px-5 py-3 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg">
+                        🔍 Evidence ({cluesFound.length}/{CLUE_DATA.length})
+                        {cluesFound.length > 0 && !showCluesSidebar && <span className="w-5 h-5 bg-red-500 rounded-full text-[10px] flex items-center justify-center animate-bounce">{cluesFound.length}</span>}
                     </button>
                 </div>
+
+                {/* Top instruction bar */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur border border-white/10 px-6 py-3 rounded-xl z-40">
+                    <p className="text-white/80 text-xs font-bold text-center">
+                        {cluesFound.length < 3
+                            ? "☕ Explore the café. Click on suspicious items to gather clues."
+                            : "✓ You have enough clues! Click the phone to scan Wi-Fi networks and make your choice."}
+                    </p>
+                </div>
             </div>
-        </div>
-    );
+        );
+    }
 
-    const CybercrimePortal = () => {
-        const [isSubmitting, setIsSubmitting] = useState(false);
-        const [isAttachmentAdded, setIsAttachmentAdded] = useState(false);
-
-        const handleSubmit = () => {
-            setIsSubmitting(true);
-            setTimeout(() => {
-                setOutcomeType('victory');
-                setGameState('outcome');
-            }, 2000); // simulate loading
-        };
-
+    // ═══════════════════════════════════════
+    // NETWORK RADAR
+    // ═══════════════════════════════════════
+    if (gameState === 'radar') {
         return (
-            <div className="fixed inset-0 z-[1000] bg-zinc-900 flex items-center justify-center font-sans tracking-wide">
-                <div className="max-w-4xl w-full h-[90vh] bg-white rounded-t-lg shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-700">
-                    {/* Fake Browser Toolbar */}
-                    <div className="bg-zinc-200 h-10 border-b border-zinc-300 flex items-center px-4 gap-4">
-                        <div className="flex gap-1.5">
-                            <div className="w-3 h-3 rounded-full bg-red-400"></div>
-                            <div className="w-3 h-3 rounded-full bg-amber-400"></div>
-                            <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
-                        </div>
-                        <div className="flex-1 bg-white rounded-md h-6 px-3 flex items-center shadow-sm text-xs font-mono text-zinc-600">
-                            🔒 https://cybercrime.gov.in/report-incident
-                        </div>
+            <div className="w-full h-full bg-[#040810] relative overflow-hidden">
+                <FeedbackToast />
+                <CluesSidebar />
+
+                {/* Sonar rings */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="absolute rounded-full border border-cyan-500/10" style={{ width: (i + 1) * 180, height: (i + 1) * 180 }} />
+                    ))}
+                    {/* Sweep line */}
+                    <div className="absolute w-[600px] h-[600px] animate-[spin_6s_linear_infinite] pointer-events-none">
+                        <div className="absolute top-1/2 left-1/2 w-1/2 h-px bg-gradient-to-r from-cyan-400/40 to-transparent" />
                     </div>
+                </div>
 
-                    {/* Portal Header */}
-                    <div className="bg-[#0b1f52] p-6 text-white flex items-center gap-6 border-b-4 border-amber-500">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center font-serif text-3xl font-bold text-[#0b1f52] shrink-0">In</div>
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-black uppercase tracking-wider font-serif">National Cyber Crime Reporting Portal</h1>
-                            <p className="text-cyan-200 text-xs md:text-sm italic font-medium">Ministry of Home Affairs, Government Of India</p>
-                        </div>
+                {/* Grid overlay */}
+                <div className="absolute inset-0 opacity-[0.03]" style={{
+                    backgroundImage: 'linear-gradient(rgba(34,211,238,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(34,211,238,0.5) 1px, transparent 1px)',
+                    backgroundSize: '50px 50px'
+                }} />
+
+                {/* Center device */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10 pointer-events-none">
+                    <div className="w-16 h-16 bg-gradient-to-br from-cyan-600 to-indigo-800 rounded-2xl flex items-center justify-center shadow-[0_0_60px_rgba(34,211,238,0.3)] border-2 border-white/20">
+                        <span className="text-2xl">📱</span>
                     </div>
+                    <div className="mt-3 px-4 py-1.5 bg-cyan-950/80 border border-cyan-500/30 rounded-full">
+                        <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest">Your Device</span>
+                    </div>
+                </div>
 
-                    {/* Portal Content */}
-                    <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-slate-50 hide-scrollbar">
-                        <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm">
-                            <h2 className="text-lg md:text-xl font-bold text-slate-800 border-b-2 border-slate-100 pb-4 mb-6 uppercase flex items-center gap-3">
-                                <span>📝</span> File a Suspect Website Report
-                            </h2>
+                {/* Network bubbles */}
+                {NETWORKS.map((net, idx) => {
+                    const positions = [
+                        { x: '65%', y: '20%' },
+                        { x: '15%', y: '25%' },
+                        { x: '75%', y: '70%' },
+                        { x: '20%', y: '72%' },
+                    ];
+                    const pos = positions[idx];
+                    const isActive = activeNetwork === net.id;
+                    const isSelected = activeNetwork === net.id;
 
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Suspect URL / Domain name <span className="text-red-500">*</span></label>
-                                    <input type="text" readOnly value="https://techdeals-india.shop/sale24" className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 font-mono text-sm" />
+                    return (
+                        <div key={net.id} className="absolute z-20 cursor-pointer group" style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)' }}
+                            onClick={() => { setActiveNetwork(net.id); if (net.id === 'sbi_secure') handleClueClick('secure_net_props'); }}>
+                            {/* Pulse ring */}
+                            <div className={`absolute inset-[-10px] rounded-full border animate-ping ${!net.safe ? 'border-red-500/20' : 'border-cyan-500/10'}`} />
+                            {/* Bubble */}
+                            <div className={`w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-500 border-2 ${isActive ? (!net.safe ? 'border-red-400 bg-red-500/20 shadow-[0_0_40px_rgba(239,68,68,0.3)]' : 'border-cyan-400 bg-cyan-500/20 shadow-[0_0_40px_rgba(34,211,238,0.3)]')
+                                : 'border-slate-700 bg-slate-900/50 group-hover:border-slate-500'
+                                }`}>
+                                <span className="text-2xl mb-1">{net.locked ? '🔒' : '🔓'}</span>
+                                {/* Signal bars */}
+                                <div className="flex gap-1 items-end h-3">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className={`w-1 rounded-full transition-all ${i < net.signal ? (!net.safe ? 'bg-red-400' : 'bg-cyan-400') : 'bg-slate-700'
+                                            }`} style={{ height: `${(i + 1) * 25}%` }} />
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Name label */}
+                            <div className={`absolute -bottom-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${isActive ? (!net.safe ? 'bg-red-600 border-red-400 text-white' : 'bg-cyan-600 border-cyan-400 text-white')
+                                : 'bg-slate-900/80 border-slate-700 text-slate-400 group-hover:text-white'
+                                }`}>
+                                {net.name}
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {/* Network Inspector Panel (right side) */}
+                {activeNetwork && (() => {
+                    const net = NETWORKS.find(n => n.id === activeNetwork);
+                    return (
+                        <div className="absolute top-6 bottom-6 right-6 w-[360px] bg-slate-950/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 z-30 flex flex-col animate-in slide-in-from-right duration-500 shadow-2xl overflow-y-auto">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-white font-black text-lg">Network Details</h3>
+                                <button onClick={() => setActiveNetwork(null)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 text-sm">✕</button>
+                            </div>
+
+                            <div className="space-y-4 flex-1">
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">SSID</span>
+                                    <span className="text-white font-black text-lg">{net.name}</span>
+                                </div>
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Security</span>
+                                    <span className={`font-black text-sm ${net.safe ? 'text-emerald-400' : 'text-red-400'}`}>
+                                        {net.safe ? '🛡️' : '⚠️'} {net.security}
+                                    </span>
+                                </div>
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">MAC Address</span>
+                                    <span className={`font-mono text-xs ${!net.safe ? 'text-red-400' : 'text-slate-300'}`}>{net.mac}</span>
+                                </div>
+                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Origin</span>
+                                    <span className={`text-sm font-bold ${!net.safe ? 'text-red-400' : 'text-slate-300'}`}>{net.created}</span>
                                 </div>
 
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Category of Fraud <span className="text-red-500">*</span></label>
-                                    <select disabled className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 font-medium text-sm">
-                                        <option>Online Shopping / E-Commerce Scam</option>
-                                    </select>
-                                </div>
+                                {!net.safe && (
+                                    <div className="bg-red-500/10 border-2 border-red-500/30 p-4 rounded-xl animate-pulse">
+                                        <p className="text-red-300 text-sm font-bold leading-relaxed">⚠️ {net.desc}</p>
+                                    </div>
+                                )}
+                                {net.safe && net.id === 'brew_connect' && (
+                                    <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl">
+                                        <p className="text-emerald-300 text-sm font-bold leading-relaxed">✓ {net.desc}</p>
+                                    </div>
+                                )}
+                            </div>
 
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Incident Details <span className="text-red-500">*</span></label>
-                                    <textarea readOnly className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 h-24 text-sm" value="Fraudulent e-commerce store spreading via WhatsApp links. Offers massive fake discounts to steal money directly via UPI to personal accounts. Domain registered recently with masked identity. Uses fake pressure tactics."></textarea>
-                                </div>
+                            <div className="mt-4 space-y-3">
+                                {net.id === 'sbi_secure' && (
+                                    <button onClick={() => handleFinalChoice('sbi_secure')} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-black text-sm transition-all border border-white/10">
+                                        Connect to {net.name}
+                                    </button>
+                                )}
+                                {net.id === 'brew_connect' && (
+                                    <button onClick={() => handleFinalChoice('safe')} className="w-full bg-slate-800 hover:bg-slate-700 text-white py-4 rounded-xl font-black text-sm transition-all border border-white/10">
+                                        Connect to {net.name}
+                                    </button>
+                                )}
+                                {(net.id === 'android_hotspot' || net.id === 'bsnl_fiber') && (
+                                    <div className="text-center text-slate-500 text-xs font-bold py-4">Signal too weak to connect</div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })()}
 
-                                <div>
-                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Evidence / Logs Attached <span className="text-red-500">*</span></label>
-                                    {!isAttachmentAdded ? (
-                                        <button
-                                            className="w-full bg-amber-100 hover:bg-amber-200 border-2 border-dashed border-amber-400 text-amber-800 font-bold py-6 rounded-xl flex items-center justify-center gap-3 transition-colors outline-none"
-                                            onClick={() => setIsAttachmentAdded(true)}
-                                        >
-                                            <span className="text-2xl">📋</span>
-                                            <span>Attach Evidence Board Clues (7 Items)</span>
-                                        </button>
-                                    ) : (
-                                        <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between">
-                                            <div className="flex items-center gap-3 text-emerald-700 font-bold">
-                                                <span className="text-2xl">✅</span>
-                                                <span className="text-sm md:text-base">evidence_logs.zip (7 items successfully attached)</span>
-                                            </div>
-                                            <span className="text-xs text-emerald-600 font-mono">1.2MB</span>
-                                        </div>
-                                    )}
-                                </div>
+                {/* Use Mobile Data button */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-30">
+                    <button onClick={() => setGameState('cafe')} className="bg-slate-800/90 backdrop-blur border border-white/10 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all">
+                        ← Back to Café
+                    </button>
+                    <button onClick={() => handleFinalChoice('safe')} className="bg-slate-800/90 backdrop-blur border border-white/10 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all">
+                        📶 Use Mobile Data Instead
+                    </button>
+                    <button onClick={() => setShowCluesSidebar(!showCluesSidebar)} className="bg-slate-800/90 backdrop-blur border border-white/10 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-slate-700 transition-all">
+                        🔍 Evidence ({cluesFound.length})
+                    </button>
+                </div>
+
+                {/* Top info */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 backdrop-blur border border-white/10 px-6 py-3 rounded-xl z-30">
+                    <p className="text-white/80 text-xs font-bold text-center">📡 Click a network bubble to inspect it. Choose wisely before connecting.</p>
+                </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════
+    // OUTCOME
+    // ═══════════════════════════════════════
+    if (gameState === 'outcome') {
+        const totalPoints = cluesFound.reduce((sum, id) => sum + (CLUE_DATA.find(c => c.id === id)?.points || 0), 0);
+
+        if (outcomeType === 'victory') {
+            return (
+                <div className="w-full h-full bg-[#040810] flex items-center justify-center p-8 overflow-y-auto">
+                    <div className="max-w-3xl w-full text-center animate-in zoom-in-95 duration-500">
+                        <div className="w-28 h-28 bg-emerald-500 rounded-3xl flex items-center justify-center text-6xl mx-auto mb-8 shadow-[0_0_80px_rgba(16,185,129,0.4)] animate-bounce">🛡️</div>
+                        <h1 className="text-5xl font-black text-white uppercase tracking-tighter mb-4">THREAT NEUTRALIZED</h1>
+                        <p className="text-slate-400 text-lg italic mb-10 max-w-xl mx-auto leading-relaxed">
+                            You refused the honeypot trap, used safe mobile data, and alerted the café staff. The hacker packed up and left. Six other customers were saved.
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-6 mb-10">
+                            <div className="bg-slate-900 border border-emerald-500/30 p-6 rounded-2xl">
+                                <span className="text-emerald-400 text-3xl font-black">+{totalPoints}</span>
+                                <p className="text-slate-500 text-xs font-bold mt-2 uppercase tracking-wider">Detective Points</p>
+                            </div>
+                            <div className="bg-slate-900 border border-indigo-500/30 p-6 rounded-2xl">
+                                <span className="text-indigo-400 text-lg font-black">Community Guardian</span>
+                                <p className="text-slate-500 text-xs font-bold mt-2 uppercase tracking-wider">Badge Unlocked</p>
+                            </div>
+                            <div className="bg-slate-900 border border-cyan-500/30 p-6 rounded-2xl">
+                                <span className="text-cyan-400 text-lg font-black">₹0 Lost</span>
+                                <p className="text-slate-500 text-xs font-bold mt-2 uppercase tracking-wider">Assets Protected</p>
                             </div>
                         </div>
 
-                        {/* Submit Actions */}
-                        <div className="mt-8 flex justify-end">
-                            <button
-                                disabled={!isAttachmentAdded || isSubmitting}
-                                onClick={handleSubmit}
-                                className={`font-black py-4 px-8 md:px-12 rounded-lg text-sm md:text-lg uppercase tracking-widest transition-all outline-none ${!isAttachmentAdded ? 'bg-slate-300 text-slate-500 cursor-not-allowed border-none' : isSubmitting ? 'bg-cyan-600 text-white animate-pulse' : 'bg-[#0b1f52] hover:bg-blue-900 text-white shadow-lg shadow-blue-900/40 hover:scale-105 active:scale-95'}`}
-                            >
-                                {isSubmitting ? 'Submitting to Cyber Cell...' : 'Submit Final Report'}
+                        <div className="bg-emerald-500/10 border border-emerald-500/30 p-6 rounded-2xl mb-8 text-left">
+                            <h3 className="text-emerald-400 font-black text-sm uppercase tracking-wider mb-3">🔐 Cyber Tip — Level 7</h3>
+                            <ul className="text-slate-300 text-sm space-y-2 leading-relaxed">
+                                <li>• <strong>NEVER</strong> do banking on public/open Wi-Fi</li>
+                                <li>• A <strong>Honeypot</strong> is a fake Wi-Fi that looks legitimate</li>
+                                <li>• <strong>Mobile data (4G/5G)</strong> is always safest for banking</li>
+                                <li>• If you must use public Wi-Fi, enable a <strong>trusted VPN</strong></li>
+                                <li>• <strong>MITM attacks</strong> are silent — the victim never knows</li>
+                            </ul>
+                        </div>
+
+                        <button onClick={() => completeLevel(true, totalPoints, 0)} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-12 py-5 rounded-2xl text-xl transition-all shadow-xl active:scale-95 uppercase tracking-wider">
+                            Complete Mission →
+                        </button>
+                    </div>
+                </div>
+            );
+        } else {
+            return (
+                <div className="w-full h-full bg-black flex items-center justify-center p-8 overflow-y-auto">
+                    <div className="max-w-3xl w-full text-center animate-in zoom-in-95 duration-500">
+                        <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-[0_0_80px_rgba(220,38,38,0.5)] animate-bounce">!</div>
+                        <h1 className="text-5xl font-black text-white uppercase tracking-tighter mb-4">CREDENTIALS COMPROMISED</h1>
+                        <p className="text-slate-400 text-lg italic mb-8 max-w-xl mx-auto leading-relaxed">
+                            By connecting to <span className="text-red-400 font-bold">SBI_SecureNet</span>, your banking credentials were captured by the hacker's MITM attack. ₹1,20,000 was transferred to a mule account.
+                        </p>
+
+                        <div className="space-y-3 mb-8 font-mono text-left max-w-md mx-auto">
+                            {[
+                                { t: '11:46 AM', msg: 'Connected to SBI_SecureNet', status: 'CONNECTED', color: 'text-slate-500' },
+                                { t: '11:47 AM', msg: 'YONO login credentials captured', status: 'INTERCEPTED', color: 'text-red-500' },
+                                { t: '11:48 AM', msg: 'Session token cloned', status: 'HIJACKED', color: 'text-red-500' },
+                                { t: '11:49 AM', msg: 'UPI transfer: ₹1,20,000', status: 'DEBIT', color: 'text-red-500' },
+                                { t: '11:50 AM', msg: 'User called 1930 Helpline', status: 'REPORTED', color: 'text-amber-500' },
+                                { t: '11:51 AM', msg: 'Bank account freeze requested', status: 'BLOCKED', color: 'text-cyan-400' },
+                            ].map((log, i) => (
+                                <div key={i} className="bg-white/5 p-3 rounded-xl border border-white/5 flex justify-between items-center animate-in fade-in duration-500" style={{ animationDelay: `${i * 150}ms` }}>
+                                    <div>
+                                        <span className="text-white/20 text-[10px] block">{log.t}</span>
+                                        <span className={`text-sm font-black ${log.color}`}>{log.msg}</span>
+                                    </div>
+                                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full border ${log.color === 'text-red-500' ? 'bg-red-500/10 border-red-500/20 text-red-500' :
+                                        log.color === 'text-amber-500' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+                                            log.color === 'text-cyan-400' ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400' :
+                                                'bg-white/5 border-white/10 text-white/40'
+                                        }`}>{log.status}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-red-600/10 border-2 border-red-600/30 p-6 rounded-2xl mb-8">
+                            <h2 className="text-red-500 text-lg font-black uppercase tracking-wider mb-2">Total Lost to Hacker</h2>
+                            <span className="text-4xl font-black text-white font-mono">-₹1,20,000</span>
+                        </div>
+
+                        <div className="flex gap-4 justify-center">
+                            <button onClick={() => { adjustAssets(-120000); adjustLives(-1); setGameState('cafe'); setCluesFound([]); setActiveNetwork(null); setOutcomeType(null); }}
+                                className="bg-slate-800 hover:bg-slate-700 text-white font-black px-8 py-4 rounded-xl text-sm transition-all border border-white/10">
+                                Try Again
+                            </button>
+                            <button onClick={() => { adjustAssets(-120000); adjustLives(-1); completeLevel(false, 0, 0); }}
+                                className="bg-red-600 hover:bg-red-500 text-white font-black px-8 py-4 rounded-xl text-sm transition-all">
+                                Accept Loss & Continue
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
-        );
-    };
+            );
+        }
+    }
 
-    const GhostStore = () => (
-        <div className={`absolute top-0 bottom-0 left-0 bg-[#f4f4f4] flex flex-col font-sans animate-in slide-in-from-bottom-20 duration-1000 overflow-y-auto transition-all ${showDetectiveBoard ? 'w-[65%]' : 'w-full'}`}>
-            {/* Browser Header */}
-            <div className="sticky top-0 z-[50] bg-white border-b border-gray-200 p-3 flex flex-col gap-2 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <div className="flex gap-2 ml-2">
-                        <div className="w-3 h-3 rounded-full bg-red-400" />
-                        <div className="w-3 h-3 rounded-full bg-amber-400" />
-                        <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                    </div>
-                    <div
-                        className="flex-1 max-w-3xl bg-gray-100/80 hover:bg-gray-100 border border-transparent rounded-full h-9 flex items-center px-4 gap-3 cursor-pointer transition-colors group mx-auto relative"
-                        onClick={() => handleClueDiscovery('domain_lookup')}
-                    >
-                        <span className="text-gray-500 text-sm">🔒</span>
-                        <span className="text-sm font-medium text-gray-500">https://www.<span className="text-gray-800">techdeals-india.shop</span>/sale24</span>
-                        <div className="absolute inset-0 rounded-full border border-blue-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div>
-                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] uppercase tracking-widest px-3 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">Click to Inspect URL</div>
-                    </div>
-                    <div className="text-xl text-gray-500 pr-2">⋮</div>
-                </div>
-            </div>
-
-            {/* Website Content */}
-            <div className="w-full bg-white flex-1 flex flex-col">
-                {/* Top Promo Bar */}
-                <div className="bg-black text-white text-[11px] text-center py-2 font-medium tracking-wide">
-                    SAMSUNG FESTIVAL SALE • UP TO 97% OFF ON GALAXY S24 ULTRA • FREE DELIVERY IN 24 HOURS
-                </div>
-
-                {/* Main Nav Banner */}
-                <header className="py-5 px-12 pr-64 flex justify-between items-center border-b border-gray-100">
-                    <div className="flex items-center gap-3">
-                        <div className="text-blue-600 font-extrabold text-3xl tracking-tighter" style={{ fontFamily: 'Arial, sans-serif' }}>SAMSUNG</div>
-                        <div className="h-6 w-px bg-gray-300 mx-2"></div>
-                        <div className="text-gray-800 font-bold text-lg tracking-tight hover:text-blue-600 transition-colors">TechDeals Official Partner</div>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                        <div
-                            className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200 cursor-pointer hover:bg-green-100 transition-colors shadow-sm ml-auto"
-                            onClick={() => handleClueDiscovery('fake_security')}
-                        >
-                            <span className="text-lg animate-pulse">🔒</span>
-                            <span className="font-bold text-sm">Secured Checkout <span className="font-medium opacity-80">— 100% Safe</span></span>
-                        </div>
-                    </div>
-                </header>
-
-                {/* Primary Sale Section */}
-                <section className="max-w-[1400px] mx-auto w-full p-12 grid grid-cols-2 gap-16">
-                    {/* Visuals Column */}
-                    <div className="space-y-6">
-                        <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-[2rem] flex items-center justify-center p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden group">
-                            {/* Realistic Phone Mock View */}
-                            <div className="w-[45%] h-[85%] bg-black rounded-[2.5rem] shadow-[-20px_10px_40px_rgba(0,0,0,0.3)] border-4 border-[#5E5E5E] relative transform rotate-[-5deg] group-hover:rotate-0 transition-transform duration-500 flex items-center justify-center overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 border-[8px] border-black rounded-[2.2rem]">
-                                    {/* Mock Screen UI */}
-                                    <div className="w-full h-full relative overflow-hidden backdrop-blur-xl">
-                                        <div className="absolute top-4 right-4 text-white/50 text-xs">10:42</div>
-                                        <div className="absolute inset-x-8 top-1/3 h-32 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-xl rounded-full"></div>
-                                        <div className="absolute bottom-16 inset-x-4 flex justify-between px-4">
-                                            <div className="w-10 h-10 rounded-full bg-white/10 blur-sm"></div>
-                                            <div className="w-10 h-10 rounded-full bg-white/10 blur-sm"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="absolute right-0 top-1/4 h-16 w-1 bg-[#4A4A4A] rounded-l-md"></div>
-                            </div>
-
-                            <div className="absolute top-6 left-6 bg-red-600 text-white font-black px-4 py-2 rounded shadow-lg text-sm tracking-widest animate-pulse z-10">FLASH SALE: 97% OFF</div>
-                        </div>
-                        {/* Thumbnail Gallery (pure visual detail) */}
-                        <div className="flex gap-4 justify-center">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className={`w-20 h-20 rounded-2xl border-2 hover:border-blue-500 cursor-pointer transition-colors flex items-center justify-center ${i === 1 ? 'border-blue-500 bg-gray-50' : 'border-gray-200 bg-white'}`}>
-                                    <div className="w-8 h-12 bg-gray-300 rounded border border-gray-400"></div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Details Column */}
-                    <div className="space-y-8 flex flex-col justify-center">
-                        <div className="space-y-4">
-                            <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 leading-tight" style={{ fontFamily: 'Helvetica Neue, Arial, sans-serif' }}>
-                                Galaxy S24 Ultra, 256GB, Titanium Gray
-                            </h1>
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center text-[#ff9900] text-lg">
-                                    ★★★★★ <span className="text-gray-500 text-sm font-medium ml-2 hover:underline cursor-pointer">(114 Verified Reviews)</span>
-                                </div>
-                                <div className="w-px h-4 bg-gray-300"></div>
-                                <div className="text-sm font-bold text-green-600">In Stock</div>
-                            </div>
-                        </div>
-
-                        {/* Pricing Box highly manicured */}
-                        <div className="bg-[#f9f9fb] p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-baseline gap-4">
-                                    <span className="text-[14px] text-gray-500 font-bold mb-1 align-top">₹</span>
-                                    <span className="text-[52px] font-black text-gray-900 tracking-tighter leading-none" style={{ fontFamily: 'Helvetica Neue, Arial, sans-serif' }}>2,499</span>
-                                    <span className="text-[14px] text-gray-500 font-bold align-top">.00</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-sm">
-                                    <span className="text-gray-500 line-through font-medium tracking-wide">M.R.P.: ₹1,29,999.00</span>
-                                    <span className="text-red-600 font-bold">You Save: ₹1,25,000 (97%)</span>
-                                </div>
-                                <p className="text-xs text-gray-400 mt-2">Inclusive of all taxes. Free shipping on this item.</p>
-                            </div>
-
-                            <hr className="border-gray-200" />
-
-                            <div className="flex items-center gap-3 bg-red-50 text-red-700 px-5 py-3 rounded-xl border border-red-100 shadow-inner">
-                                <span className="text-lg">⏱️</span>
-                                <span className="font-bold text-sm">Sale Ends In: <span className="font-black tabular-nums">02 : 14 : 33</span></span>
-                            </div>
-
-                            {/* Payment Options (Clue 5) Designed as a Checkout Selection */}
-                            <div
-                                className="mt-4 border border-[#e2e8f0] bg-white rounded-2xl overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.03)] hover:border-red-300 hover:shadow-red-500/10 cursor-pointer transition-all group"
-                                onClick={() => handleClueDiscovery('payment_trap')}
-                            >
-                                <div className="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-                                    <span className="font-bold text-gray-800 text-sm">Payment Method</span>
-                                    <span className="text-xs text-gray-500 font-medium">Select to proceed</span>
-                                </div>
-                                <div className="p-5 flex flex-col gap-4">
-                                    <label className="flex items-start gap-3 cursor-pointer">
-                                        <div className="mt-1 w-4 h-4 rounded-full border-4 border-blue-600 bg-white flex-shrink-0"></div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-gray-900">Direct UPI Transfer <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded ml-2 font-bold uppercase tracking-wider">Fastest</span></span>
-                                            <span className="text-xs text-gray-500 mt-1">Pay to: <span className="font-medium">techdeals2024@ybl</span></span>
-                                        </div>
-                                    </label>
-                                    <div className="w-full h-px bg-gray-100"></div>
-                                    <label className="flex items-start gap-3 opacity-50">
-                                        <div className="mt-1 w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0"></div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-gray-900">Credit / Debit Card</span>
-                                            <span className="text-xs text-red-500 mt-1 font-medium">Temporarily unavailable for flash sales</span>
-                                        </div>
-                                    </label>
-                                    <div className="w-full h-px bg-gray-100"></div>
-                                    <label className="flex items-start gap-3 opacity-50">
-                                        <div className="mt-1 w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0"></div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-gray-900">Cash on Delivery</span>
-                                            <span className="text-xs text-red-500 mt-1 font-medium">Not allowed on heavily discounted items</span>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div className="p-4 bg-gray-50 border-t border-gray-100">
-                                    <button
-                                        className="w-full bg-[#FFDF00] hover:bg-[#F2D300] text-gray-900 font-bold py-3.5 rounded-full text-sm shadow-sm transition-colors border border-[#DEBD00]"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setOutcomeType('scam');
-                                            setGameState('outcome');
-                                        }}
-                                    >
-                                        Proceed to Pay ₹2,499
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Artificial Urgency Details */}
-                        <div className="flex items-center gap-4 text-sm font-medium text-gray-600 bg-red-50/50 p-4 rounded-xl border border-red-100">
-                            <span className="text-2xl animate-pulse">🔥</span>
-                            <span>High Demand! <span className="font-bold text-gray-900">12 units left</span> at this price. 412 sold in last 12 hours.</span>
-                        </div>
-                    </div>
-                </section>
-
-                <hr className="w-full border-gray-200" />
-
-                {/* Customer Reviews Section (Clue 4) */}
-                <section className="max-w-[1200px] mx-auto w-full p-12">
-                    <div
-                        className="flex flex-col mb-10 cursor-pointer group hover:bg-gray-50 p-4 -ml-4 rounded-2xl transition-colors"
-                        onClick={() => handleClueDiscovery('fake_reviews')}
-                    >
-                        <h3 className="text-2xl font-bold text-gray-900">Customer Reviews</h3>
-                        <div className="flex items-center gap-4 mt-2">
-                            <div className="flex text-[#ff9900] text-xl">★★★★★</div>
-                            <span className="text-gray-600 text-sm font-medium">4.9 out of 5 stars</span>
-                            <span className="text-blue-600 text-sm font-medium group-hover:underline">114 global ratings</span>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-8">
-                        {[
-                            { name: 'Rakesh Kumar', title: 'Amazing deal!' },
-                            { name: 'Sunita M.', title: 'Best purchase ever!' },
-                            { name: 'Suresh K.', title: 'Highly recommended!' }
-                        ].map((review, i) => (
-                            <div key={i} className="p-6 bg-white rounded-xl border border-gray-200 shadow-sm space-y-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 text-xs">👤</div>
-                                    <span className="font-medium text-gray-800 text-sm">{review.name}</span>
-                                </div>
-                                <div className="flex text-[#ff9900] text-sm">★★★★★</div>
-                                <span className="font-bold text-gray-900 text-sm">{review.title}</span>
-                                <p className="text-sm text-gray-600 leading-relaxed">
-                                    "I received the phone in 2 days. The packaging was perfect and the phone works flawlessly. TechDeals is truly the best shopping site in India. I am very happy."
-                                </p>
-                                <div className="text-xs text-gray-400">Reviewed in India on 3 Days Ago</div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                {/* Footer Section (Contact/Policy) */}
-                <footer className="bg-[#232F3E] text-white p-16 pb-32">
-                    <div className="max-w-[1200px] mx-auto grid grid-cols-4 gap-12">
-                        <div className="space-y-4">
-                            <h4 className="font-bold text-[15px] mb-4">Get to Know Us</h4>
-                            <p className="text-sm text-gray-300 leading-relaxed font-medium">
-                                TechDeals India is the fastest growing electronics retailer. Partnering with major brands to bring flash sales directly to consumers at warehouse prices.
-                            </p>
-                        </div>
-                        <div className="space-y-4">
-                            <h4 className="font-bold text-[15px] mb-4">Make Money with Us</h4>
-                            <ul className="space-y-3 text-sm text-gray-300 font-medium">
-                                <li className="hover:underline cursor-pointer">Sell on TechDeals</li>
-                                <li className="hover:underline cursor-pointer">Protect and Build Your Brand</li>
-                                <li className="hover:underline cursor-pointer">Become an Affiliate</li>
-                            </ul>
-                        </div>
-                        <div className="space-y-4">
-                            <h4 className="font-bold text-[15px] mb-4">Let Us Help You</h4>
-                            <ul className="space-y-3 text-sm text-gray-300 font-medium">
-                                <li className="hover:text-white hover:underline cursor-pointer group" onClick={() => handleClueDiscovery('vague_policy')}>
-                                    Returns & Replacements
-                                    <span className="hidden group-hover:block bg-red-900/80 text-white text-xs p-2 mt-2 rounded border border-red-500 italic shadow-lg">Note: Returns processed within 45-60 working days post management approval. No returns or chargebacks on flash sale items.</span>
-                                </li>
-                                <li className="hover:underline cursor-pointer">Shipping Rates & Policies</li>
-                                <li className="hover:underline cursor-pointer">TechDeals App Download</li>
-                            </ul>
-                        </div>
-                        <div className="space-y-4">
-                            <h4 className="font-bold text-[15px] mb-4 flex items-center gap-2">Contact Customer Service </h4>
-                            <div
-                                className="space-y-3 text-sm text-gray-300 font-medium cursor-pointer overflow-hidden relative p-3 -ml-3 rounded transition-colors hover:bg-white/5 group border border-transparent hover:border-red-500/30"
-                                onClick={() => handleClueDiscovery('contact_forensics')}
-                            >
-                                <div className="flex gap-3 items-center group-hover:text-white"><span className="opacity-70 group-hover:opacity-100">📱</span> +91 89XXXXXXXX (WhatsApp Only)</div>
-                                <div className="flex gap-3 items-center group-hover:text-white"><span className="opacity-70 group-hover:opacity-100">✉️</span> techdeals.india2024@gmail.com</div>
-                                <div className="flex gap-3 items-center group-hover:text-white"><span className="opacity-70 group-hover:opacity-100">🏢</span> Shop 14, Commercial Complex, Delhi</div>
-                                <div className="text-red-400 font-bold mt-3 text-xs uppercase tracking-wider group-hover:opacity-100 opacity-0 transition-opacity">
-                                    ⚠️ GSTIN / REGISTERED ENTITY NO. NOT PROVIDED
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </footer>
-            </div>
-
-            {/* Floating Chat Clue */}
-            <div
-                className="fixed bottom-8 right-8 w-[250px] bg-white rounded-t-xl rounded-bl-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] flex flex-col cursor-pointer border border-gray-200 overflow-hidden hover:shadow-[0_15px_50px_rgba(0,0,0,0.3)] transition-all z-[200] group"
-                onClick={() => {
-                    handleClueDiscovery('pressure_chat');
-                    setShowChat(true);
-                }}
-            >
-                <div className="bg-[#007185] text-white p-3 font-bold text-sm flex items-center justify-between">
-                    <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Chat Support</div>
-                    <span>−</span>
-                </div>
-                <div className="p-4 bg-gray-50 flex flex-col gap-2">
-                    <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-xs text-gray-700 font-medium self-start inline-block">
-                        Hello! Only 12 units left in Flash Sale. Need help checking out with UPI?
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-1 pl-1">Agent 'Riya' is typing...</div>
-                </div>
-            </div>
-
-            {/* DETECTIVE POPUP (Clue details) */}
-            {activeClue && (
-                <div className="fixed inset-0 z-[500] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in zoom-in duration-500">
-                    <div className="max-w-xl w-full bg-slate-900 border-2 border-cyan-500/30 p-16 rounded-[60px] shadow-2xl text-center">
-                        <div className="w-24 h-24 bg-cyan-600/20 rounded-full flex items-center justify-center mx-auto mb-8 border-2 border-cyan-500">
-                            <span className="text-5xl">🔍</span>
-                        </div>
-                        <h2 className="text-white text-4xl font-black mb-6 tracking-tighter uppercase italic">{activeClue.name}</h2>
-                        <div className="bg-black/50 p-8 rounded-[40px] mb-10 border border-white/5">
-                            <p className="text-slate-300 text-lg leading-relaxed italic font-medium">"{activeClue.description}"</p>
-                        </div>
-                        <button
-                            onClick={() => setActiveClue(null)}
-                            className="bg-cyan-600 hover:bg-cyan-500 text-white font-black px-16 py-6 rounded-3xl text-sm uppercase tracking-[0.4em] transition-all hover:scale-105 active:scale-95"
-                        >
-                            Log Intelligence
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* DETECTIVE MODE HUD BUTTON */}
-            <div className="fixed bottom-10 left-10 z-[150] flex flex-col items-center">
-                <button
-                    className="w-16 h-16 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.6)] border-4 border-amber-300 text-3xl transition-transform hover:scale-110 active:scale-95 relative"
-                    onClick={() => setShowDetectiveBoard(!showDetectiveBoard)}
-                >
-                    🔍
-                    {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-7 h-7 rounded-full flex justify-center items-center shadow-lg border-2 border-red-800 animate-bounce">{cluesFound.length}</span>}
-                </button>
-                <div className="mt-4 font-black text-[10px] text-white uppercase tracking-widest whitespace-nowrap bg-black/50 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">Evidence Board</div>
-            </div>
-        </div>
-    );
-
-    const EvidenceBoard = () => (
-        <div
-            className="absolute top-0 bottom-0 right-0 w-[35%] bg-amber-100 shadow-[-20px_0_50px_rgba(0,0,0,0.8)] z-[200] p-8 flex flex-col border-l-[16px] border-[#5c3a21] animate-in slide-in-from-right duration-300 overflow-hidden"
-            style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`,
-                backgroundColor: '#e6c280'
-            }}
-        >
-            {/* Draw Red Strings Between Clues */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                {cluesFound.map((clue, idx) => {
-                    if (idx > 0) {
-                        const prev = cluesFound[idx - 1];
-                        return <line key={`line-${idx}`} x1={prev.x} y1={prev.y} x2={clue.x} y2={clue.y} stroke="rgba(220,38,38,0.8)" strokeWidth="3" style={{ filter: 'drop-shadow(2px 4px 2px rgba(0,0,0,0.5))' }} />
-                    }
-                    return null;
-                })}
-            </svg>
-
-            {/* Header Label */}
-            <div className="flex justify-between items-center mb-6 z-10 bg-white p-3 rounded-sm shadow-md transform -rotate-2 border border-stone-300 self-start">
-                <h2 className="text-2xl font-black text-stone-800 uppercase tracking-widest font-mono">
-                    📌 INVESTIGATION BOARD
-                </h2>
-                <button className="text-red-600 hover:text-red-800 font-black text-2xl ml-6" onClick={() => setShowDetectiveBoard(false)}>✖</button>
-            </div>
-
-            {/* Clue Polaroids */}
-            {cluesFound.map((clue, idx) => (
-                <div
-                    key={idx}
-                    className="absolute bg-yellow-50 p-4 shadow-xl w-48 border border-yellow-200 z-10 flex flex-col"
-                    style={{
-                        left: clue.x - 96 > 50 ? clue.x - 96 : 50,
-                        top: clue.y - 48 > 100 ? clue.y - 48 : 100,
-                        transform: `rotate(${(idx % 2 === 0 ? -1 : 1) * (Math.random() * 6 + 2)}deg)`
-                    }}
-                >
-                    {/* Red Pin Head */}
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-600 shadow-[2px_4px_4px_rgba(0,0,0,0.5)] border border-red-800 flex items-center justify-center">
-                        <div className="w-2 h-2 rounded-full bg-white/40 absolute top-0.5 right-1"></div>
-                    </div>
-                    {/* Pin connection circle for SVG line visually */}
-                    <div className="absolute top-0 left-1/2 w-2 h-2 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-
-                    <h4 className="font-bold text-red-800 tracking-wider mb-2 text-sm leading-tight border-b-2 border-red-800/20 pb-2 uppercase">{clue.title}</h4>
-                    <p className="text-[10px] text-stone-700 font-mono leading-tight">{clue.desc}</p>
-                </div>
-            ))}
-
-            {cluesFound.length === 0 && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] flex flex-col gap-4 z-0 pointer-events-none">
-                    <div className="text-stone-700/60 text-center font-mono font-bold text-xl rotate-[-2deg] border-4 border-dashed border-stone-700/30 p-6 rounded-xl bg-amber-100/50">
-                        CLICK SUSPICIOUS ELEMENTS<br />ON THE WEBSITE TO PIN CLUES.
-                    </div>
-
-                    <div className="bg-white/60 p-6 rounded-xl border border-stone-400/50 shadow-md rotate-[1deg]">
-                        <h4 className="font-black text-red-800 uppercase tracking-widest text-sm mb-3 border-b flex items-center gap-2">
-                            <span>🕵️</span> Investigation Hints
-                        </h4>
-                        <ul className="text-xs text-stone-800 font-mono space-y-2 font-medium list-disc pl-4">
-                            <li>Check the <strong>URL domain</strong> closely.</li>
-                            <li>Investigate the <strong>padlock</strong> icon.</li>
-                            <li>Analyze the <strong>customer reviews</strong>.</li>
-                            <li>Does the <strong>contact address</strong> seem real?</li>
-                            <li>Read the exact <strong>return policy</strong>.</li>
-                            <li>Check the available <strong>payment options</strong>.</li>
-                            <li>Look at the <strong>authorized badges</strong>.</li>
-                            <li>A real agent answers questions in the <strong>chat</strong>.</li>
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            {/* Footer Suspicion Meter */}
-            <div className="absolute bottom-6 left-6 right-6 bg-zinc-900 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-10 border-2 border-zinc-700 flex flex-col gap-4">
-                <div>
-                    <h3 className="text-xs text-zinc-400 uppercase font-mono mb-2 flex justify-between">
-                        <span>Threat Intelligence Meter</span>
-                        <span style={{ color: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e' }}>{cluesFound.length}/7 CLUES</span>
-                    </h3>
-                    <div className="w-full h-4 bg-zinc-950 rounded-full overflow-hidden shadow-inner">
-                        <div
-                            className="h-full transition-all duration-500"
-                            style={{
-                                width: `${(cluesFound.length / 7) * 100}%`,
-                                backgroundColor: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e'
-                            }}
-                        ></div>
-                    </div>
-                </div>
-                {cluesFound.length >= 3 && (
-                    <button
-                        className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-lg uppercase tracking-widest text-sm transition-all shadow-lg animate-pulse"
-                        onClick={() => {
-                            setShowDetectiveBoard(false);
-                            setGameState('outcome-pre');
-                        }}
-                    >
-                        🚨 CONFRONT AUNTY PRIYA
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-
-    const OutcomeDecision = () => (
-        <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-12 text-center">
-            <div className="max-w-4xl space-y-16">
-                <div className="w-40 h-40 bg-indigo-600 rounded-[55px] flex items-center justify-center text-8xl mx-auto shadow-2xl animate-pulse italic">👵</div>
-                <div className="space-y-6">
-                    <h2 className="text-6xl font-black text-white italic tracking-tighter uppercase">Call Aunty Priya?</h2>
-                    <p className="text-2xl text-slate-400 font-medium leading-relaxed italic opacity-80">
-                        "Dei, I already ordered one for Karthik's birthday. The website looked so professional, I just paid immediately. Tell me what to do!"
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-10">
-                    <button
-                        className="bg-red-600 hover:bg-red-500 text-white font-black py-12 px-12 rounded-[50px] shadow-3xl text-xl uppercase tracking-widest transition-all hover:scale-105"
-                        onClick={() => {
-                            setOutcomeType('scam');
-                            setGameState('outcome');
-                        }}
-                    >
-                        Try to Buy One Anyway
-                    </button>
-                    <button
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-12 px-12 rounded-[50px] shadow-3xl text-xl uppercase tracking-widest transition-all hover:scale-105"
-                        onClick={() => {
-                            setShowWhatsAppWarn(true);
-                            setGameState('living-room');
-                        }}
-                    >
-                        Warn Aunty Priya & Report
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
-    const OutcomeFinal = () => (
-        <div className="absolute inset-0 z-[1000] bg-black flex items-center justify-center p-12 animate-in fade-in duration-1000">
-            {outcomeType === 'victory' ? (
-                <div className="max-w-5xl text-center space-y-20">
-                    <div className="w-48 h-48 bg-emerald-500 rounded-[65px] flex items-center justify-center text-[100px] mx-auto shadow-[0_0_150px_rgba(16,185,129,0.3)] italic animate-bounce">🛡️</div>
-                    <div className="space-y-10">
-                        <h1 className="text-[120px] font-black text-white italic tracking-tighter leading-none">FAMILY_SHIELD</h1>
-                        <p className="text-4xl text-slate-300 leading-relaxed max-w-4xl mx-auto italic font-medium">
-                            "You stopped Aunty Priya from losing everything. By checking the domain age and GST logs, you dismantled the 'Ghost Store' illusion."
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-12 px-20">
-                        <div className="bg-slate-900/50 p-12 rounded-[60px] border-2 border-emerald-500/30">
-                            <span className="text-slate-500 text-xs font-black uppercase tracking-[0.5em] block mb-4">Investigator</span>
-                            <span className="text-5xl font-black text-emerald-400 tracking-tighter">+150 PTS</span>
-                        </div>
-                        <div className="bg-slate-900/50 p-12 rounded-[60px] border-2 border-indigo-500/30">
-                            <span className="text-slate-500 text-xs font-black uppercase tracking-[0.5em] block mb-4">Medal</span>
-                            <span className="text-2xl font-black text-indigo-400 uppercase italic">Aunty's Savior</span>
-                        </div>
-                        <div className="bg-slate-900/50 p-12 rounded-[60px] border-2 border-cyan-500/30">
-                            <span className="text-slate-500 text-xs font-black uppercase tracking-[0.5em] block mb-4">Level Status</span>
-                            <span className="text-4xl font-black text-cyan-400">SR. DETECTIVE</span>
-                        </div>
-                    </div>
-
-                    <button
-                        onClick={() => completeLevel(true, 150, 0)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-24 py-10 rounded-[55px] text-3xl tracking-[0.25em] transition-all shadow-glow shadow-emerald-500/30 italic uppercase"
-                    >
-                        Advance to Level 9
-                    </button>
-                </div>
-            ) : (
-                <div className="max-w-4xl text-center space-y-16 animate-in zoom-in duration-700">
-                    <div className="w-32 h-32 bg-red-600 rounded-full flex items-center justify-center text-7xl mx-auto shadow-[0_0_120px_rgba(220,38,38,0.5)]">💸</div>
-                    <h1 className="text-9xl font-black text-white leading-none tracking-tighter uppercase italic">GHOSTED</h1>
-                    <p className="text-4xl text-slate-300 font-medium italic leading-relaxed">
-                        "The ₹2,499 transfer was final. No delivery, no refund, and TechDeals.shop vanished 48 hours later."
-                    </p>
-                    <div className="bg-red-950/20 border-4 border-red-900/40 p-16 rounded-[70px] space-y-10">
-                        <div className="flex justify-between items-center text-3xl">
-                            <span className="text-white font-black italic">LIQUIDATED:</span>
-                            <span className="text-7xl font-black text-red-600 tracking-tighter">₹2,499</span>
-                        </div>
-                        <p className="text-slate-500 text-sm font-black uppercase tracking-widest italic">Personal Data logged for Phishing list</p>
-                    </div>
-                    <button
-                        onClick={() => {
-                            adjustAssets(-2499);
-                            adjustLives(-1);
-                            setGameState('living-room');
-                            setCluesFound([]);
-                        }}
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-black px-24 py-10 rounded-[55px] text-2xl tracking-widest transition-all border-4 border-slate-700 shadow-3xl uppercase italic"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-
-    return (
-        <div className="w-full h-full bg-black relative selection:bg-cyan-500/30 overflow-hidden font-sans">
-            {gameState === 'living-room' && <LivingRoom />}
-            {gameState === 'website' && <GhostStore />}
-            {gameState === 'outcome-pre' && <OutcomeDecision />}
-            {gameState === 'outcome' && <OutcomeFinal />}
-            {gameState === 'cybercrime-portal' && <CybercrimePortal />}
-
-            {showWhatsApp && <WhatsAppThread />}
-            {showWhatsAppWarn && <WhatsAppWarnThread />}
-
-            {showDetectiveBoard && <EvidenceBoard />}
-
-
-
-            {/* Toast Feedback */}
-            {feedbackMsg && (
-                <div className={`fixed top-12 right-12 py-6 px-12 rounded-[35px] shadow-3xl z-[1000] animate-in slide-in-from-right-20 font-black tracking-widest text-[10px] uppercase flex items-center gap-5 border-2 ${feedbackMsg.color === 'emerald' ? 'bg-emerald-950/95 border-emerald-500 text-emerald-100 shadow-emerald-900/30' :
-                    'bg-slate-900/95 border-cyan-500 text-cyan-100 shadow-cyan-900/30'
-                    }`}>
-                    <div className={`w-3 h-3 rounded-full animate-pulse ${feedbackMsg.color === 'emerald' ? 'bg-emerald-500 shadow-[0_0_10px_emerald]' : 'bg-cyan-500 shadow-[0_0_10px_cyan]'}`} />
-                    {feedbackMsg.text}
-                </div>
-            )}
-        </div>
-    );
+    return null;
 };
 
 export default Level8;

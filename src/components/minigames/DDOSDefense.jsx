@@ -26,7 +26,8 @@ const ENEMY_TYPES = {
     BOTNET: { id: 'BOTNET', hp: 50, speed: 2.5, reward: 5, color: '#ef4444', name: 'Botnet Ping', size: 16 },
     VOLUMETRIC: { id: 'VOLUMETRIC', hp: 200, speed: 1.5, reward: 15, color: '#f97316', name: 'DDoS Flood', size: 24 },
     ZERODAY: { id: 'ZERODAY', hp: 50, speed: 4.0, reward: 10, color: '#a855f7', name: '0-Day Exploit', size: 12 },
-    BOSS: { id: 'BOSS', hp: 1500, speed: 0.6, reward: 100, color: '#dc2626', name: 'Ransomware Core', size: 36 }
+    BOSS: { id: 'BOSS', hp: 1500, speed: 0.6, reward: 100, color: '#dc2626', name: 'Ransomware Core', size: 36 },
+    HEAL: { id: 'HEAL', hp: 99999, speed: 1.5, reward: 0, color: '#22c55e', name: 'Security Patch', size: 16 } // Towers ignore this
 };
 
 const INITIAL_BANDWIDTH = 100;
@@ -133,6 +134,14 @@ const DDOSDefense = ({ onBack }) => {
             spawns.push(type);
         }
 
+        // Add 1-2 green heal packets randomly after wave 10
+        if (wave > 10) {
+            const numHeals = Math.floor(Math.random() * 2) + 1;
+            for (let i = 0; i < numHeals; i++) {
+                spawns.splice(Math.floor(Math.random() * spawns.length), 0, ENEMY_TYPES.HEAL);
+            }
+        }
+
         waveStateRef.current = {
             active: true,
             spawnsRemaining: spawns,
@@ -226,7 +235,15 @@ const DDOSDefense = ({ onBack }) => {
                     if (!target) {
                         // Reached end
                         enemiesRef.current.splice(i, 1);
-                        handleDamage(e.maxHp / 10); // Deduct integrity based on enemy size
+
+                        if (e.id === 'HEAL') {
+                            // Heal the server
+                            setIntegrity(prev => Math.min(100, prev + 15));
+                            spawnParticles(PATH_PIXELS[PATH_PIXELS.length - 1].x, PATH_PIXELS[PATH_PIXELS.length - 1].y, '#22c55e', 20);
+                        } else {
+                            handleDamage(e.maxHp / 10); // Deduct integrity based on enemy size
+                        }
+
                         continue;
                     }
 
@@ -254,10 +271,12 @@ const DDOSDefense = ({ onBack }) => {
                 towersRef.current.forEach(tower => {
                     if (tower.cooldownTimer > 0) tower.cooldownTimer--;
 
-                    // Find closest enemy in range
+                    // Find closest non-heal enemy in range
                     let target = null;
                     let minDist = tower.range;
                     enemiesRef.current.forEach(e => {
+                        if (e.id === 'HEAL') return; // Do not shoot the heal packets
+
                         const dist = Math.sqrt(Math.pow(e.x - tower.x, 2) + Math.pow(e.y - tower.y, 2));
                         if (dist < minDist) {
                             minDist = dist;
