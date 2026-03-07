@@ -2,36 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
 
-const ROOM_WIDTH = 1600;
-const ROOM_HEIGHT = 1100;
-const VIEWPORT_WIDTH = 1200;
-const VIEWPORT_HEIGHT = 800;
-const SPEED = 15;
-const PLAYER_SIZE = 40;
-
-const PHONE_DESK = { x: 600, y: 400, w: 400, h: 350 };
-
-const checkCollision = (px, py, rect) => {
-    return (
-        px < rect.x + rect.w &&
-        px + PLAYER_SIZE > rect.x &&
-        py < rect.y + rect.h &&
-        py + PLAYER_SIZE > rect.y
-    );
-};
-
 const Level1 = () => {
     const { assets, completeLevel, adjustAssets } = useGameState();
-    const [playerPos, setPlayerPos] = useState({ x: 780, y: 750 });
-    const [keys, setKeys] = useState({});
-
-    // STATE MACHINE: ringing → phone_ui → active_call → final_decision → game_over/victory → post_call → dialer → calling_1930 → level_complete
-    const [gameState, setGameState] = useState('ringing');
+    // STATE MACHINE: intro_pov -> phone_intro → active_call → final_decision → game_over/victory → level_complete
+    const [gameState, setGameState] = useState('intro_pov');
     const [canInteract, setCanInteract] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
     const [dialerInput, setDialerInput] = useState('');
     const [callStep, setCallStep] = useState(0); // step in the 1930 call conversation
     const [callOutcome, setCallOutcome] = useState(null); // 'won' or 'lost' — determines what 1930 says
+    const [outroStep, setOutroStep] = useState(0); // 0: none, 1: zoom reflection, 2: black screen card, 3: completed
 
     // CALL & DIALOGUE STATE
     const [dialogueIndex, setDialogueIndex] = useState(0);
@@ -56,9 +36,330 @@ const Level1 = () => {
     const [isSmsVisible, setIsSmsVisible] = useState(false);
     const [isSmsExpanded, setIsSmsExpanded] = useState(false);
 
+    // POV INTERACTION STATE
+    const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
+    const [showPhoneNoti, setShowPhoneNoti] = useState(false);
+    const [visibleNotiCount, setVisibleNotiCount] = useState(0);
+    const [showCallNotification, setShowCallNotification] = useState(false);
+
+    // TUTORIAL STATE
+    const [tutorialStep, setTutorialStep] = useState(0); // 0: none, 1: dragging, 2: board analysis
+    const [hasSeenClueTutorial, setHasSeenClueTutorial] = useState(false);
+
+    // PROCEDURAL AUDIO SYNTHESIZER
+    const audioCtxRef = useRef(null);
+    const ambienceNodesRef = useRef(null);
+
+    const getAudioContext = () => {
+        if (!audioCtxRef.current) {
+            audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtxRef.current;
+    };
+
+    const playSynthSound = (type) => {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+
+        switch (type) {
+            case 'wood_tap': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(100, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+                break;
+            }
+            case 'noti_buzz': {
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc1.frequency.setValueAtTime(880, ctx.currentTime);
+                osc2.frequency.setValueAtTime(1320, ctx.currentTime);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+                osc1.start();
+                osc2.start();
+                osc1.stop(ctx.currentTime + 0.5);
+                osc2.stop(ctx.currentTime + 0.5);
+                break;
+            }
+            case 'noti_vibration': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const mod = ctx.createOscillator();
+                const modGain = ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(80, ctx.currentTime);
+
+                mod.type = 'square';
+                mod.frequency.setValueAtTime(10, ctx.currentTime);
+                modGain.gain.setValueAtTime(0.5, ctx.currentTime);
+
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                // Double pulse pattern
+                gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05);
+                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+                gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.25);
+                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+
+                mod.connect(modGain);
+                modGain.connect(osc.frequency);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start();
+                mod.start();
+                osc.stop(ctx.currentTime + 0.45);
+                mod.stop(ctx.currentTime + 0.45);
+                break;
+            }
+            case 'call_vibration': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const mod = ctx.createOscillator();
+                const gate = ctx.createGain();
+                const gateOsc = ctx.createOscillator();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(55, ctx.currentTime); // Slightly lower frequency
+
+                mod.type = 'triangle'; // Smoother transition than square
+                mod.frequency.setValueAtTime(3, ctx.currentTime); // Slightly slower rhythm
+
+                gain.gain.setValueAtTime(0.15, ctx.currentTime); // Lower volume
+
+                // Gating logic: 0.7s on, 0.7s off (0.714 Hz cycle)
+                gateOsc.type = 'square';
+                gateOsc.frequency.setValueAtTime(0.714, ctx.currentTime);
+
+                // Scale square wave (-1 to 1) to (0 to 1)
+                const gateConst = ctx.createGain();
+                gateConst.gain.setValueAtTime(0.5, ctx.currentTime);
+                gateOsc.connect(gateConst);
+
+                gate.gain.setValueAtTime(0.5, ctx.currentTime);
+                gateConst.connect(gate.gain);
+
+                mod.connect(gain.gain);
+                osc.connect(gain);
+                gain.connect(gate);
+                gate.connect(ctx.destination);
+
+                osc.start();
+                mod.start();
+                gateOsc.start();
+                return { osc, mod, gain, gateOsc };
+            }
+            case 'acceptance_click': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.05);
+                break;
+            }
+            case 'cinematic_surge': {
+                const osc1 = ctx.createOscillator(); // Low thump/horn
+                const osc2 = ctx.createOscillator(); // Riser
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+
+                osc1.type = 'sawtooth';
+                osc1.frequency.setValueAtTime(40, ctx.currentTime);
+                osc1.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 2.5);
+
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(200, ctx.currentTime);
+                osc2.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 3);
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(100, ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 2.5);
+
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.5);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 3);
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc1.start();
+                osc2.start();
+                osc1.stop(ctx.currentTime + 3);
+                osc2.stop(ctx.currentTime + 3);
+                break;
+            }
+            case 'digital_glitch': {
+                const bufferSize = ctx.sampleRate * 0.11;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const gain = ctx.createGain();
+                const filter = ctx.createBiquadFilter();
+
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(2000 + Math.random() * 3000, ctx.currentTime);
+
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start();
+                break;
+            }
+            case 'clue_drag': {
+                const bufferSize = ctx.sampleRate * 0.2;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = ctx.createBiquadFilter();
+                const gain = ctx.createGain();
+
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(1000, ctx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.2);
+
+                gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                noise.start();
+                break;
+            }
+            case 'clue_pin': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.05);
+                break;
+            }
+            case 'board_opening': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(40, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.2);
+                break;
+            }
+        }
+    };
+
+    // AMBIENCE SYNTH (HUM)
+    useEffect(() => {
+        if (['intro_pov', 'phone_intro'].includes(gameState)) {
+            const ctx = getAudioContext();
+            if (!ambienceNodesRef.current) {
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(55, ctx.currentTime); // Low G
+
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(110, ctx.currentTime); // G2
+
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.015, ctx.currentTime + 2);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc1.start();
+                osc2.start();
+                ambienceNodesRef.current = { osc1, osc2, gain };
+            }
+        } else {
+            if (ambienceNodesRef.current) {
+                const { osc1, osc2, gain } = ambienceNodesRef.current;
+                gain.gain.linearRampToValueAtTime(0, getAudioContext().currentTime + 1);
+                setTimeout(() => {
+                    osc1.stop();
+                    osc2.stop();
+                }, 1000);
+                ambienceNodesRef.current = null;
+            }
+        }
+    }, [gameState]);
+
+    // TRIGGER NOTIFICATION SOUND & VIBRATION
+    useEffect(() => {
+        if (showPhoneNoti || showCallNotification) {
+            playSynthSound('noti_buzz');
+            playSynthSound('noti_vibration');
+        }
+    }, [showPhoneNoti, showCallNotification]);
+
+    // TRIGGER CALL VIBRATION
+    const callVibrationRef = useRef(null);
+    useEffect(() => {
+        if (gameState === 'phone_calling' || showCallNotification) {
+            if (!callVibrationRef.current) {
+                callVibrationRef.current = playSynthSound('call_vibration');
+            }
+        } else {
+            if (callVibrationRef.current) {
+                const { osc, mod, gain, gateOsc } = callVibrationRef.current;
+                gain.gain.exponentialRampToValueAtTime(0.001, getAudioContext().currentTime + 0.5);
+                setTimeout(() => {
+                    osc.stop();
+                    mod.stop();
+                    if (gateOsc) gateOsc.stop();
+                    callVibrationRef.current = null;
+                }, 500);
+            }
+        }
+    }, [gameState, showCallNotification]);
+
     // INTERACTIVE DIALOGUE SEQUENCE
-    // 7 draggable clues + clue 4 from SMS
-    // Other suspicious phrases are highlighted (yellow) but NOT draggable
     const dialogueSequence = [
         {
             speaker: 'SCAMMER', parts: [
@@ -132,20 +433,16 @@ const Level1 = () => {
         }
     ];
 
-    // Start typing a new message
     const startTyping = (fullText) => {
         setTypingTarget(fullText);
         setTypingProgress(0);
         setIsTypingDone(false);
     };
 
-    // Typing animation effect
     useEffect(() => {
         if (!typingTarget) { setIsTypingDone(true); return; }
-
         setTypingProgress(0);
         setIsTypingDone(false);
-
         const interval = setInterval(() => {
             setTypingProgress(prev => {
                 if (prev >= typingTarget.length) {
@@ -156,87 +453,62 @@ const Level1 = () => {
                 return prev + 1;
             });
         }, 25);
-
         return () => clearInterval(interval);
     }, [typingTarget]);
 
-    // Push first scammer message on mount
     useEffect(() => {
-        const firstLine = dialogueSequence[0];
-        const fullText = firstLine.parts.map(p => p.text).join('');
-        setChatHistory([{ type: 'scammer', parts: firstLine.parts, dialogueIdx: 0 }]);
-        startTyping(fullText);
-    }, []);
+        if (gameState === 'active_call' && chatHistory.length === 0) {
+            const firstLine = dialogueSequence[0];
+            const fullText = firstLine.parts.map(p => p.text).join('');
+            setChatHistory([{ type: 'scammer', parts: firstLine.parts, dialogueIdx: 0 }]);
+            startTyping(fullText);
+        }
+    }, [gameState]);
+
+    // TRIGGER CLUE TUTORIAL
+    useEffect(() => {
+        const lastMsg = chatHistory[chatHistory.length - 1];
+        if (lastMsg && lastMsg.parts?.some(p => p.isDraggable) && isTypingDone && !hasSeenClueTutorial && tutorialStep === 0) {
+            const timer = setTimeout(() => {
+                setTutorialStep(1);
+            }, 800);
+            return () => clearTimeout(timer);
+        }
+    }, [chatHistory, isTypingDone, hasSeenClueTutorial, tutorialStep]);
 
     useEffect(() => {
-        const handleKeyDown = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
-        const handleKeyUp = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
+        if (isPhotoZoomed) {
+            const timer = setTimeout(() => {
+                setIsPhotoZoomed(false);
+                setTimeout(() => {
+                    setShowPhoneNoti(true);
+                }, 2000);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [isPhotoZoomed]);
 
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-        };
-    }, []);
-
-    // Movement Loop
     useEffect(() => {
-        if (gameState !== 'ringing' && gameState !== 'walk' && gameState !== 'post_call') return;
-
-        let animationFrameId;
-
-        const gameLoop = () => {
-            setPlayerPos(prev => {
-                let newX = prev.x;
-                let newY = prev.y;
-
-                if (keys['w'] || keys['arrowup']) newY -= SPEED;
-                if (keys['s'] || keys['arrowdown']) newY += SPEED;
-                if (keys['a'] || keys['arrowleft']) newX -= SPEED;
-                if (keys['d'] || keys['arrowright']) newX += SPEED;
-
-                // Boundaries of the room
-                newX = Math.max(0, Math.min(newX, ROOM_WIDTH - PLAYER_SIZE));
-                newY = Math.max(0, Math.min(newY, ROOM_HEIGHT - PLAYER_SIZE));
-
-                // Desk Collisions (L-Shape split)
-                const deskParts = [
-                    { x: PHONE_DESK.x, y: PHONE_DESK.y, w: PHONE_DESK.w, h: 140 }, // Main Board
-                    { x: PHONE_DESK.x, y: PHONE_DESK.y + 140, w: 140, h: 210 }    // L-Return
-                ];
-
-                for (const rect of deskParts) {
-                    if (checkCollision(newX, newY, rect)) {
-                        if (prev.x + PLAYER_SIZE <= rect.x || prev.x >= rect.x + rect.w) newX = prev.x;
-                        if (prev.y + PLAYER_SIZE <= rect.y || prev.y >= rect.y + rect.h) newY = prev.y;
-                    }
+        if (gameState === 'phone_intro') {
+            let count = 0;
+            const interval = setInterval(() => {
+                count++;
+                if (count <= 3) {
+                    setVisibleNotiCount(count);
+                    playSynthSound('noti_buzz');
+                    playSynthSound('noti_vibration');
+                } else if (count === 4) {
+                    setShowCallNotification(true);
+                    playSynthSound('noti_buzz'); // Final buzz for the call noti itself
+                    clearInterval(interval);
                 }
-
-                const interactArea = { x: PHONE_DESK.x - 40, y: PHONE_DESK.y - 40, w: PHONE_DESK.w + 80, h: PHONE_DESK.h + 80 };
-                setCanInteract(checkCollision(newX, newY, interactArea));
-
-                return { x: newX, y: newY };
-            });
-            animationFrameId = requestAnimationFrame(gameLoop);
-        };
-
-        animationFrameId = requestAnimationFrame(gameLoop);
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [keys, gameState]);
-
-    // Handle Interaction Key (E)
-    useEffect(() => {
-        if (keys['e'] && canInteract && gameState === 'ringing') {
-            setGameState('phone_ui');
+            }, 1500);
+            return () => clearInterval(interval);
+        } else {
+            setVisibleNotiCount(0);
         }
-        if (keys['e'] && canInteract && gameState === 'post_call') {
-            setDialerInput('');
-            setGameState('dialer');
-        }
-    }, [keys, canInteract, gameState]);
+    }, [gameState]);
 
-    // Timer Logic
     useEffect(() => {
         let interval;
         if (isTimerRunning && timer > 0 && gameState === 'active_call' && !isDetectiveModeOpen) {
@@ -255,81 +527,82 @@ const Level1 = () => {
         return () => clearInterval(interval);
     }, [isTimerRunning, timer, gameState, isDetectiveModeOpen]);
 
-    // Advance to the next dialogue line (scammer lines only)
     const advanceDialogue = () => {
         const nextIdx = dialogueIndex + 1;
         if (nextIdx >= dialogueSequence.length) return;
-
         const nextLine = dialogueSequence[nextIdx];
         setDialogueIndex(nextIdx);
 
         if (nextLine.speaker === 'SCAMMER') {
-            // Push scammer message and start typing
             const fullText = nextLine.parts.map(p => p.text).join('');
             setChatHistory(prev => [...prev, { type: 'scammer', parts: nextLine.parts, dialogueIdx: nextIdx }]);
             startTyping(fullText);
             setShowingOptions(false);
-
             if (nextLine.triggerTimer) setIsTimerRunning(true);
             if (nextLine.triggerSms) setIsSmsVisible(true);
-            if (nextLine.triggerEndCall) {
-                setGameState('final_decision');
-            }
+            if (nextLine.triggerEndCall) setGameState('final_decision');
         } else if (nextLine.speaker === 'PLAYER') {
-            // Show player options (no typing needed)
             setShowingOptions(true);
             setIsTypingDone(true);
             setTypingTarget('');
         }
     };
 
-    // Handle Continue button click (after scammer message or custom reply)
     const handleContinue = () => {
         const nextIdx = dialogueIndex + 1;
         if (nextIdx >= dialogueSequence.length) return;
-
         const nextLine = dialogueSequence[nextIdx];
-
         if (nextLine.speaker === 'PLAYER') {
-            // Next is player options — show them
             setDialogueIndex(nextIdx);
             setShowingOptions(true);
             setIsTypingDone(true);
             setTypingTarget('');
         } else {
-            // Next is another scammer line — advance normally
             advanceDialogue();
         }
     };
 
-    // Handle player option click
     const handleOptionClick = (option) => {
         setShowingOptions(false);
-
-        // Penalty for wrong choices
         if (!option.isCorrect) {
             if (option.penalty > 0) adjustAssets(-option.penalty);
-            setFeedbackMsg(option.penalty > 0
-                ? `⚠️ Wrong choice! -₹${option.penalty.toLocaleString()}. ${option.feedback}`
-                : `💡 ${option.feedback}`);
+            setFeedbackMsg(option.penalty > 0 ? `⚠️ Wrong choice! -₹${option.penalty.toLocaleString()}. ${option.feedback}` : `💡 ${option.feedback}`);
             setTimeout(() => setFeedbackMsg(null), 2500);
         }
-
-        // Push the player's chosen text into chat history
         setChatHistory(prev => [...prev, { type: 'player', text: option.text }]);
-
-        // If there's a branching scammer reply, push it and type it
         if (option.scammerReply) {
             setChatHistory(prev => [...prev, { type: 'reply', text: option.scammerReply }]);
             startTyping(option.scammerReply);
         } else {
-            // No reply — just advance
             advanceDialogue();
         }
     };
 
+    useEffect(() => {
+        if (gameState === 'cinematic_call_intro') {
+            playSynthSound('cinematic_surge');
+
+            // Random glitch loop
+            const glitchInterval = setInterval(() => {
+                if (Math.random() > 0.4) playSynthSound('digital_glitch');
+            }, 400);
+
+            const timer = setTimeout(() => {
+                setGameState('active_call');
+            }, 4000); // 4s build-up as previously planned
+
+            return () => {
+                clearTimeout(timer);
+                clearInterval(glitchInterval);
+            };
+        }
+    }, [gameState]);
+
     const handleAnswerPhone = () => {
-        setGameState('active_call');
+        playSynthSound('acceptance_click');
+        setShowCallNotification(false);
+        setShowPhoneNoti(false);
+        setGameState('cinematic_call_intro');
     };
 
     const handleGameOver = () => {
@@ -347,483 +620,6 @@ const Level1 = () => {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
-    if (gameState === 'phone_ui') {
-        return (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-black/90 text-white p-8 relative">
-                <div className="w-80 h-[600px] bg-zinc-950 border-8 border-zinc-800 rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col items-center justify-center p-6">
-                    {/* Notch */}
-                    <div className="absolute top-0 w-32 h-6 bg-zinc-800 rounded-b-2xl"></div>
-
-                    <div className="flex flex-col items-center animate-pulse">
-                        <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.4)]">
-                            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white animate-bounce" viewBox="0 0 20 20" fill="currentColor">
-                                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <h2 className="text-2xl font-bold mb-1 tracking-wider text-red-500">UNKNOWN NUMBER</h2>
-                        <p className="text-zinc-500 font-mono text-sm">+91 9XXXX XXXXX</p>
-                    </div>
-
-                    <div className="absolute bottom-16 flex w-full justify-around px-8">
-                        <button className="w-16 h-16 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105" onClick={() => setGameState('ringing')}>
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white transform rotate-[135deg]" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                            </svg>
-                        </button>
-                        <button
-                            className="w-16 h-16 bg-green-500 hover:bg-green-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.6)] transition-transform hover:scale-110 animate-pulse"
-                            onClick={handleAnswerPhone}
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (['active_call', 'scammer_reveal', 'final_decision'].includes(gameState)) {
-
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4 relative">
-
-                {feedbackMsg && (
-                    <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-4 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.8)] z-[500] font-bold text-center animate-bounce border-2 border-red-300">
-                        {feedbackMsg}
-                    </div>
-                )}
-
-                {/* The Main Phone Sim UI */}
-                <div className={`w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center z-10 transition-transform duration-500 ease-in-out ${isDetectiveModeOpen ? '-translate-x-[250px]' : 'translate-x-0'}`}>
-
-                    {/* Header */}
-                    <div className="w-full bg-zinc-800 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-zinc-700 z-10">
-                        <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">📞</div>
-                        <h2 className="text-xl font-bold text-white tracking-widest">UNKNOWN CALLER</h2>
-                        <div className="text-green-400 font-mono text-lg animate-pulse">{isTimerRunning ? formatTime(timer) : '00:00'}</div>
-                    </div>
-
-                    {/* Audio Waveform */}
-                    <div className="flex gap-1 h-12 items-center mt-6">
-                        {[...Array(15)].map((_, i) => (
-                            <div key={i} className={`w-2 bg-blue-500 rounded-full animate-pulse`} style={{ height: `${20 + Math.random() * 30}px`, animationDelay: `${i * 0.1}s` }}></div>
-                        ))}
-                    </div>
-
-                    {/* Dialogue Feed — renders from chatHistory */}
-                    <div className="flex-1 w-full flex flex-col justify-start p-4 pb-20 gap-3 overflow-y-auto custom-scrollbar">
-                        {chatHistory.map((msg, idx) => {
-                            const isLast = idx === chatHistory.length - 1;
-
-                            // SCAMMER MESSAGE
-                            if (msg.type === 'scammer') {
-                                const fullText = msg.parts.map(p => p.text).join('');
-                                return (
-                                    <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700">
-                                        <span className="text-xs text-blue-400 font-bold mb-1 block">CALLER</span>
-                                        {isLast && !isTypingDone ? (
-                                            <span className="text-white">
-                                                {fullText.slice(0, typingProgress)}
-                                                <span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" />
-                                            </span>
-                                        ) : (
-                                            msg.parts.map((p, i) => {
-                                                if (p.isDraggable && isLast && isTypingDone) {
-                                                    return (
-                                                        <span
-                                                            key={i}
-                                                            draggable
-                                                            onDragStart={(e) => {
-                                                                e.dataTransfer.setData('application/json', JSON.stringify({ id: p.clueId, title: p.title, desc: p.desc, isFake: p.isFake }));
-                                                                setIsDetectiveModeOpen(true);
-                                                            }}
-                                                            className="cursor-grab border-b-2 border-dashed border-red-500 hover:bg-red-500/20 rounded px-1 text-red-100 transition-colors inline-block animate-pulse"
-                                                        >
-                                                            {p.text}
-                                                        </span>
-                                                    );
-                                                }
-                                                if (p.isDraggable && !isLast) {
-                                                    return <span key={i} className="text-red-200/50">{p.text}</span>;
-                                                }
-                                                if (p.isHighlighted) {
-                                                    return <span key={i} className="text-yellow-300 border-b border-yellow-500/50">{p.text}</span>;
-                                                }
-                                                return <span key={i}>{p.text}</span>;
-                                            })
-                                        )}
-                                    </div>
-                                );
-                            }
-
-                            // PLAYER'S CHOSEN RESPONSE (past)
-                            if (msg.type === 'player') {
-                                return (
-                                    <div key={idx} className="w-full flex justify-end">
-                                        <div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">
-                                            "{msg.text}"
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            // SCAMMER BRANCHING REPLY (same style as normal scammer messages)
-                            if (msg.type === 'reply') {
-                                return (
-                                    <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700">
-                                        <span className="text-xs text-blue-400 font-bold mb-1 block">CALLER</span>
-                                        {isLast && !isTypingDone ? (
-                                            <span className="text-white">
-                                                {msg.text.slice(0, typingProgress)}
-                                                <span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" />
-                                            </span>
-                                        ) : (
-                                            <span className="text-white">{msg.text}</span>
-                                        )}
-                                    </div>
-                                );
-                            }
-
-                            return null;
-                        })}
-
-                        {/* PLAYER OPTIONS — show when it's a player turn */}
-                        {showingOptions && dialogueSequence[dialogueIndex]?.speaker === 'PLAYER' && (
-                            <div className="w-full flex flex-col gap-3 mt-4 items-end animate-fadeIn">
-                                <span className="text-xs text-emerald-400 font-bold self-start ml-4 uppercase">Your response:</span>
-                                {dialogueSequence[dialogueIndex].options.map((opt, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => handleOptionClick(opt)}
-                                        className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-xl transition-all border-2 border-blue-400 hover:scale-105 active:scale-95 text-sm"
-                                    >
-                                        "{opt.text}"
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {/* CONTINUE BUTTON — after any scammer/reply message finishes typing */}
-                        {isTypingDone && !showingOptions && gameState === 'active_call' && (
-                            <button
-                                className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors"
-                                onClick={handleContinue}
-                            >
-                                [ Continue... ]
-                            </button>
-                        )}
-
-                        {/* Auto scroll anchor */}
-                        {<div ref={(el) => { el?.scrollIntoView({ behavior: 'smooth' }) }} />}
-                    </div>
-
-                    {/* SMS Dropdown Simulation (Half-screen) */}
-                    {isSmsVisible && !isSmsExpanded && (
-                        <div
-                            className="absolute top-28 left-4 right-4 bg-slate-100 text-slate-900 rounded-2xl p-4 shadow-[0_20px_40px_rgba(0,0,0,0.8)] border border-slate-300 cursor-pointer animate-dropdown z-50 hover:bg-white"
-                            onClick={() => {
-                                setIsSmsExpanded(true);
-                                setClues(prev => [...prev, { id: 4, title: "The Warning is IN the SMS", desc: "The SMS directly says to NEVER share the OTP with bank officials." }]);
-                            }}
-                        >
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white text-xs font-bold">M</span>
-                                <span className="font-bold text-sm">SBI MESSAGES</span>
-                                <span className="text-xs text-slate-500 ml-auto">now</span>
-                            </div>
-                            <p className="text-sm font-semibold truncate leading-tight">Your OTP is 584921 for transaction...</p>
-                            <p className="text-xs text-blue-600 mt-2 font-bold text-center uppercase tracking-widest">[ Tap to expand message ]</p>
-                        </div>
-                    )}
-
-                    {/* SMS Expanded View */}
-                    {isSmsExpanded && (
-                        <div className="absolute bottom-0 left-0 w-full h-[55%] bg-slate-100 text-slate-900 rounded-t-3xl p-6 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] z-50 flex flex-col border-t-2 border-slate-300 animate-[slideUp_0.3s_ease-out]">
-                            <div className="w-12 h-1 bg-slate-300 rounded-full self-center mb-6"></div>
-                            <p className="text-sm mb-4"><strong>From:</strong> BO-SBI</p>
-                            <p className="text-lg leading-snug mb-4">Your OTP is <strong className="text-3xl text-blue-600 tracking-widest block mt-2 mb-2">584921</strong> for transaction verification. Valid for 10 mins.</p>
-
-                            <div className="bg-red-100 border-l-4 border-red-500 p-3 mt-auto mb-4 animate-[pulse_2s_infinite]">
-                                <p
-                                    className="text-sm text-red-700 font-bold uppercase cursor-grab hover:bg-yellow-200 rounded p-1 transition-colors"
-                                    draggable
-                                    onDragStart={(e) => {
-                                        e.dataTransfer.setData('application/json', JSON.stringify({ id: 4, title: "The Warning is IN the SMS", desc: "The SMS directly says to NEVER share the OTP with bank officials." }));
-                                        setIsDetectiveModeOpen(true);
-                                    }}
-                                >
-                                    ⚠️ DO NOT SHARE THIS OTP WITH ANYONE, INCLUDING BANK OFFICIALS. SBI NEVER ASKS FOR OTP.
-                                </p>
-                            </div>
-
-                            <button
-                                className="w-full py-3 bg-slate-300 hover:bg-slate-400 font-bold rounded-xl transition-colors"
-                                onClick={() => setIsSmsExpanded(false)}
-                            >
-                                CLOSE MESSAGE
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Detective Mode Button */}
-                    <button
-                        className="absolute bottom-6 left-6 w-14 h-14 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.6)] border-2 border-amber-300 z-50 text-2xl"
-                        onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)}
-                    >
-                        🔍
-                        {clues.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-6 h-6 rounded-full flex justify-center items-center">{clues.length}</span>}
-                    </button>
-                    <div className="absolute bottom-1 left-4 font-mono text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Detective Mode</div>
-
-                </div> {/* END PHONE UI */}
-
-                {/* SCAMMER REVEAL SPLIT SCREEN OVERLAY */}
-                {gameState === 'scammer_reveal' && (
-                    <div className="absolute inset-0 z-[100] bg-black/90 flex flex-col justify-center items-center p-12 backdrop-blur-md animate-fadeIn">
-                        <div className="flex gap-12 w-full max-w-5xl">
-                            {/* Player Phone Side */}
-                            <div className="flex-1 border-2 border-zinc-700 bg-zinc-900 rounded-xl p-8 flex flex-col items-center">
-                                <h3 className="text-cyan-400 font-mono tracking-widest mb-6">WHAT YOU SEE</h3>
-                                <div className="text-4xl text-white font-bold tracking-widest">OTP: <span className="text-green-400">584921</span></div>
-                                <p className="text-zinc-400 text-center mt-6">You are holding the key that unlocks the door.</p>
-                            </div>
-                            {/* Scammer PC Side */}
-                            <div className="flex-1 border-2 border-red-900 bg-red-950/20 rounded-xl p-8 flex flex-col items-center shadow-[0_0_50px_rgba(239,68,68,0.2)]">
-                                <h3 className="text-red-500 font-mono tracking-widest mb-6">WHAT HE SEES</h3>
-                                <div className="w-full h-32 bg-white rounded border-4 border-slate-300 p-4 relative overflow-hidden">
-                                    <div className="w-full h-4 bg-blue-600 mb-2"></div>
-                                    <div className="w-3/4 h-2 bg-slate-300 mb-1"></div>
-                                    <div className="w-1/2 h-2 bg-slate-300 mb-4"></div>
-                                    <div className="text-black font-bold text-xs uppercase mb-1">Enter OTP to Authenticate Transfer: ₹4,50,000</div>
-                                    <div className="w-32 h-8 border-2 border-red-500 bg-red-50 animate-pulse flex items-center px-2">_ _ _ _ _ _</div>
-                                </div>
-                                <p className="text-red-300 text-center mt-6">He is on the login page right now. He needs YOU to give him the keys.</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* DETECTIVE BOARD OVERLAY */}
-                {isDetectiveModeOpen && (
-                    <div
-                        className="absolute inset-y-8 right-8 w-[600px] bg-amber-100 rounded-lg shadow-[-20px_0_50px_rgba(0,0,0,0.8)] z-[200] p-8 flex flex-col border-[16px] border-[#5c3a21] animate-[slideLeft_0.3s_ease-out] overflow-hidden"
-                        style={{
-                            backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`,
-                            backgroundColor: '#e6c280'
-                        }}
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-                        onDrop={(e) => {
-                            e.preventDefault();
-                            try {
-                                const data = e.dataTransfer.getData('application/json');
-                                if (data) {
-                                    const parsedClue = JSON.parse(data);
-                                    if (parsedClue.isFake) {
-                                        adjustAssets(-1000);
-                                        setFeedbackMsg("Invalid Clue! That's just a normal conversational phrase. Penalty: -₹1,000");
-                                        setTimeout(() => setFeedbackMsg(null), 3000);
-                                    } else if (!clues.find(c => c.id === parsedClue.id)) {
-                                        // Valid clue! Calculate grid-based position to prevent stacking
-                                        const gridPositions = [
-                                            { x: 140, y: 160 },
-                                            { x: 380, y: 200 },
-                                            { x: 150, y: 380 },
-                                            { x: 380, y: 400 },
-                                            { x: 260, y: 550 },
-                                            { x: 200, y: 280 }
-                                        ];
-                                        const pos = gridPositions[clues.length % gridPositions.length];
-                                        const x = pos.x + (Math.random() * 40 - 20); // Add a tiny bit of random scatter
-                                        const y = pos.y + (Math.random() * 40 - 20);
-                                        setClues(prev => [...prev, { ...parsedClue, x, y }]);
-                                    }
-                                }
-                            } catch (err) { }
-                        }}
-                    >
-                        {/* Draw Red Strings Between Clues */}
-                        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                            {clues.map((clue, idx) => {
-                                if (idx > 0) {
-                                    const prev = clues[idx - 1];
-                                    return <line key={`line-${idx}`} x1={prev.x} y1={prev.y} x2={clue.x} y2={clue.y} stroke="rgba(220,38,38,0.8)" strokeWidth="3" style={{ filter: 'drop-shadow(2px 4px 2px rgba(0,0,0,0.5))' }} />
-                                }
-                                return null;
-                            })}
-                        </svg>
-
-                        {/* Header Label */}
-                        <div className="flex justify-between items-center mb-6 z-10 bg-white p-3 rounded-sm shadow-md transform -rotate-2 border border-stone-300 self-start">
-                            <h2 className="text-2xl font-black text-stone-800 uppercase tracking-widest font-mono">
-                                📌 INVESTIGATION BOARD
-                            </h2>
-                            <button className="text-red-600 hover:text-red-800 font-black text-2xl ml-6" onClick={() => setIsDetectiveModeOpen(false)}>✖</button>
-                        </div>
-
-                        {/* Clue Polaroids */}
-                        {clues.map((clue, idx) => (
-                            <div
-                                key={idx}
-                                className="absolute bg-yellow-50 p-4 shadow-xl w-48 border border-yellow-200 z-10 flex flex-col"
-                                style={{
-                                    left: clue.x - 96,
-                                    top: clue.y - 48,
-                                    transform: `rotate(${(idx % 2 === 0 ? -1 : 1) * (Math.random() * 6 + 2)}deg)`
-                                }}
-                            >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-red-600 shadow-[2px_4px_4px_rgba(0,0,0,0.5)] border border-red-800 flex items-center justify-center">
-                                    <div className="w-2 h-2 rounded-full bg-white/40 absolute top-0.5 right-1"></div>
-                                </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-2 h-2 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-sm leading-tight border-b-2 border-red-800/20 pb-2 uppercase">{clue.title}</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">{clue.desc}</p>
-                            </div>
-                        ))}
-
-                        {clues.length === 0 && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-700/50 text-center font-mono font-bold text-2xl rotate-[-5deg] border-4 border-dashed border-stone-700/30 p-8 rounded-xl z-0 pointer-events-none">
-                                DRAG SUSPECTED CLUES<br />HERE TO PIN THEM.
-                            </div>
-                        )}
-
-                        {/* Footer Suspicion Meter */}
-                        <div className="absolute bottom-6 left-6 right-6 bg-zinc-900 rounded-xl p-4 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-10 border-2 border-zinc-700">
-                            <h3 className="text-xs text-zinc-400 uppercase font-mono mb-2 flex justify-between">
-                                <span>Threat Intelligence Meter</span>
-                                <span style={{ color: clues.length > 3 ? '#ef4444' : clues.length > 1 ? '#eab308' : '#22c55e' }}>{clues.length}/5 CLUES</span>
-                            </h3>
-                            <div className="w-full h-4 bg-zinc-950 rounded-full overflow-hidden shadow-inner">
-                                <div
-                                    className="h-full transition-all duration-500"
-                                    style={{
-                                        width: `${(clues.length / 5) * 100}%`,
-                                        backgroundColor: clues.length > 3 ? '#ef4444' : clues.length > 1 ? '#eab308' : '#22c55e'
-                                    }}
-                                ></div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* FINAL DECISION OVERLAY */}
-                {gameState === 'final_decision' && (
-                    <div className="absolute inset-x-8 bottom-8 h-80 bg-black/95 border-t-4 border-red-600 rounded-t-3xl shadow-[0_-20px_60px_rgba(0,0,0,0.9)] z-[300] p-10 flex flex-col justify-between animate-[slideUp_0.5s_ease-out]">
-                        <div className="text-center">
-                            <h2 className="text-3xl font-black text-white mb-4 uppercase tracking-widest drop-shadow-md">CRITICAL DECISION</h2>
-                            <p className="text-red-400 text-lg italic">"If the bank wants to protect my account... why do they need MY OTP to do it?"</p>
-                        </div>
-                        <div className="flex gap-8 justify-center mt-6">
-                            <button
-                                className="flex-1 bg-red-950/50 hover:bg-red-900 border-2 border-red-500/50 hover:border-red-500 p-6 rounded-2xl transition-all group"
-                                onClick={handleGameOver}
-                            >
-                                <h3 className="text-2xl font-bold text-red-500 mb-2 group-hover:drop-shadow-[0_0_10px_rgba(239,68,68,1)] uppercase">❌ Share the OTP</h3>
-                                <p className="text-red-200/50 text-sm">Read the numbers aloud to the caller to "secure" your account.</p>
-                            </button>
-                            <button
-                                className="flex-1 bg-emerald-950/50 hover:bg-emerald-900 border-2 border-emerald-500/50 hover:border-emerald-500 p-6 rounded-2xl transition-all group"
-                                onClick={handleVictory}
-                            >
-                                <h3 className="text-2xl font-bold text-emerald-500 mb-2 group-hover:drop-shadow-[0_0_10px_rgba(16,185,129,1)] uppercase">✅ Hang Up & Verify</h3>
-                                <p className="text-emerald-200/50 text-sm">Disconnect instantly. The bank doesn't need your OTP. Call official numbers later.</p>
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    // DIALER UI  player types a number and calls
-    if (gameState === 'dialer') {
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
-                    {/* Header */}
-                    <div className="w-full bg-zinc-800 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-zinc-700">
-                        <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">📞</div>
-                        <h2 className="text-xl font-bold text-white tracking-widest">DIAL A NUMBER</h2>
-                    </div>
-
-                    <div className="flex-1 w-full flex flex-col items-center justify-center gap-6 p-8">
-                        {/* Number Display */}
-                        <div className="w-full bg-black rounded-xl p-6 text-center border border-zinc-700">
-                            <span className="text-4xl font-mono text-white tracking-[0.3em]">
-                                {dialerInput || '_ _ _ _'}
-                            </span>
-                        </div>
-
-                        {/* Hint */}
-                        <div className="text-yellow-400 text-sm text-center animate-pulse font-bold">
-                            💡 Remember: Cyber Crime Helpline is <span className="text-2xl">1930</span>
-                        </div>
-
-                        {/* Number Pad */}
-                        <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, '*', 0, '#'].map((num) => (
-                                <button
-                                    key={num}
-                                    onClick={() => setDialerInput(prev => (prev.length < 10 ? prev + num : prev))}
-                                    className="bg-zinc-800 hover:bg-zinc-700 text-white text-2xl font-bold py-4 rounded-xl border border-zinc-600 transition-all active:scale-95 shadow-lg"
-                                >
-                                    {num}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="flex gap-4 w-full max-w-[280px]">
-                            {/* Backspace */}
-                            <button
-                                onClick={() => setDialerInput(prev => prev.slice(0, -1))}
-                                className="flex-1 bg-red-900 hover:bg-red-800 text-white py-3 rounded-xl border border-red-700 font-bold transition-all"
-                            >
-                                ⌫
-                            </button>
-                            {/* Call Button */}
-                            <button
-                                onClick={() => {
-                                    if (dialerInput === '1930') {
-                                        setCallStep(0);
-                                        setGameState('calling_1930');
-                                    } else if (dialerInput.length > 0) {
-                                        setFeedbackMsg('❌ Wrong number! Think — what is the Cyber Crime Helpline number?');
-                                        setTimeout(() => setFeedbackMsg(null), 2000);
-                                        setDialerInput('');
-                                    }
-                                }}
-                                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl border border-emerald-400 font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)]"
-                            >
-                                📞 CALL
-                            </button>
-                        </div>
-                    </div>
-
-                    {feedbackMsg && (
-                        <div className="absolute top-32 left-4 right-4 bg-red-600 text-white px-4 py-3 rounded-xl shadow-xl z-50 font-bold text-center text-sm">
-                            {feedbackMsg}
-                        </div>
-                    )}
-
-                    {/* Back Button */}
-                    <button
-                        className="absolute bottom-8 text-zinc-500 hover:text-white text-sm font-mono transition-colors"
-                        onClick={() => setGameState('post_call')}
-                    >
-                        [ Cancel ]
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    // CALLING 1930 — Cybercrime Helpline conversation
     if (gameState === 'calling_1930') {
         const callConversation = callOutcome === 'won' ? [
             { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
@@ -847,375 +643,594 @@ const Level1 = () => {
         return (
             <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
                 <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
-                    {/* Header */}
                     <div className="w-full bg-emerald-900 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-emerald-700">
                         <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">🛡️</div>
                         <h2 className="text-lg font-bold text-emerald-300 tracking-widest">CYBER CRIME HELPLINE</h2>
                         <p className="text-emerald-400 font-mono text-sm">1930</p>
                     </div>
-
-                    {/* Conversation */}
                     <div className="flex-1 w-full flex flex-col justify-start p-4 pb-20 gap-3 overflow-y-auto custom-scrollbar">
                         {callConversation.map((msg, idx) => {
                             if (idx > callStep) return null;
-
-                            if (msg.speaker === 'SYSTEM') {
-                                return (
-                                    <div key={idx} className="bg-zinc-800 text-center text-zinc-300 p-3 rounded-xl text-sm border border-zinc-700 font-mono">
-                                        {msg.text}
-                                    </div>
-                                );
-                            }
-                            if (msg.speaker === 'OFFICER') {
-                                return (
-                                    <div key={idx} className="bg-emerald-900/50 text-emerald-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-emerald-700/50">
-                                        <span className="text-xs text-emerald-400 font-bold mb-1 block">OFFICER SHARMA</span>
-                                        {msg.text}
-                                    </div>
-                                );
-                            }
-                            if (msg.speaker === 'YOU') {
-                                return (
-                                    <div key={idx} className="w-full flex justify-end">
-                                        <div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">
-                                            "{msg.text}"
-                                        </div>
-                                    </div>
-                                );
-                            }
+                            if (msg.speaker === 'SYSTEM') return <div key={idx} className="bg-zinc-800 text-center text-zinc-300 p-3 rounded-xl text-sm border border-zinc-700 font-mono">{msg.text}</div>;
+                            if (msg.speaker === 'OFFICER') return <div key={idx} className="bg-emerald-900/50 text-emerald-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-emerald-700/50"><span className="text-xs text-emerald-400 font-bold mb-1 block">OFFICER SHARMA</span>{msg.text}</div>;
+                            if (msg.speaker === 'YOU') return <div key={idx} className="w-full flex justify-end"><div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">"{msg.text}"</div></div>;
                             return null;
                         })}
-
-                        {/* Continue or Complete */}
                         {callStep < callConversation.length - 1 ? (
-                            <button
-                                className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors"
-                                onClick={() => setCallStep(prev => prev + 1)}
-                            >
-                                [ Continue... ]
-                            </button>
+                            <button className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors" onClick={() => setCallStep(prev => prev + 1)}>[ Continue... ]</button>
                         ) : (
-                            <button
-                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-bold text-sm rounded-lg mt-4 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-colors"
-                                onClick={() => {
-                                    completeLevel(callOutcome === 'won', callOutcome === 'won' ? 500 : 0, callOutcome === 'won' ? 0 : 100000);
-                                }}
-                            >
-                                [ COMPLETE LEVEL ]
-                            </button>
+                            <button className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-bold text-sm rounded-lg mt-4 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-colors" onClick={() => {
+                                setGameState('cinematic_outro');
+                                setOutroStep(1);
+                                playSynthSound('wood_tap');
+                                setTimeout(() => {
+                                    setOutroStep(2);
+                                    setTimeout(() => {
+                                        setOutroStep(3);
+                                        setTimeout(() => {
+                                            completeLevel(callOutcome === 'won', callOutcome === 'won' ? 500 : 0, callOutcome === 'won' ? 4200000 : 0);
+                                        }, 4000);
+                                    }, 3000);
+                                }, 3500);
+                            }}>[ COMPLETE LEVEL ]</button>
                         )}
-
-                        {<div ref={(el) => { el?.scrollIntoView({ behavior: 'smooth' }) }} />}
+                        <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
                     </div>
                 </div>
             </div>
         );
     }
 
-    const renderPlant = (x, y) => (
-        <div className="absolute z-20" style={{ left: x, top: y }}>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] bg-[#c05a3c] rounded-full border-[8px] border-[#9c452e] shadow-xl"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] pointer-events-none">
-                {[0, 45, 90, 135].map(deg => (
-                    <div key={deg} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[30px] bg-[#3e8549] rounded-full flex items-center`} style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 5px 15px rgba(0,0,0,0.4)', zIndex: deg }}>
-                        <div className="w-full h-[2px] bg-[#2d6335]"></div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-
-    const renderBookshelf = (x, y) => (
-        <div className="absolute z-10 bg-[#e08e50] border-[12px] border-[#b86b35] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-2" style={{ left: x, top: y, width: 140, height: 450 }}>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1">
-                <div className="w-4 h-10 bg-red-600 shadow-sm border-l border-white/20"></div><div className="w-5 h-12 bg-blue-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-14 bg-yellow-500 ml-2 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1 justify-end">
-                <div className="w-6 h-12 bg-emerald-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-9 bg-purple-600 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1">
-                <div className="w-5 h-14 bg-cyan-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-12 bg-red-500 shadow-sm border-l border-white/20"></div><div className="w-6 h-10 bg-slate-600 ml-4 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-        </div>
-    );
-
-    const renderWindow = (x, y) => (
-        <div className="absolute z-5 bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-[inset_0_0_50px_rgba(0,0,0,0.8),0_10px_30px_rgba(0,0,0,0.6)] overflow-hidden" style={{ left: x, top: y, width: 450, height: 180 }}>
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-[80px] flex items-end gap-[1px]">
-                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
-                    <div key={i} className={`flex-1 bg-[#090e1a] flex flex-wrap gap-1 p-1 items-start justify-center`} style={{ height: h }}>
-                        {Math.random() > 0.5 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
-                        {Math.random() > 0.7 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
-                    </div>
-                ))}
-            </div>
-            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
-        </div>
-    );
-
-    const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
-    const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
-
     return (
-        <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
-            {/* Viewport Container */}
-            <div
-                className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900"
-                style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
-            >
-                {/* World Container (Camera) */}
-                <div
-                    className="absolute inset-0 transition-transform duration-100 ease-out"
-                    style={{
-                        width: ROOM_WIDTH,
-                        height: ROOM_HEIGHT,
-                        transform: `translate(${-cameraX}px, ${-cameraY}px)`
-                    }}
-                >
-                    <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                        {/* Wood Floor */}
-                        <div className="absolute inset-0 opacity-80" style={{
-                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
-                        }}></div>
+        <div className="w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden relative">
+            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #000 40px, #000 80px)' }}></div>
+            <div className="text-white font-mono text-[10px] absolute top-8 left-8 opacity-40 uppercase tracking-[0.5em] pointer-events-none">POV_SESSION_01 // LEVEL 1</div>
+            <p className="text-red-500 font-bold fixed top-8 right-8 animate-pulse text-xs tracking-widest z-[1000]">
+                {isTimerRunning && `⚠️ CALL IN PROGRESS: ${formatTime(timer)}`}
+            </p>
 
-                        {/* Top Wall */}
-                        <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
+            {gameState === 'intro_pov' && (
+                <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden relative">
+                    <div
+                        className="w-full h-full transition-all duration-300"
+                        style={{
+                            backgroundImage: `url("${isPhotoZoomed ? "/assets/framezoom.png" : showPhoneNoti ? "/assets/phone_noti.png" : "/assets/temppho.png"}")`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                        }}
+                    />
 
-                        {/* Light Casts from Windows */}
-                        <div className="absolute top-[180px] left-[350px] w-[500px] h-[900px] bg-blue-400/10 z-0 transform skew-x-[-25deg] origin-top-left pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
-                        <div className="absolute top-[180px] right-[250px] w-[500px] h-[900px] bg-blue-400/10 z-0 transform skew-x-[25deg] origin-top-right pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
+                    {/* Narrative Reflection on Grandpa */}
+                    {isPhotoZoomed && (
+                        <div className="absolute bottom-20 w-full text-center animate-fadeIn pointer-events-none z-50">
+                            <p className="text-white/95 text-2xl font-serif italic tracking-wider drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] px-8">
+                                "Why did you leave so early, grandpa?"
+                            </p>
+                            <div className="mt-4 w-12 h-[2px] bg-white/30 mx-auto" />
+                        </div>
+                    )}
 
-                        {/* Windows */}
-                        {renderWindow(320, 0)}
-                        {renderWindow(930, 0)}
-
-                        {/* Bookshelves */}
-                        {renderBookshelf(60, 350)}
-                        {renderBookshelf(1400, 350)}
-
-                        {/* Potted Plants */}
-                        {renderPlant(180, 850)}
-                        {renderPlant(1420, 850)}
-
-                        {/* The Extravagant L-Shaped Desk */}
-                        <div className="absolute z-10" style={{ left: PHONE_DESK.x, top: PHONE_DESK.y, width: PHONE_DESK.w, height: PHONE_DESK.h }}>
-
-                            {/* Shadow underneath desk */}
-                            <div className="absolute -inset-10 top-[140px] bg-black/40 blur-2xl z-[-1] rounded-[100px]"></div>
-
-                            {/* Main Desk Board */}
-                            <div className="absolute right-0 top-0 w-full h-[140px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '16px solid #b86b35', borderRight: '12px solid #b86b35', borderLeft: '12px solid #b86b35' }}></div>
-
-                            {/* L-Return (Left side extension) */}
-                            <div className="absolute left-0 top-[140px] w-[140px] h-[210px] bg-[#e08e50] shadow-2xl rounded-b-sm" style={{ borderBottom: '16px solid #b86b35', borderLeft: '12px solid #b86b35', borderRight: '12px solid #b86b35' }}></div>
-
-                            {/* Monitors Setup */}
-                            <div className="absolute top-[-30px] left-1/2 -translate-x-1/2 flex items-end gap-2 drop-shadow-2xl z-30">
-                                {/* Left Angled Monitor */}
-                                <div className="w-[160px] h-[20px] bg-[#2a3b4c] rounded-sm flex justify-center transform -rotate-[24deg] translate-y-4 translate-x-4 border border-[#1e2a38] shadow-[0_15px_30px_rgba(0,0,0,0.8)] relative">
-                                    <div className="absolute -bottom-6 w-[120px] h-[10px] bg-cyan-400/20 blur-[6px] rounded-full"></div>
-                                    <div className="absolute top-full mt-1 w-[50px] h-[35px] bg-[#cbd5e1] rounded shadow-lg -z-10"></div>
-                                </div>
-                                {/* Main Center Monitor */}
-                                <div className="w-[200px] h-[22px] bg-[#2a3b4c] rounded border border-[#1e2a38] shadow-[0_15px_30px_rgba(0,0,0,0.8)] flex justify-center relative z-10">
-                                    <div className="absolute -bottom-8 w-[160px] h-[12px] bg-blue-400/20 blur-[8px] rounded-full"></div>
-                                    <div className="absolute top-full mt-1 w-[70px] h-[40px] bg-[#cbd5e1] rounded shadow-lg -z-10"></div>
-                                </div>
+                    {/* Initial Tutorial Hints */}
+                    {!isPhotoZoomed && !showPhoneNoti && (
+                        <div className="absolute right-[12%] top-[50%] -translate-y-full flex flex-col items-center pointer-events-none animate-bounce">
+                            <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl border border-white/50 text-[#8b5e3c] font-black uppercase tracking-[0.2em] text-[11px] mb-4">
+                                Inspect the photo frame
                             </div>
+                            <div className="w-1 h-8 bg-gradient-to-b from-white/90 to-transparent shadow-lg" />
+                        </div>
+                    )}
 
-                            {/* Spherical Desk Lamp */}
-                            <div className="absolute top-6 right-[30px] z-30 flex items-center justify-center">
-                                <div className="w-[45px] h-[45px] bg-white rounded-full shadow-[inset_-5px_-5px_10px_rgba(0,0,0,0.2),0_10px_20px_rgba(0,0,0,0.6)] border border-slate-200"></div>
-                                <div className="absolute -top-3 right-5 w-1.5 h-8 bg-slate-400 transform rotate-[35deg] rounded-full shadow-md"></div>
-                                {/* Ambient Lamp Glow */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] bg-amber-400/10 blur-[30px] rounded-full pointer-events-none"></div>
+                    {showPhoneNoti && (
+                        <div className="absolute left-[20%] top-[70%] -translate-y-full flex flex-col items-center pointer-events-none animate-bounce">
+                            <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl border border-white/50 text-cyan-700 font-black uppercase tracking-[0.2em] text-[11px] mb-4">
+                                Inspect the phone
                             </div>
+                            <div className="w-1 h-8 bg-gradient-to-b from-white/90 to-transparent shadow-lg" />
+                        </div>
+                    )}
 
-                            {/* Coffee Cup */}
-                            <div className="absolute top-20 left-[180px] w-[24px] h-[24px] bg-white rounded-full shadow-[5px_10px_15px_rgba(0,0,0,0.6)] border-2 border-slate-200 z-30">
-                                <div className="absolute top-1 left-1 w-3 h-3 bg-[#3a2010] rounded-full flex items-center justify-center overflow-hidden">
-                                    <div className="w-4 h-1 bg-amber-900/40 blur-[1px]"></div>
-                                </div>
-                                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-5 border-4 border-slate-300 rounded-l-full"></div>
-                            </div>
+                    {!isPhotoZoomed && !showPhoneNoti && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setIsPhotoZoomed(true); playSynthSound('wood_tap'); }}
+                            className="absolute right-[12%] top-[60%] w-[12%] h-[28%] bg-white/0 hover:bg-white/10 transition-all cursor-pointer rounded-sm group overflow-hidden"
+                            title="Look at photo"
+                        >
+                            <div className="absolute inset-0 border-2 border-white/0 group-hover:border-white/20 transition-all" />
+                        </button>
+                    )}
 
-                            {/* Keyboard */}
-                            <div className="absolute top-[80px] left-[230px] w-[110px] h-[36px] bg-slate-200 flex flex-wrap gap-[2px] p-1.5 rounded shadow-[0_5px_10px_rgba(0,0,0,0.4)] border border-slate-400 z-30 text-[0px]">
-                                {[...Array(30)].map((_, i) => <div key={i} className="w-[7px] h-[5px] bg-white rounded-sm shadow-sm border border-slate-100"></div>)}
-                            </div>
-
-                            {/* Mouse */}
-                            <div className="absolute top-[85px] left-[360px] w-[18px] h-[28px] bg-white rounded-full shadow-[0_5px_10px_rgba(0,0,0,0.4)] border border-slate-300 z-30 overflow-hidden">
-                                <div className="w-full h-1/2 border-b-2 border-slate-200 flex justify-center">
-                                    <div className="w-1 h-3 bg-slate-200 rounded-full mt-1"></div>
-                                </div>
-                                <div className="absolute -top-[40px] left-1/2 w-0.5 h-[40px] bg-slate-600 -translate-x-1/2 -z-10"></div>
-                            </div>
-
-                            {/* Stack of Books (left side) */}
-                            <div className="absolute top-[180px] left-[30px] z-30 shadow-xl transform -rotate-[15deg] group">
-                                <div className="w-[60px] h-[45px] bg-red-700 rounded-sm border-r-[6px] border-[#7f1d1d] shadow-md flex items-center justify-end pr-2"><div className="w-1 h-6 bg-yellow-400"></div></div>
-                                <div className="w-[55px] h-[40px] bg-amber-600 rounded-sm border-r-[6px] border-[#92400e] shadow-md absolute top-[-6px] left-[2px] transform rotate-3"></div>
-                                <div className="w-[50px] h-[35px] bg-white rounded-sm border-r-[6px] border-slate-300 shadow-md absolute top-[-10px] left-[4px] transform rotate-6 flex items-center justify-center">
-                                    <div className="w-[40px] h-[25px] bg-slate-100 border border-slate-200"></div>
+                    {/* Restricted Phone Interaction Area (Locked to physical phone on bottom-left) */}
+                    {showPhoneNoti && (
+                        <button
+                            onClick={() => setGameState('phone_intro')}
+                            className="absolute left-[21.5%] top-[81%] w-[8.5%] h-[13.5%] bg-white/0 hover:bg-cyan-400/5 transition-all cursor-pointer flex flex-col items-center justify-center -rotate-[15deg] group z-40"
+                            title="Open Phone"
+                        >
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center rotate-[15deg]">
+                                <div className="text-cyan-400 font-mono text-[9px] uppercase tracking-[0.2em] animate-pulse mb-1 whitespace-nowrap drop-shadow-md">Unlock Device</div>
+                                <div className="w-6 h-6 rounded-full border border-cyan-400/40 flex items-center justify-center animate-ping">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                                 </div>
                             </div>
+                        </button>
+                    )}
 
-                            {/* === THE INTERACTABLE PHONE === */}
-                            <div className="absolute top-[120px] left-[70px] z-40">
-                                <div className={`w-[28px] h-[50px] bg-slate-900 border-[3px] border-slate-700 rounded-lg shadow-2xl relative ${gameState === 'ringing' ? 'animate-[wiggle_0.2s_ease-in-out_infinite] shadow-[0_0_25px_rgba(239,68,68,1)]' : ''}`}>
-                                    {gameState === 'ringing' && (
-                                        <div className="absolute inset-0 bg-red-500/40 animate-pulse rounded border border-red-500"></div>
-                                    )}
-                                    <div className="absolute top-1 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-slate-700 rounded-full"></div>
+                    {showPhoneNoti && <div className="absolute inset-0 bg-cyan-400/5 animate-pulse pointer-events-none" />}
+                </div>
+            )}
+
+            {gameState === 'phone_intro' && (
+                <div className="w-full h-full bg-cover bg-center flex items-center justify-center relative overflow-hidden animate-fadeIn" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
+
+                    {/* Realistic Premium Phone Body */}
+                    <div className="w-[320px] h-[640px] bg-[#0a0a0a]/90 border-[6px] border-[#1a1a1a] rounded-[3.5rem] shadow-[0_0_100px_rgba(0,0,0,0.8),inset_0_0_20px_rgba(255,255,255,0.05)] relative overflow-hidden flex flex-col animate-zoomIn">
+                        {/* Dynamic Island / Notch */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center p-1">
+                            <div className="w-2 h-2 rounded-full bg-zinc-900 border border-zinc-800 ml-auto mr-4" />
+                        </div>
+
+                        {/* Status Bar */}
+                        <div className="flex justify-between items-center pt-8 pb-4 px-8 text-white text-[11px] font-bold tracking-tight">
+                            <span>10:42</span>
+                            <div className="flex items-center gap-1.5 opacity-90">
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12.01 21.49L23.64 7c-.45-.34-4.93-4-11.64-4C5.28 3 .81 6.66.36 7l11.63 14.49.01.01.01-.01z" fillOpacity=".3" /><path d="M4.77 12.5L12.01 21.49l7.24-8.99C18.85 12.24 16.1 10 12.01 10c-4.09 0-6.84 2.24-7.24 2.5z" /></svg>
+                                <span className="text-[9px] tracking-tighter">5G</span>
+                                <div className="w-5 h-2.5 border border-white/40 rounded-[2px] relative p-[1px]">
+                                    <div className="h-full bg-white rounded-[1px] w-[80%]" />
+                                    <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-0.5 h-1 bg-white/40 rounded-r-sm" />
                                 </div>
-                                {/* Phone glow */}
-                                {gameState === 'ringing' && (
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] bg-red-500/10 blur-[20px] rounded-full pointer-events-none -z-10"></div>
-                                )}
                             </div>
                         </div>
 
-                        {/* Ergonomic Office Chair */}
-                        <div className="absolute w-[100px] h-[100px] z-20 flex flex-col items-center drop-shadow-2xl" style={{ left: 750, top: 600 }}>
-                            <div className="w-[70px] h-[45px] bg-[#3a4f6d] rounded-t-2xl border-x-[6px] border-t-[6px] border-[#2c3e50] absolute -top-4 z-0"></div>
-                            <div className="w-[85px] h-[55px] bg-[#4a6285] rounded-b-[40px] border-b-[8px] border-[#2c3e50] relative z-10 shadow-[0_15px_30px_rgba(0,0,0,0.8)]">
-                                <div className="absolute -left-4 top-2 w-[16px] h-[35px] bg-[#3a4f6d] rounded-full shadow-lg border-2 border-[#2c3e50]"></div>
-                                <div className="absolute -right-4 top-2 w-[16px] h-[35px] bg-[#3a4f6d] rounded-full shadow-lg border-2 border-[#2c3e50]"></div>
-                            </div>
-                            <div className="absolute -bottom-8 w-6 h-6 rounded-full bg-slate-800 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-0 flex items-center justify-center">
-                                <div className="w-20 h-1.5 bg-slate-700 transform rotate-45 rounded-full"></div>
-                                <div className="absolute w-20 h-1.5 bg-slate-700 transform -rotate-45 rounded-full"></div>
-                            </div>
+                        {/* Lockscreen Clock */}
+                        <div className="flex flex-col items-center mt-6 mb-12 animate-fadeIn">
+                            <h1 className="text-white text-6xl font-light tracking-tight drop-shadow-lg">10:42</h1>
+                            <p className="text-white/80 text-sm font-medium mt-1">Saturday, March 7</p>
                         </div>
 
-                        <Player x={playerPos.x} y={playerPos.y} />
+                        {/* Notification Center */}
+                        <div className="flex-1 px-4 space-y-2.5 overflow-y-auto pb-10 scrollbar-hide" style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+                            <style dangerouslySetInnerHTML={{ __html: `.scrollbar-hide::-webkit-scrollbar { display: none; }` }} />
 
+                            {showCallNotification && (
+                                <div onClick={() => setGameState('phone_calling')} className="mb-2.5 bg-red-600/90 backdrop-blur-xl border border-red-400/30 p-4 rounded-[1.5rem] shadow-lg animate-dropdown-bounce cursor-pointer hover:bg-red-700 transition-all z-20 group relative overflow-hidden ring-2 ring-red-500/20">
+                                    <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                                    <div className="flex justify-between items-center mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-5 h-5 rounded-lg bg-white flex items-center justify-center text-[10px] text-red-600 shadow-sm font-bold animate-pulse">
+                                                <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>
+                                            </div>
+                                            <span className="text-white font-black text-[10px] tracking-widest uppercase">Ongoing Call</span>
+                                        </div>
+                                        <span className="text-white/60 text-[9px] font-bold uppercase tracking-wider animate-pulse">Now</span>
+                                    </div>
+                                    <h3 className="text-white text-sm font-black tracking-tight">UNKNOWN NUMBER</h3>
+                                    <div className="mt-1.5 py-1.5 bg-white/10 rounded-xl text-white text-[9px] font-mono tracking-[0.2em] group-hover:bg-white/20 transition-all border border-white/10 uppercase text-center">[ Swipe to Answer ]</div>
+                                </div>
+                            )}
+
+                            {[
+                                { id: 3, sender: "SecureBank", text: "CREDIT: ₹4,200,000.00 processed. New balance: ₹4,242,000.00", time: "Now", color: "bg-amber-500", important: true },
+                                { id: 2, sender: "Cousin Rohan", text: "Yo, I heard about the 42L! That is CRAZY. Grandpa really looked out for you.", time: "1m ago", color: "bg-green-500" },
+                                { id: 1, sender: "Aunt Meera", text: "So sorry to hear about Papa. He loved you so much, beta.", time: "2m ago", color: "bg-blue-500" }
+                            ].map((n, i) => {
+                                const showCount = 3 - i;
+                                return showCount <= visibleNotiCount && (
+                                    <div key={n.id} className="bg-white/10 backdrop-blur-xl border border-white/10 p-4 rounded-[1.5rem] shadow-xl animate-dropdown-bounce transition-all hover:bg-white/15">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-5 h-5 rounded-lg ${n.color} flex items-center justify-center text-[10px] text-white shadow-sm font-bold`}>
+                                                    {n.sender[0]}
+                                                </div>
+                                                <span className="text-white font-bold text-xs tracking-tight">{n.sender}</span>
+                                            </div>
+                                            <span className="text-white/40 text-[9px] font-medium uppercase tracking-wider">{n.time}</span>
+                                        </div>
+                                        <p className={`text-[11px] leading-relaxed ${n.important ? 'text-amber-300 font-semibold' : 'text-white/80'}`}>{n.text}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Home Indicator */}
+                        <div className="mt-auto mb-2 flex justify-center w-full">
+                            <div className="w-32 h-1.5 bg-white/30 rounded-full" />
+                        </div>
                     </div>
                 </div>
+            )}
 
-                {/* Interaction Prompt HUD overlay (Outside camera, pinned to screen) */}
-                {canInteract && gameState === 'ringing' && (
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)] z-[400] flex items-center gap-3 animate-bounce">
-                        <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
-                        <span>ANSWER PHONE</span>
-                    </div>
-                )}
-                {canInteract && gameState === 'post_call' && (
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] z-[400] flex items-center gap-3 animate-bounce">
-                        <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
-                        <span>USE PHONE</span>
-                    </div>
-                )}
+            {gameState === 'cinematic_call_intro' && (
+                <div className="absolute inset-0 bg-black z-[1000] flex flex-col items-center justify-center animate-cinematic-sequence">
+                    <div className="flex flex-col items-center relative">
+                        {/* Dramatic pulse rings */}
+                        <div className="absolute inset-0 bg-red-500/20 rounded-full blur-3xl animate-ping scale-[2.5] opacity-50" />
 
-                {/* Instruction HUD (Outside camera) */}
-                <div className="absolute top-4 left-4 text-emerald-500 font-mono text-xs z-[400] bg-black/60 p-2 rounded">
-                    {gameState === 'post_call' ? (
-                        <>Objective: Report the scam. Go to the phone and call <span className="text-yellow-400 font-bold">1930</span>.<br />Controls: W A S D to move.</>
-                    ) : (
-                        <>Objective: Investigate the ringing phone.<br />Controls: W A S D to move.</>
+                        <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mb-8 animate-[width_1.5s_ease-in-out]" />
+
+                        <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative opacity-0" style={{ animation: 'fadeIn 1s forwards, surge 3s infinite' }}>
+                            <span className="relative z-10">Level 1</span>
+                            {/* Chromatic aberration layers */}
+                            <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-aberration">Level 1</span>
+                            <span className="absolute inset-0 text-cyan-400 opacity-60 -translate-x-1 -z-10 animate-aberration-alt">Level 1</span>
+                        </h2>
+
+                        <h3 className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase opacity-0 font-bold" style={{ animation: 'fadeIn 1s forwards 1.2s' }}>
+                            The OTP Trap
+                        </h3>
+
+                        <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mt-12 animate-[width_1.5s_ease-in-out]" />
+
+                        {/* Tension metadata */}
+                        <div className="mt-8 text-[8px] font-mono text-zinc-800 tracking-widest uppercase animate-pulse">
+                            Initialising Fraud Sequence... [33%] [66%] [99%]
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {gameState === 'phone_calling' && (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-cover bg-center text-white p-8 relative animate-fadeIn" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    <div className="w-80 h-[600px] bg-zinc-950/90 border-8 border-zinc-800 rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col items-center justify-center p-6 animate-zoomIn">
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-zinc-800 rounded-b-2xl"></div>
+                        <div className="flex flex-col items-center animate-pulse">
+                            <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.4)]">
+                                <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white animate-bounce" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg></div>
+                            </div>
+                            <h2 className="text-2xl font-bold mb-1 tracking-wider text-red-500">UNKNOWN NUMBER</h2>
+                            <p className="text-zinc-500 font-mono text-sm uppercase mb-1">Incoming Call...</p>
+                        </div>
+                        <div className="absolute bottom-16 flex w-full justify-around px-8">
+                            <button className="w-16 h-16 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105" onClick={() => { setFeedbackMsg("They keep calling back... must be important."); setTimeout(() => setFeedbackMsg(null), 2000); }}><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white transform rotate-[135deg]" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg></button>
+                            <button className="w-16 h-16 bg-green-500 hover:bg-green-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.6)] transition-transform hover:scale-110 animate-pulse" onClick={handleAnswerPhone}><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg></button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {['active_call', 'scammer_reveal', 'final_decision'].includes(gameState) && (
+                <div className="w-full h-full flex items-center justify-center bg-cover bg-center p-4 relative" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                    {feedbackMsg && <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-4 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.8)] z-[500] font-bold text-center animate-bounce border-2 border-red-300">{feedbackMsg}</div>}
+                    <div className={`w-[380px] h-[750px] bg-zinc-900/95 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center z-10 transition-transform duration-500 ease-in-out ${isDetectiveModeOpen ? '-translate-x-[250px]' : 'translate-x-0'}`}>
+                        <div className="w-full bg-zinc-800 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-zinc-700 z-10">
+                            <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">📞</div>
+                            <h2 className="text-xl font-bold text-white tracking-widest">UNKNOWN CALLER</h2>
+                            <div className="text-green-400 font-mono text-lg animate-pulse">{isTimerRunning ? formatTime(timer) : '00:00'}</div>
+                        </div>
+                        <div className="flex gap-1 h-12 items-center mt-6">
+                            {[...Array(15)].map((_, i) => (
+                                <div key={i} className="w-2 bg-blue-500 rounded-full animate-pulse" style={{ height: `${20 + Math.random() * 30}px`, animationDelay: `${i * 0.1}s` }}></div>
+                            ))}
+                        </div>
+                        <div className="flex-1 w-full flex flex-col justify-start p-4 pb-20 gap-3 overflow-y-auto custom-scrollbar">
+                            {chatHistory.map((msg, idx) => {
+                                const isLast = idx === chatHistory.length - 1;
+                                if (msg.type === 'scammer') {
+                                    const fullText = msg.parts.map(p => p.text).join('');
+                                    return (
+                                        <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700">
+                                            <span className="text-xs text-blue-400 font-bold mb-1 block">CALLER</span>
+                                            {isLast && !isTypingDone ? (<span>{fullText.slice(0, typingProgress)}<span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" /></span>) : (
+                                                msg.parts.map((p, i) => (
+                                                    p.isDraggable && isLast && isTypingDone ? (
+                                                        <span key={i} className="relative inline-block">
+                                                            <span draggable onDragStart={(e) => {
+                                                                e.dataTransfer.setData('application/json', JSON.stringify({ id: p.clueId, title: p.title, desc: p.desc, isFake: p.isFake }));
+                                                                if (!isDetectiveModeOpen) {
+                                                                    setIsDetectiveModeOpen(true);
+                                                                    playSynthSound('board_opening');
+                                                                }
+                                                                playSynthSound('clue_drag');
+                                                            }} className="cursor-grab border-b-2 border-dashed border-red-500 hover:bg-red-500/20 rounded px-1 text-red-100 transition-colors inline-block animate-pulse">
+                                                                {p.text}
+                                                            </span>
+
+                                                            {tutorialStep === 1 && (
+                                                                <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 z-[600] animate-bounce pointer-events-none">
+                                                                    <div className="bg-cyan-500 text-white text-[10px] font-bold py-2 p-3 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.5)] border border-cyan-300 relative">
+                                                                        <div className="uppercase tracking-[0.1em] mb-1">🔍 Forensic Lead</div>
+                                                                        Drag this to the left!
+                                                                        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-cyan-500 rotate-45 border-r border-b border-cyan-300"></div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </span>
+                                                    ) : p.isHighlighted ? <span key={i} className="text-yellow-300 border-b border-yellow-500/50">{p.text}</span> : <span key={i}>{p.text}</span>
+                                                ))
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                if (msg.type === 'player') return <div key={idx} className="w-full flex justify-end"><div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">"{msg.text}"</div></div>;
+                                if (msg.type === 'reply') return <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700"><span className="text-xs text-blue-400 font-bold mb-1 block">CALLER</span>{isLast && !isTypingDone ? (<span>{msg.text.slice(0, typingProgress)}<span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" /></span>) : <span className="text-white">{msg.text}</span>}</div>;
+                                return null;
+                            })}
+                            {showingOptions && dialogueSequence[dialogueIndex]?.speaker === 'PLAYER' && (
+                                <div className="w-full flex flex-col gap-3 mt-4 items-end animate-fadeIn">
+                                    <span className="text-xs text-emerald-400 font-bold self-start ml-4 uppercase">Your response:</span>
+                                    {dialogueSequence[dialogueIndex].options.map((opt, i) => <button key={i} onClick={() => handleOptionClick(opt)} className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-xl transition-all border-2 border-blue-400 hover:scale-105 active:scale-95 text-sm">"{opt.text}"</button>)}
+                                </div>
+                            )}
+                            {isTypingDone && !showingOptions && gameState === 'active_call' && (
+                                <button className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors" onClick={handleContinue}>[ Continue... ]</button>
+                            )}
+                            <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
+                        </div>
+                        {isSmsVisible && !isSmsExpanded && (
+                            <div className="absolute top-28 left-4 right-4 bg-slate-100 text-slate-900 rounded-2xl p-4 shadow-2xl border border-slate-300 cursor-pointer animate-dropdown z-50 transition-all hover:bg-white" onClick={() => setIsSmsExpanded(true)}>
+                                <div className="flex items-center gap-2 mb-1"><span className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-[10px]">M</span><span className="font-bold text-sm">BANK SMS</span></div>
+                                <p className="text-xs truncate">Your OTP is 584921 for transaction...</p>
+                            </div>
+                        )}
+                        {isSmsExpanded && (
+                            <div className="absolute bottom-0 left-0 w-full h-[55%] bg-slate-100 text-slate-900 rounded-t-3xl p-6 shadow-2xl z-50 flex flex-col border-t-2 border-slate-300 animate-slideUp">
+                                <p className="text-lg leading-snug mb-4">Your OTP is <strong className="text-3xl text-blue-600 tracking-widest block mt-2">584921</strong></p>
+                                <div className="bg-red-100 border-l-4 border-red-500 p-3 mt-auto mb-4 animate-[pulse_2s_infinite]">
+                                    <p draggable onDragStart={(e) => {
+                                        e.dataTransfer.setData('application/json', JSON.stringify({ id: 4, title: "The Warning is IN the SMS", desc: "The SMS directly says to NEVER share the OTP with bank officials." }));
+                                        if (!isDetectiveModeOpen) {
+                                            setIsDetectiveModeOpen(true);
+                                            playSynthSound('board_opening');
+                                        }
+                                        playSynthSound('clue_drag');
+                                    }} className="text-xs text-red-700 font-bold uppercase cursor-grab">⚠️ DO NOT SHARE THIS OTP WITH ANYONE, INCLUDING BANK OFFICIALS.</p>
+                                </div>
+                                <button className="w-full py-3 bg-slate-300 hover:bg-slate-400 font-bold rounded-xl" onClick={() => setIsSmsExpanded(false)}>CLOSE</button>
+                            </div>
+                        )}
+
+                        {gameState === 'final_decision' && (
+                            <div className="absolute inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-6 text-center animate-fadeIn">
+                                <h3 className="text-red-500 font-black text-xl mb-6 tracking-widest uppercase">CRITICAL CHOICE</h3>
+                                <div className="space-y-4 w-full">
+                                    <button
+                                        onClick={handleGameOver}
+                                        className="w-full p-4 bg-red-900/40 hover:bg-red-900/60 border-2 border-red-500 text-white rounded-2xl transition-all font-bold"
+                                    >
+                                        Share the OTP
+                                        <p className="text-[10px] text-red-300 font-normal mt-1 opacity-70 italic">"Here is the number: 584921..."</p>
+                                    </button>
+                                    <button
+                                        onClick={handleVictory}
+                                        className="w-full p-4 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500 text-white rounded-2xl transition-all font-bold"
+                                    >
+                                        Hang Up
+                                        <p className="text-[10px] text-emerald-300 font-normal mt-1 opacity-70 italic">Disconnect from the call immediately.</p>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                        <button className="absolute bottom-6 left-6 w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg border-2 border-amber-300 z-50 text-2xl" onClick={() => {
+                            if (!isDetectiveModeOpen) playSynthSound('board_opening');
+                            setIsDetectiveModeOpen(!isDetectiveModeOpen);
+                        }}>🔍</button>
+                    </div>
+
+                    {isDetectiveModeOpen && (
+                        <div className="absolute inset-y-12 right-12 w-[680px] bg-stone-200 rounded-lg shadow-2xl z-[200] p-10 flex flex-col border-[20px] border-[#4a2e1a] overflow-hidden" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`, backgroundColor: '#dcc6a0' }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
+                            e.preventDefault(); try {
+                                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                                if (data.isFake) { adjustAssets(-1000); setFeedbackMsg("Invalid Clue!"); setTimeout(() => setFeedbackMsg(null), 2000); }
+                                else if (!clues.find(c => c.id === data.id) && clues.length < 6) {
+                                    setClues(prev => [...prev, data]);
+                                    playSynthSound('clue_pin');
+                                    if (tutorialStep === 1) {
+                                        setTutorialStep(2);
+                                    }
+                                }
+                            } catch (err) { }
+                        }}>
+                            <div className="flex justify-between items-center mb-8 z-10 bg-white/90 backdrop-blur-sm p-4 rounded shadow-lg border-b-4 border-stone-400 self-stretch"><h2 className="text-2xl font-black text-stone-800 uppercase tracking-[0.2em] font-mono">🔍 Digital Evidence Wall</h2><button className="text-red-600 hover:text-red-700 font-black text-2xl transition-colors" onClick={() => setIsDetectiveModeOpen(false)}>✖</button></div>
+
+                            {tutorialStep === 2 && (
+                                <div className="absolute top-24 left-1/2 -translate-x-1/2 w-80 bg-stone-900/95 text-white p-6 rounded-lg shadow-2xl border-2 border-amber-500 z-[300] animate-fadeIn">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center text-stone-900 font-black">!</div>
+                                        <h4 className="text-amber-500 font-black uppercase tracking-widest text-sm">Forensic Discovery</h4>
+                                    </div>
+                                    <p className="text-stone-300 text-xs leading-relaxed mb-6">
+                                        Great work! These kind of <span className="text-red-500 font-bold">red lines</span> are clues which we can use to know if it is a scam or not.
+                                    </p>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setTutorialStep(0);
+                                            setHasSeenClueTutorial(true);
+                                        }}
+                                        className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold rounded shadow-lg transition-colors text-xs uppercase"
+                                    >
+                                        Got it
+                                    </button>
+                                </div>
+                            )}
+                            {/* 2x3 Grid Layout */}
+                            <div className="flex-1 grid grid-cols-2 grid-rows-3 gap-6 relative p-4">
+                                {[0, 1, 2, 3, 4, 5].map((idx) => {
+                                    const clue = clues[idx];
+                                    return (
+                                        <div key={idx} className="relative border-4 border-dashed border-stone-400/30 rounded-xl bg-stone-300/20 shadow-inner flex flex-col items-center justify-center group overflow-hidden transition-all hover:bg-stone-300/40">
+                                            {!clue ? (
+                                                <div className="text-stone-400 font-mono text-[10px] uppercase tracking-widest animate-pulse font-bold">
+                                                    Slot 0{idx + 1} Empty
+                                                </div>
+                                            ) : (
+                                                <div className="w-full h-full p-4 bg-white/95 shadow-xl border-l-4 border-red-600 flex flex-col animate-pin-bounce">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="w-2 h-2 rounded-full bg-red-600" />
+                                                        <h3 className="text-[12px] font-black uppercase text-red-700 leading-tight">{clue.title}</h3>
+                                                    </div>
+                                                    <p className="text-[10px] text-stone-700 leading-relaxed font-medium mb-3 italic">"{clue.desc}"</p>
+
+                                                    {/* Decorative string connection effects */}
+                                                    <div className="mt-auto pt-2 border-t border-stone-100 flex justify-between items-center">
+                                                        <span className="text-[8px] text-stone-400 font-mono uppercase tracking-tighter">Verified Clue</span>
+                                                        <div className="flex gap-0.5">
+                                                            <div className="w-1 h-1 rounded-full bg-amber-500" />
+                                                            <div className="w-3 h-1 rounded-full bg-amber-500/20" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Decorative Corner Tabs */}
+                                            <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-stone-400/50" />
+                                            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-stone-400/50" />
+                                            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-stone-400/50" />
+                                            <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-stone-400/50" />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
                 </div>
+            )}
 
-                {/* POST-CALL ALERT BANNER (Outside camera) */}
-                {gameState === 'post_call' && (
-                    <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[400] bg-yellow-500/90 text-black px-8 py-4 rounded-xl shadow-[0_0_30px_rgba(234,179,8,0.6)] font-bold text-center animate-pulse max-w-lg">
-                        📞 You need to report this to the Cyber Crime Helpline!<br />
-                        <span className="text-2xl">Dial 1930</span> from the phone on your desk.
+            {gameState === 'cinematic_outro' && (
+                <div className="absolute inset-0 z-[2000] overflow-hidden bg-black">
+                    {outroStep === 1 && (
+                        <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/framezoom.png")' }}>
+                            <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
+                            <div className="absolute bottom-24 w-full text-center animate-fadeInSlow">
+                                <p className="text-white text-4xl font-serif italic tracking-wide drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] px-16 leading-relaxed">
+                                    "Is this who you warned me about, grandpa?"
+                                </p>
+                                <div className="mt-8 w-32 h-[1px] bg-gradient-to-r from-transparent via-white/60 to-transparent mx-auto animate-shimmerWidth" />
+                            </div>
+                        </div>
+                    )}
+
+                    {(outroStep === 2 || outroStep === 3) && (
+                        <div className="w-full h-full bg-stone-950 flex flex-col items-center justify-center animate-fadeIn relative overflow-hidden">
+                            {/* Scanning line effects */}
+                            <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
+                            <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-500/5 to-transparent animate-scanLine pointer-events-none" />
+
+                            <div className="relative group text-center">
+                                <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                                <h2 className="text-white text-6xl font-black tracking-[0.5em] uppercase mb-12 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                                    Level 1: The OTP Trap
+                                    {outroStep === 3 && callOutcome === 'won' && (
+                                        <div className="absolute top-1/2 left-[-10%] w-[120%] h-3 bg-red-600/90 -translate-y-1/2 animate-strikeThrough shadow-[0_0_25px_rgba(220,38,38,1)] z-20 skew-y-[-1deg]" />
+                                    )}
+                                </h2>
+
+                                {outroStep === 3 && (
+                                    <div className={`mt-12 text-8xl font-black italic tracking-[0.2em] uppercase animate-surge relative ${callOutcome === 'won' ? 'text-emerald-500' : 'text-red-600'}`}>
+                                        <span className="relative z-10">{callOutcome === 'won' ? 'COMPLETED' : 'FAILED'}</span>
+                                        {/* Chromatic aberration for text */}
+                                        <span className={`absolute inset-0 opacity-40 translate-x-1 animate-aberration ${callOutcome === 'won' ? 'text-cyan-400' : 'text-red-400'}`}>{callOutcome === 'won' ? 'COMPLETED' : 'FAILED'}</span>
+                                        <span className={`absolute inset-0 opacity-40 -translate-x-1 animate-aberration-alt ${callOutcome === 'won' ? 'text-emerald-300' : 'text-orange-600'}`}>{callOutcome === 'won' ? 'COMPLETED' : 'FAILED'}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-20 flex flex-col items-center gap-4">
+                                <div className="h-px w-80 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+                                <div className="text-[11px] font-mono text-zinc-500 tracking-[0.8em] uppercase opacity-60 animate-pulse">
+                                    Digital Forensics Session // {callOutcome === 'won' ? 'STATUS_CLEARED' : 'STATUS_COMPROMISED'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {gameState === 'game_over' && (
+                <div className="absolute inset-0 bg-red-950/40 z-[500] backdrop-blur-xl text-white flex flex-col items-center justify-center p-12 text-center animate-fadeIn">
+                    <div className="max-w-3xl bg-black/60 border border-red-500/30 p-16 rounded-[2rem] shadow-[0_0_100px_rgba(220,38,38,0.2)] relative overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.4)_0%,transparent_70%)]" />
+
+                        <div className="w-24 h-24 bg-red-600/20 border-2 border-red-500 rounded-full flex items-center justify-center mb-10 mx-auto shadow-[0_0_30px_rgba(220,38,38,0.4)] animate-pulse">
+                            <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        </div>
+
+                        <h1 className="text-7xl font-black text-red-500 tracking-[0.2em] mb-6 uppercase drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">Critical Breach</h1>
+                        <p className="text-xl text-red-200/80 max-w-xl mx-auto mb-16 leading-relaxed font-medium">The OTP was compromised. Grandpa's legacy fund has been completely drained by a coordinated transfer.</p>
+
+                        <button
+                            className="group relative px-12 py-6 bg-red-600 hover:bg-red-500 text-white font-black tracking-[0.3em] uppercase rounded-xl shadow-2xl transition-all hover:scale-105 active:scale-95"
+                            onClick={() => { setGameState('calling_1930'); setCallOutcome('lost'); }}
+                        >
+                            <span className="relative z-10">Emergency: Call 1930</span>
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                        </button>
                     </div>
-                )}
+                </div>
+            )}
 
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                    @keyframes wiggle {
-                        0%, 100% { transform: rotate(-5deg); }
-                        50% { transform: rotate(5deg); }
-                    }
-                ` }} />
+            {gameState === 'victory' && (
+                <div className="absolute inset-0 bg-emerald-950/40 z-[500] backdrop-blur-xl text-white flex flex-col items-center justify-center p-12 text-center animate-fadeIn">
+                    <div className="max-w-3xl bg-black/60 border border-emerald-500/30 p-16 rounded-[2rem] shadow-[0_0_100px_rgba(16,185,129,0.2)] relative overflow-hidden">
+                        <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.4)_0%,transparent_70%)]" />
 
-                {/* GAME OVER OVERLAY (Pinned to screen) */}
-                {
-                    gameState === 'game_over' && (
-                        <div className="absolute inset-0 bg-red-950/90 z-[500] backdrop-blur text-white flex flex-col items-center justify-center p-12 text-center overflow-hidden animate-fadeIn fixed">
-                            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #000 40px, #000 80px)' }}></div>
-                            <h1 className="text-7xl font-black text-red-500 tracking-widest mb-6 drop-shadow-[0_0_20px_rgba(239,68,68,1)] z-10">GAME OVER</h1>
-                            <h2 className="text-4xl font-bold mb-10 z-10">You Shared the OTP.</h2>
-
-                            <div className="bg-black/50 border border-red-900 p-8 rounded-2xl max-w-2xl mb-12 shadow-xl z-10">
-                                <p className="text-xl text-red-200 mb-6 leading-relaxed">
-                                    In exactly 28 seconds, the fraudster used your OTP to authenticate a net banking transfer.
-                                    The funds were instantly scattered across 7 mule accounts.
-                                </p>
-                                <div className="flex justify-between font-mono text-red-500 border-t border-red-900 pt-4">
-                                    <span>ASSETS LOST:</span>
-                                    <span className="font-bold text-2xl">-₹1,00,000</span>
-                                </div>
-                            </div>
-
-                            <button
-                                className="px-8 py-4 bg-red-600 hover:bg-red-500 text-white font-bold tracking-widest uppercase rounded tracking-[0.2em] shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all z-10 relative"
-                                onClick={() => {
-                                    setCallOutcome('lost');
-                                    setGameState('post_call');
-                                }}
-                            >
-                                [ RETURN TO ROOM ]
-                            </button>
+                        <div className="w-24 h-24 bg-emerald-600/20 border-2 border-emerald-500 rounded-full flex items-center justify-center mb-10 mx-auto shadow-[0_0_30px_rgba(16,185,129,0.4)]">
+                            <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                         </div>
-                    )
+
+                        <h1 className="text-7xl font-black text-emerald-400 tracking-[0.2em] mb-6 uppercase drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">Case Closed</h1>
+                        <p className="text-xl text-emerald-200/80 max-w-xl mx-auto mb-16 leading-relaxed font-medium">You identified the scam and secured the assets. Grandpa would be proud of your digital vigilance.</p>
+
+                        <button
+                            className="group relative px-12 py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-[0.3em] uppercase rounded-xl shadow-2xl transition-all hover:scale-105 active:scale-95"
+                            onClick={() => { setGameState('calling_1930'); setCallOutcome('won'); }}
+                        >
+                            <span className="relative z-10">Formal Report: 1930</span>
+                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @keyframes wiggle { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+                @keyframes dropdown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes fadeInDelay { 0%, 50% { opacity: 0; } 100% { opacity: 1; } }
+                @keyframes zoomIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+                @keyframes width { from { width: 0; opacity: 0; } to { width: 8rem; opacity: 0.8; } }
+                @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
+                @keyframes fieldZoom { from { transform: scale(1); } to { transform: scale(1.1); } }
+                @keyframes shimmerWidth { from { width: 0; } to { width: 8rem; } }
+                @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
+                @keyframes surge {
+                    0%, 100% { transform: scale(1); filter: brightness(1); }
+                    50% { transform: scale(1.08) filter: brightness(1.3) drop-shadow(0 0 40px rgba(255,255,255,0.4)); }
                 }
-
-                {/* VICTORY OVERLAY (Pinned to screen) */}
-                {
-                    gameState === 'victory' && (
-                        <div className="absolute inset-0 bg-emerald-950/90 z-[500] backdrop-blur text-white flex flex-col items-center justify-center p-12 text-center overflow-hidden animate-fadeIn fixed">
-                            <div className="absolute inset-0 bg-black/50"></div>
-
-                            <div className="w-32 h-32 bg-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(16,185,129,0.8)] z-10">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 text-emerald-950" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-
-                            <h1 className="text-6xl font-black text-emerald-400 tracking-widest mb-6 drop-shadow-[0_0_20px_rgba(16,185,129,0.8)] z-10 uppercase">Assets Secured</h1>
-
-                            <div className="bg-black/60 border border-emerald-900 p-8 rounded-2xl max-w-2xl mb-12 shadow-xl z-10">
-                                <p className="text-lg text-emerald-100 mb-6 leading-relaxed text-left">
-                                    You hung up the phone. A real bank never needs your OTP to lock your account.
-                                    By maintaining your composure under pressure and evaluating the clues, you protected your grandfather's inheritance.
-                                </p>
-                                <div className="flex justify-between items-center text-emerald-400 border-t border-emerald-900 pt-4 font-mono">
-                                    <span className="uppercase tracking-widest">Digital Assets Protected:</span>
-                                    <span className="font-bold text-2xl font-sans">₹42,00,000</span>
-                                </div>
-                                <div className="flex justify-between items-center text-cyan-400 border-t border-emerald-900 pt-4 mt-2 font-mono">
-                                    <span className="uppercase tracking-widest">Cyber Safety Score:</span>
-                                    <span className="font-bold text-2xl font-sans">+500 PTS</span>
-                                </div>
-                            </div>
-
-                            <button
-                                className="px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest uppercase rounded tracking-[0.2em] shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all z-10 relative"
-                                onClick={() => {
-                                    setCallOutcome('won');
-                                    setGameState('post_call');
-                                }}
-                            >
-                                [ RETURN TO ROOM ]
-                            </button>
-                        </div>
-                    )
+                @keyframes fadeInSlow { from { opacity: 0; } 30% { opacity: 1; } to { opacity: 1; } }
+                @keyframes pin-bounce {
+                    0% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+                    60% { transform: scale(1.1) translateY(5px); opacity: 1; }
+                    100% { transform: scale(1) translateY(0); opacity: 1; }
                 }
-
-            </div>
+                @keyframes aberration {
+                    0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                    25% { transform: translate(-4px, 2px); opacity: 0.8; }
+                    50% { transform: translate(4px, -2px); opacity: 0.6; }
+                    75% { transform: translate(-2px, -4px); opacity: 0.8; }
+                }
+                @keyframes aberration-alt {
+                    0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                    25% { transform: translate(4px, -2px); opacity: 0.8; }
+                    50% { transform: translate(-4px, 2px); opacity: 0.6; }
+                    75% { transform: translate(2px, 4px); opacity: 0.8; }
+                }
+                @keyframes cinematic-sequence {
+                    0% { opacity: 0; }
+                    15% { opacity: 1; }
+                    85% { opacity: 1; }
+                    100% { opacity: 0; }
+                }
+            ` }} />
         </div>
     );
 };
-
 
 export default Level1;
