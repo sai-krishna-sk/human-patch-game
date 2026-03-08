@@ -360,110 +360,17 @@ const Level11 = () => {
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     <div className="absolute inset-0 transition-transform duration-100 ease-out" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT, transform: `translate(${-cameraX}px, ${-cameraY}px)` }}>
                         <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                            {/* Wood Floor */}
-                            <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
+                            {/* Room Background Image */}
+                            <div
+                                className="absolute inset-0 z-0"
+                                style={{
+                                    backgroundImage: "url('/assets/study.png')",
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'south'
+                                }}
+                            />
 
-                            {/* Top Wall */}
-                            <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
 
-                            {/* Light Casts from Windows */}
-                            <div className="absolute top-[180px] left-[350px] w-[500px] h-[900px] bg-blue-400/10 z-0 transform skew-x-[-25deg] origin-top-left pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
-                            <div className="absolute top-[180px] right-[250px] w-[500px] h-[900px] bg-blue-400/10 z-0 transform skew-x-[25deg] origin-top-right pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
-
-                            {/* Windows */}
-                            {renderWindow(320, 0)}
-                            {renderWindow(930, 0)}
-
-                            {/* Bookshelves */}
-                            {renderBookshelf(60, 350)}
-                            {renderBookshelf(1400, 350)}
-
-                            {/* Potted Plants */}
-                            {renderPlant(180, 850)}
-                            {renderPlant(1420, 850)}
-
-                            {/* The L-Shaped Desk */}
-                            <div className="absolute z-10" style={{ left: PHONE_DESK.x, top: PHONE_DESK.y, width: PHONE_DESK.w, height: PHONE_DESK.h }}>
-                                {/* Shadow underneath desk */}
-                                <div className="absolute -inset-10 top-[140px] bg-black/40 blur-2xl z-[-1] rounded-[100px]"></div>
-
-                                {/* Main Desk Board */}
-                                <div className="absolute right-0 top-0 w-full h-[140px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '16px solid #b86b35', borderRight: '12px solid #b86b35', borderLeft: '12px solid #b86b35' }}></div>
-
-                                {/* L-Return */}
-                                <div className="absolute left-0 top-[140px] w-[140px] h-[210px] bg-[#e08e50] shadow-2xl rounded-b-sm" style={{ borderBottom: '16px solid #b86b35', borderLeft: '12px solid #b86b35', borderRight: '12px solid #b86b35' }}></div>
-
-                                {/* Monitors Setup */}
-                                <div className="absolute top-[-30px] left-1/2 -translate-x-1/2 flex items-end gap-2 drop-shadow-2xl z-30">
-                                    <div className="w-[160px] h-[20px] bg-[#2a3b4c] rounded-sm flex justify-center transform -rotate-[24deg] translate-y-4 translate-x-4 border border-[#1e2a38] shadow-[0_15px_30px_rgba(0,0,0,0.8)] relative">
-                                        <div className="absolute -bottom-6 w-[120px] h-[10px] bg-cyan-400/20 blur-[6px] rounded-full"></div>
-                                        <div className="absolute top-full mt-1 w-[50px] h-[35px] bg-[#cbd5e1] rounded shadow-lg -z-10"></div>
-                                    </div>
-                                    <div className="w-[200px] h-[22px] bg-[#2a3b4c] rounded border border-[#1e2a38] shadow-[0_15px_30px_rgba(0,0,0,0.8)] flex justify-center relative z-10">
-                                        <div className="absolute -bottom-8 w-[160px] h-[12px] bg-blue-400/20 blur-[8px] rounded-full"></div>
-                                        <div className="absolute top-full mt-1 w-[70px] h-[40px] bg-[#cbd5e1] rounded shadow-lg -z-10"></div>
-                                    </div>
-                                </div>
-
-                                {/* Desk Lamp */}
-                                <div className="absolute top-6 right-[30px] z-30 flex items-center justify-center">
-                                    <div className="w-[45px] h-[45px] bg-white rounded-full shadow-[inset_-5px_-5px_10px_rgba(0,0,0,0.2),0_10px_20px_rgba(0,0,0,0.6)] border border-slate-200"></div>
-                                    <div className="absolute -top-3 right-5 w-1.5 h-8 bg-slate-400 transform rotate-[35deg] rounded-full shadow-md"></div>
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] bg-amber-400/10 blur-[30px] rounded-full pointer-events-none"></div>
-                                </div>
-
-                                {/* Coffee Cup */}
-                                <div className="absolute top-20 left-[180px] w-[24px] h-[24px] bg-white rounded-full shadow-[5px_10px_15px_rgba(0,0,0,0.6)] border-2 border-slate-200 z-30">
-                                    <div className="absolute top-1 left-1 w-3 h-3 bg-[#3a2010] rounded-full flex items-center justify-center overflow-hidden">
-                                        <div className="w-4 h-1 bg-amber-900/40 blur-[1px]"></div>
-                                    </div>
-                                    <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-5 border-4 border-slate-300 rounded-l-full"></div>
-                                </div>
-
-                                {/* Keyboard */}
-                                <div className="absolute top-[80px] left-[230px] w-[110px] h-[36px] bg-slate-200 flex flex-wrap gap-[2px] p-1.5 rounded shadow-[0_5px_10px_rgba(0,0,0,0.4)] border border-slate-400 z-30 text-[0px]">
-                                    {[...Array(30)].map((_, i) => <div key={i} className="w-[7px] h-[5px] bg-white rounded-sm shadow-sm border border-slate-100"></div>)}
-                                </div>
-
-                                {/* Mouse */}
-                                <div className="absolute top-[85px] left-[360px] w-[18px] h-[28px] bg-white rounded-full shadow-[0_5px_10px_rgba(0,0,0,0.4)] border border-slate-300 z-30 overflow-hidden">
-                                    <div className="w-full h-1/2 border-b-2 border-slate-200 flex justify-center">
-                                        <div className="w-1 h-3 bg-slate-200 rounded-full mt-1"></div>
-                                    </div>
-                                    <div className="absolute -top-[40px] left-1/2 w-0.5 h-[40px] bg-slate-600 -translate-x-1/2 -z-10"></div>
-                                </div>
-
-                                {/* Stack of Books */}
-                                <div className="absolute top-[180px] left-[30px] z-30 shadow-xl transform -rotate-[15deg] group">
-                                    <div className="w-[60px] h-[45px] bg-red-700 rounded-sm border-r-[6px] border-[#7f1d1d] shadow-md flex items-center justify-end pr-2"><div className="w-1 h-6 bg-yellow-400"></div></div>
-                                    <div className="w-[55px] h-[40px] bg-amber-600 rounded-sm border-r-[6px] border-[#92400e] shadow-md absolute top-[-6px] left-[2px] transform rotate-3"></div>
-                                    <div className="w-[50px] h-[35px] bg-white rounded-sm border-r-[6px] border-slate-300 shadow-md absolute top-[-10px] left-[4px] transform rotate-6 flex items-center justify-center">
-                                        <div className="w-[40px] h-[25px] bg-slate-100 border border-slate-200"></div>
-                                    </div>
-                                </div>
-
-                                {/* The Phone */}
-                                <div className="absolute top-[120px] left-[70px] z-40">
-                                    <div className={`w-[28px] h-[50px] bg-slate-900 border-[3px] border-slate-700 rounded-lg shadow-2xl relative ${callStatus === 'idle' ? 'animate-[wiggle_0.2s_ease-in-out_infinite] shadow-[0_0_25px_rgba(239,68,68,1)]' : ''}`}>
-                                        {callStatus === 'idle' && <div className="absolute inset-0 bg-red-500/40 animate-pulse rounded border border-red-500"></div>}
-                                        <div className="absolute top-1 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-slate-700 rounded-full"></div>
-                                    </div>
-                                    {callStatus === 'idle' && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] bg-red-500/10 blur-[20px] rounded-full pointer-events-none -z-10"></div>}
-                                </div>
-                            </div>
-
-                            {/* Office Chair */}
-                            <div className="absolute w-[100px] h-[100px] z-20 flex flex-col items-center drop-shadow-2xl" style={{ left: 750, top: 600 }}>
-                                <div className="w-[70px] h-[45px] bg-[#3a4f6d] rounded-t-2xl border-x-[6px] border-t-[6px] border-[#2c3e50] absolute -top-4 z-0"></div>
-                                <div className="w-[85px] h-[55px] bg-[#4a6285] rounded-b-[40px] border-b-[8px] border-[#2c3e50] relative z-10 shadow-[0_15px_30px_rgba(0,0,0,0.8)]">
-                                    <div className="absolute -left-4 top-2 w-[16px] h-[35px] bg-[#3a4f6d] rounded-full shadow-lg border-2 border-[#2c3e50]"></div>
-                                    <div className="absolute -right-4 top-2 w-[16px] h-[35px] bg-[#3a4f6d] rounded-full shadow-lg border-2 border-[#2c3e50]"></div>
-                                </div>
-                                <div className="absolute -bottom-8 w-6 h-6 rounded-full bg-slate-800 shadow-[0_10px_20px_rgba(0,0,0,0.8)] z-0 flex items-center justify-center">
-                                    <div className="w-20 h-1.5 bg-slate-700 transform rotate-45 rounded-full"></div>
-                                    <div className="absolute w-20 h-1.5 bg-slate-700 transform -rotate-45 rounded-full"></div>
-                                </div>
-                            </div>
 
                             <Player x={playerPos.x} y={playerPos.y} />
                         </div>

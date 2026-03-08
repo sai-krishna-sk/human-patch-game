@@ -754,117 +754,32 @@ const Level7 = () => {
             >
                 {/* ═══ BACKGROUND ART (CSS ONLY) ═══ */}
                 <div className="absolute inset-0 z-0">
-                    {/* Floor Area - Polished Dark Wood */}
-                    <div className="absolute inset-x-0 bottom-0 h-3/4 bg-[#1e1c18]" style={{
-                        backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)`
-                    }} />
-
-                    {/* Wall Area - Industrial Cool Blue */}
-                    <div className="absolute inset-x-0 top-0 h-1/4 bg-[#233547] border-b-[12px] border-slate-800 shadow-[0_10px_40px_rgba(0,0,0,0.5)]" />
-
-                    {/* Industrial Window (Left Side) */}
-                    <div className="absolute z-5 bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-[inset_0_0_50px_rgba(0,0,0,0.8),0_10px_30px_rgba(0,0,0,0.6)] overflow-hidden" style={{ left: 60, top: 0, width: 220, height: 180 }}>
-                        <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
-                        <div className="absolute bottom-0 left-0 right-0 h-[60px] flex items-end gap-[1px]">
-                            {[30, 50, 20, 70, 40, 35, 60, 25].map((h, i) => (
-                                <div key={i} className={`flex-1 bg-[#090e1a] flex flex-wrap gap-1 p-1 items-start justify-center`} style={{ height: h }}>
-                                    {Math.random() > 0.6 && <div className="w-1.5 h-1.5 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
-                                </div>
-                            ))}
-                        </div>
-                        <div className="absolute top-0 bottom-0 left-1/2 w-[10px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
-                        {/* Garden hint through blur */}
-                        <div className="absolute inset-4 bg-emerald-500/10 blur-xl animate-pulse" />
-                    </div>
-
-                    {/* PREMIUM SERVER RACK */}
-                    <div className="absolute z-10 bg-[#1e293b] border-[6px] border-[#0f172a] shadow-[0_20px_50px_rgba(0,0,0,0.7)] rounded-t-sm flex flex-col p-2 gap-2" style={{ left: 320, top: 40, width: 100, height: 280 }}>
-                        <div className="h-5 bg-black rounded-sm flex items-center px-1.5 gap-1 uppercase tracking-widest text-[5px]">
-                            <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
-                            <span className="text-slate-400 font-bold">SERVER_01</span>
-                        </div>
-                        <div className="flex-1 bg-black rounded-sm p-1.5 flex flex-col gap-1.5 overflow-hidden border border-[#0f172a] shadow-inner">
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="flex flex-col gap-[2px]">
-                                    <div className="flex gap-1 items-center">
-                                        <div className={`w-1 h-1 rounded-full ${i % 3 === 0 ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
-                                        <div className="flex-1 h-0.5 bg-slate-800" />
-                                    </div>
-                                    <div className="flex gap-1 items-center">
-                                        <div className={`w-1 h-1 rounded-full ${i % 2 === 0 ? 'bg-cyan-400 animate-pulse' : 'bg-blue-500'}`} />
-                                        <div className="flex-1 h-0.5 bg-slate-800" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        {/* Glowing Network Cables in a Tray */}
-                        <div className="h-[40px] bg-[#0f172a] rounded-sm mt-1 p-1 flex justify-evenly items-start border border-[#1e293b] relative">
-                            <div className="w-1.5 h-full bg-blue-500/80 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
-                            <div className="w-1 h-full bg-emerald-500/80 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-                            <div className="w-1.5 h-full bg-amber-500/80 rounded-full shadow-[0_0_8px_rgba(245,158,11,0.8)]" />
-                        </div>
-                    </div>
-
-                    {/* Bookshelves */}
-                    {[800, 950].map((x, idx) => (
-                        <div key={idx} className="absolute z-10 bg-[#e08e50] border-[10px] border-[#b86b35] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-2" style={{ left: x, top: 40, width: 120, height: 350 }}>
-                            <div className="w-full h-[8px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[50px] px-1 gap-1">
-                                <div className="w-3 h-8 bg-red-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-10 bg-blue-600 shadow-sm border-l border-white/20"></div><div className="w-3 h-12 bg-yellow-500 ml-1 shadow-sm border-l border-white/20"></div>
-                            </div>
-                            <div className="w-full h-[8px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[50px] px-1 gap-1 justify-end">
-                                <div className="w-5 h-10 bg-emerald-600 shadow-sm border-l border-white/20"></div><div className="w-3 h-8 bg-purple-600 shadow-sm border-l border-white/20"></div>
-                            </div>
-                            <div className="w-full h-[8px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[50px] px-1 gap-1">
-                                <div className="w-4 h-12 bg-cyan-600 shadow-sm border-l border-white/20"></div><div className="w-3 h-10 bg-red-500 shadow-sm border-l border-white/20"></div><div className="w-5 h-8 bg-slate-600 ml-2 shadow-sm border-l border-white/20"></div>
-                            </div>
-                            <div className="w-full h-[8px] bg-[#9c5525] shadow-sm"></div>
-                        </div>
-                    ))}
-
-                    {/* MODEM / ROUTER on top of right bookshelf — decoration only */}
+                    {/* Room Background Image */}
                     <div
-                        className="absolute z-20"
-                        style={{ left: 960, top: 20, width: 80, height: 30 }}
-                    >
-                        <div className="w-full h-full bg-zinc-800 rounded border-2 border-zinc-700 flex items-center justify-between px-2 shadow-lg">
-                            <div className="flex gap-1">
-                                <div className="w-2 h-2 bg-orange-400 rounded-full shadow-[0_0_6px_orange] animate-pulse" />
-                                <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-[0_0_6px_green]" style={{ animationDelay: '0.5s' }} />
-                            </div>
-                            <div className="text-[5px] text-zinc-400 font-mono font-bold">ROUTER</div>
-                        </div>
-                    </div>
+                        className="absolute inset-0 z-0"
+                        style={{
+                            backgroundImage: "url('/assets/study.png')",
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                        }}
+                    />
 
-                    {/* THE PREMIUM L-SHAPED DESK (Veneer Walnut) */}
+                    {/* Interactive Elements Layer */}
                     <div className="absolute z-10" style={{ left: 300, top: 450, width: 400, height: 250 }}>
-                        {/* Shadow underneath desk */}
-                        <div className="absolute -inset-10 top-[140px] bg-black/60 blur-2xl z-[-1] rounded-[100px]"></div>
-
-                        {/* Main Desk Board */}
-                        <div className="absolute right-0 top-0 w-full h-[140px] bg-[#e08e50] shadow-[0_40px_80px_rgba(0,0,0,0.9)] rounded-sm border-b-[16px] border-[#b86b35] border-x-[12px]"></div>
-
-                        {/* L-Return (Left side extension) */}
-                        <div className="absolute left-0 top-[140px] w-[140px] h-[120px] bg-[#e08e50] shadow-[0_40px_80px_rgba(0,0,0,0.9)] rounded-b-sm border-b-[16px] border-[#b86b35] border-x-[12px]"></div>
-
                         {/* Smartphone on Desk */}
                         <div className="absolute left-[200px] top-[60px] -translate-x-1/2 z-20 group flex flex-col items-center">
                             <div
                                 onClick={(e) => { e.stopPropagation(); handleOpenPhone(); }}
                                 className="w-[45px] h-[85px] bg-[#0f172a] border-[3px] border-[#334155] rounded-lg shadow-2xl relative flex flex-col justify-between items-center p-1 rotate-[12deg] transition-all hover:-translate-y-2 cursor-pointer z-40 hover:ring-2 hover:ring-cyan-500"
                             >
-                                {/* Notch/Speaker */}
                                 <div className="w-4 h-1 bg-black rounded-full mt-1"></div>
-                                {/* Screen Glow */}
                                 <div className="w-full h-full bg-slate-800/80 mt-1 mb-1 rounded-sm flex flex-col items-center justify-center border border-slate-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
                                     <span className="text-red-500/80 text-[10px] font-black animate-pulse">!</span>
                                 </div>
                                 <div className="w-3 h-0.5 bg-slate-600 rounded-full mb-1"></div>
                             </div>
 
-                            {/* Sticky Note - Refined */}
+                            {/* Sticky Note */}
                             <div
                                 onClick={(e) => { e.stopPropagation(); handleClueClick('thatha_note'); }}
                                 className={`absolute bottom-0 -left-[40px] w-16 h-16 bg-amber-200 shadow-2xl rotate-[12deg] p-2 cursor-help transition-all hover:scale-110 active:scale-95 z-30 pointer-events-auto flex flex-col items-center border-t-[3px] border-amber-300 ${cluesFound.includes('thatha_note') ? 'ring-2 ring-emerald-500' : 'hover:ring-2 ring-white/50 animate-pulse'}`}
@@ -875,24 +790,7 @@ const Level7 = () => {
                             </div>
                         </div>
 
-                        {/* Professional Coffee (Moved to top-left of main desk) */}
-                        <div className="absolute left-6 top-6 w-8 h-12 bg-white/20 backdrop-blur-sm rounded-b-xl border-x-2 border-white/10 shadow-2xl z-20 pointer-events-none">
-                            <div className="absolute -top-1 left-0 right-0 h-2 bg-amber-900/40 rounded-full blur-[1px]" />
-                            <div className="absolute inset-x-1.5 bottom-1.5 h-6 bg-gradient-to-t from-amber-900/60 to-transparent rounded-b-lg" />
-                        </div>
-
-                        {/* Modern Lamp (Moved to top-right of main desk) */}
-                        <div className="absolute right-8 -top-[70px] flex flex-col items-center z-20 pointer-events-none">
-                            {/* Spherical Desk Lamp */}
-                            <div className="relative flex items-center justify-center">
-                                <div className="w-[40px] h-[40px] bg-white rounded-full shadow-[inset_-5px_-5px_10px_rgba(0,0,0,0.2),0_10px_20px_rgba(0,0,0,0.6)] border border-slate-200"></div>
-                                <div className="absolute -bottom-8 w-1.5 h-10 bg-slate-400 rounded-full shadow-md z-[-1]"></div>
-                                {/* Ambient Lamp Glow */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[220px] h-[220px] bg-amber-400/10 blur-[30px] rounded-full pointer-events-none"></div>
-                            </div>
-                        </div>
-
-                        {/* Forensic Papers (Moved to the L-return extension) */}
+                        {/* Forensic Papers / Notebook */}
                         <div
                             onClick={(e) => { e.stopPropagation(); handleClueClick('notebook'); }}
                             className={`absolute left-4 top-[150px] w-24 h-32 bg-slate-50 border border-slate-300 shadow-2xl rotate-[5deg] p-3 text-[7px] font-mono text-slate-600 cursor-help transition-all hover:scale-110 active:scale-95 z-30 pointer-events-auto ${cluesFound.includes('notebook') ? 'ring-2 ring-cyan-500 bg-cyan-50' : 'hover:ring-2 ring-white/50 animate-pulse'}`}

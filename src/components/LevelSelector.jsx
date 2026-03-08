@@ -3,8 +3,8 @@ import { useGameState } from '../context/GameStateContext';
 
 const levelNames = {
     1: 'The OTP Trap',
-    2: 'Phishing Net',
-    3: 'The Password Paradox',
+    2: 'The Password Paradox',
+    3: 'Phishing Net',
     4: 'The Fake App',
     5: 'QR Code Scam',
     6: 'Ghost Profile',

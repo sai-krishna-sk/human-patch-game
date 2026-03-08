@@ -194,106 +194,15 @@ const Level6 = () => {
             <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
                 <FeedbackToast />
                 <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH > windowWidth ? windowWidth - 64 : ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                    {/* Wood Floor */}
-                    <div className="absolute inset-0 bg-amber-900" style={{
-                        backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.3) 48px, rgba(0,0,0,0.3) 50px),
-                        linear-gradient(90deg, rgba(120,53,15,0.7), rgba(160,75,20,0.7)),
-                        repeating-linear-gradient(0deg, transparent, transparent 200px, rgba(0,0,0,0.3) 200px, rgba(0,0,0,0.3) 202px)`
-                    }}></div>
-
-                    {/* Top Wall */}
-                    <div className="absolute top-0 left-0 right-0 h-[120px] bg-gradient-to-b from-slate-700 to-slate-600 z-0 border-b-4 border-amber-800">
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-500/30"></div>
-                        <div className="absolute -bottom-1 left-0 right-0 h-2 bg-amber-900"></div>
-                    </div>
-
-                    {/* Window (night sky — it's 9:30 PM) */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-slate-950 border-8 border-amber-800 z-[5] rounded-t-lg overflow-hidden" style={{ boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/80 to-slate-950/90"></div>
-                        <div className="absolute top-3 left-6 w-1 h-1 bg-white rounded-full opacity-80"></div>
-                        <div className="absolute top-5 left-20 w-1.5 h-1.5 bg-white rounded-full opacity-60"></div>
-                        <div className="absolute top-2 right-12 w-1 h-1 bg-yellow-200 rounded-full opacity-70"></div>
-                        <div className="absolute top-6 right-24 w-1 h-1 bg-white rounded-full opacity-50"></div>
-                        <div className="absolute top-4 left-[45%] w-6 h-6 bg-yellow-100 rounded-full opacity-20" style={{ filter: 'blur(2px)' }}></div>
-                        <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-amber-800 -translate-x-1/2"></div>
-                        <div className="absolute left-0 right-0 top-1/2 h-1 bg-amber-800 -translate-y-1/2"></div>
-                    </div>
-
-                    {/* Picture frames */}
-                    <div className="absolute top-6 left-[140px] w-16 h-12 bg-zinc-700 border-4 border-amber-700 z-[5] rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                        <div className="w-full h-full bg-gradient-to-br from-amber-900/40 to-amber-100/40 flex items-center justify-center text-lg opacity-40">&#128116;</div>
-                    </div>
-                    <div className="absolute top-8 right-[140px] w-14 h-10 bg-zinc-700 border-4 border-amber-700 z-[5] rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                        <div className="w-full h-full bg-gradient-to-br from-emerald-900/40 to-cyan-900/40 flex items-center justify-center text-sm opacity-40">&#128106;</div>
-                    </div>
-
-                    {/* Rug */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/4 w-[600px] h-[400px] bg-indigo-950 border-[10px] border-indigo-900/80 rounded-lg z-0 overflow-hidden" style={{ boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
-                        <div className="w-[92%] h-[90%] m-auto mt-[5%] border-2 border-indigo-700/40 flex justify-center items-center">
-                            <div className="w-[85%] h-[85%] border-2 border-indigo-800/60 flex justify-center items-center">
-                                <div className="w-28 h-28 bg-indigo-700/20 rotate-45 border border-indigo-800/30"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Bookshelf left */}
-                    <div className="absolute top-[120px] left-12 w-44 h-20 bg-amber-950 z-10 flex p-2 gap-1 items-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <div className="w-3 h-14 bg-red-800 rounded-t-sm"></div>
-                        <div className="w-4 h-12 bg-blue-800 rounded-t-sm"></div>
-                        <div className="w-3 h-10 bg-green-800 rounded-t-sm -rotate-6"></div>
-                        <div className="w-4 h-14 bg-yellow-700 rounded-t-sm ml-2"></div>
-                        <div className="w-3 h-13 bg-slate-600 rounded-t-sm"></div>
-                        <div className="w-4 h-11 bg-indigo-700 rounded-t-sm"></div>
-                        <div className="w-3 h-14 bg-rose-700 rounded-t-sm"></div>
-                    </div>
-
-                    {/* Bookshelf right */}
-                    <div className="absolute top-[120px] right-12 w-44 h-20 bg-amber-950 z-10 flex p-2 gap-1 items-end justify-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <div className="w-3 h-12 bg-indigo-800 rounded-t-sm rotate-6"></div>
-                        <div className="w-4 h-14 bg-rose-800 rounded-t-sm"></div>
-                        <div className="w-5 h-10 bg-emerald-700 rounded-t-sm ml-2"></div>
-                        <div className="w-3 h-14 bg-slate-700 rounded-t-sm"></div>
-                        <div className="w-4 h-12 bg-cyan-800 rounded-t-sm"></div>
-                        <div className="w-3 h-11 bg-amber-700 rounded-t-sm"></div>
-                    </div>
-
-                    {/* Bed (left side) */}
-                    <div className="absolute top-[200px] left-12 z-10">
-                        <div className="w-52 h-24 bg-blue-900 border-4 border-blue-950 rounded-lg shadow-2xl relative">
-                            <div className="absolute top-1 left-2 w-16 h-10 bg-white/90 rounded border border-blue-200"></div>
-                            <div className="absolute top-2 right-2 w-14 h-8 bg-blue-100/80 rounded border border-blue-300"></div>
-                            <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-r from-blue-800 to-blue-700 rounded-b-lg"></div>
-                        </div>
-                        <div className="w-52 h-3 bg-amber-950 rounded-b-sm"></div>
-                    </div>
-
-                    {/* Desk */}
-                    <div className="absolute bg-amber-800 shadow-2xl rounded-md z-10" style={{ left: DESK_ZONE.x, top: DESK_ZONE.y, width: DESK_ZONE.w, height: DESK_ZONE.h, boxShadow: '0 6px 20px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute top-2 left-3 w-6 h-4 bg-amber-100/80 border border-amber-600 rounded-sm"></div>
-                        <div className="absolute top-2 left-12 w-8 h-5 bg-slate-800 border border-slate-600 rounded-sm"></div>
-                        <div className="absolute top-2 right-3 w-5 h-7 bg-slate-300 border border-slate-400 rounded-sm">
-                            <div className="w-3 h-1 bg-blue-500 mx-auto mt-1 rounded-full animate-pulse"></div>
-                        </div>
-                        <div className="absolute bottom-0 left-4 w-2 h-6 bg-amber-950"></div>
-                        <div className="absolute bottom-0 right-4 w-2 h-6 bg-amber-950"></div>
-                    </div>
-
-                    {/* Phone notification bubble */}
-                    {canInteract && (
-                        <div className="absolute z-30 animate-bounce" style={{ left: DESK_ZONE.x + DESK_ZONE.w - 20, top: DESK_ZONE.y - 30 }}>
-                            <div className="bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg">1</div>
-                        </div>
-                    )}
-
-                    {/* Potted Plant */}
-                    <div className="absolute top-[130px] left-4 z-20 flex flex-col items-center">
-                        <div className="w-20 relative" style={{ height: 72 }}>
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-5 bg-red-800 rounded-b-lg rounded-t-sm border-2 border-red-900"></div>
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1 h-10 bg-green-900"></div>
-                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 bg-green-700 rounded-full opacity-80" style={{ filter: 'blur(2px)' }}></div>
-                            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-10 h-10 bg-green-600 rounded-full opacity-70" style={{ filter: 'blur(1px)' }}></div>
-                        </div>
-                    </div>
+                    {/* Room Background Image */}
+                    <div
+                        className="absolute inset-0 z-0"
+                        style={{
+                            backgroundImage: "url('/assets/study.png')",
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                        }}
+                    />
 
                     <Player x={playerPos.x} y={playerPos.y} />
 

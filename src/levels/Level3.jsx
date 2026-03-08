@@ -1,589 +1,869 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameState } from '../context/GameStateContext';
-import Player from '../components/Player';
 
-const ROOM_WIDTH = 1600;
-const ROOM_HEIGHT = 1100;
-const VIEWPORT_WIDTH = 1200;
-const VIEWPORT_HEIGHT = 800;
-const PLAYER_SIZE = 40;
-const SPEED = 12;
+const Level3 = () => {
+    const { assets, completeLevel, adjustAssets, adjustLives } = useGameState();
 
-// Interactive Area Constants (Relative to Room)
-const DESK_PARTS = [
-    { x: 600, y: 400, w: 400, h: 140 }, // Top
-    { x: 600, y: 540, w: 140, h: 210 }  // Left Return
-];
-const LAPTOP_AREA = { x: 740, y: 420, w: 140, h: 100 };
-const STICKY_NOTE_AREA = { x: 650, y: 560, w: 70, h: 70 };
-const PHOTO_AREA = { x: 770, y: 10, w: 140, h: 160 };
-const BOOK_AREA = { x: 60, y: 350, w: 150, h: 450 }; // Left Bookshelf
-const POSTER_AREA = { x: 1250, y: 50, w: 250, h: 180 };
+    // STATE MACHINE: intro_pov → laptop_ui → inbox → email_view → mini_game → final_decision → scam_outcome / victory_outcome
+    const [gameState, setGameState] = useState('intro_pov');
+    const [feedbackMsg, setFeedbackMsg] = useState(null);
 
-const CLUE_INFO = {
-    'alert_received': {
-        title: "Critical Security Alert",
-        desc: "Someone just used your password to try to sign in to your account from Moscow.",
-        icon: "🚨",
-        hint: "Check the red alert on your laptop."
-    },
-    'rule_symbols': {
-        title: "Rule #1: Mix Your Tools",
-        desc: "'A strong lock is built from different materials.' Always use special characters (!@#$) and numbers.",
-        icon: "⚙️",
-        hint: "Check the sticky note on your desk."
-    },
-    'rule_length': {
-        title: "Rule #2: The Great Wall",
-        desc: "'A long wall is harder to climb than a thick one.' Length is your best defense—use at least 15 characters.",
-        icon: "🧱",
-        hint: "Look at the books in the shelf."
-    },
-    'rule_pii': {
-        title: "Rule #3: Family Secrets",
-        desc: "'Never share our names with the digital winds.' Avoid PII like our names, birthdays, or locations.",
-        icon: "🖼️",
-        hint: "Inspect the family photo on the wall."
-    },
-    'rule_patterns': {
-        title: "Rule #4: No Straight Paths",
-        desc: "'A straight path is easily followed.' Avoid keyboard patterns like 'qwerty' or '123456'.",
-        icon: "🗺️",
-        hint: "Look at the map/poster above the desk."
-    }
-};
+    // POV INTERACTION STATE
+    const [isHoveringLaptop, setIsHoveringLaptop] = useState(false);
 
-const GmailAlert = ({ onProceed }) => (
-    <div className="fixed inset-0 z-[3000] bg-zinc-950/80 backdrop-blur-xl flex items-center justify-center p-6 font-sans">
-        <div className="max-w-xl w-full bg-white shadow-2xl rounded-xl border border-zinc-200 overflow-hidden animate-in zoom-in duration-300">
-            <div className="bg-[#f8f9fa] px-6 py-5 flex items-center gap-4 border-b border-zinc-200">
-                <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-inner">G</div>
-                <div>
-                    <span className="text-sm font-bold text-zinc-900 block">Google Account</span>
-                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-black">Security Notification</span>
-                </div>
-            </div>
-            <div className="p-10">
-                <div className="flex items-start gap-8 mb-10">
-                    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center text-red-600 text-4xl shrink-0 border-2 border-red-100 animate-pulse">⚠️</div>
-                    <div>
-                        <h1 className="text-2xl font-bold text-zinc-900 leading-tight mb-3">Critical Security Alert</h1>
-                        <p className="text-sm text-zinc-600 leading-relaxed">Someone just used your password to try to sign in to your account. Google blocked them, but you should check what happened and secure your account.</p>
-                    </div>
-                </div>
+    // CINEMATIC TRANSITION STATE
+    const [isTransitioning, setIsTransitioning] = useState(true);
 
-                <div className="bg-zinc-50 rounded-2xl p-8 mb-10 border border-zinc-200 shadow-inner">
-                    <table className="w-full text-sm border-separate border-spacing-y-3">
-                        <tbody>
-                            <tr>
-                                <td className="text-zinc-500 font-medium">Activity</td>
-                                <td className="text-zinc-900 font-bold text-right">Unauthorized sign-in</td>
-                            </tr>
-                            <tr>
-                                <td className="text-zinc-500 font-medium">Location</td>
-                                <td className="text-red-600 font-bold text-right">Moscow, Russia</td>
-                            </tr>
-                            <tr>
-                                <td className="text-zinc-500 font-medium">Device</td>
-                                <td className="text-zinc-900 font-bold text-right">Linux x86_64 (Chrome)</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <button
-                    onClick={onProceed}
-                    className="w-full py-4 bg-[#1a73e8] hover:bg-blue-700 text-white font-black rounded-xl transition-all shadow-xl uppercase tracking-[0.2em] text-xs"
-                >
-                    Secure Account & Change Password
-                </button>
-            </div>
-        </div>
-    </div>
-);
-
-const SecurityTerminal = ({ onComplete, onFail, rulesFound }) => {
-    const [password, setPassword] = useState('');
-    const [entropy, setEntropy] = useState(0);
-    const [crackTime, setCrackTime] = useState('Seconds');
-
-    const PII_KEYWORDS = ['rajan', 'vkram', 'grandfather', 'india'];
+    const triggerTransition = (newState, delay = 500) => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+            if (newState) setGameState(newState);
+            setTimeout(() => {
+                setIsTransitioning(false);
+            }, 200);
+        }, delay);
+    };
 
     useEffect(() => {
-        let e = 0;
-        if (password.length > 0) e += password.length * 4;
-        if (/[A-Z]/.test(password)) e += 10;
-        if (/[0-9]/.test(password)) e += 10;
-        if (/[^A-Za-z0-9]/.test(password)) e += 15;
+        const timer = setTimeout(() => setIsTransitioning(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
-        PII_KEYWORDS.forEach(word => {
-            if (password.toLowerCase().includes(word)) e -= 40;
-        });
+    // CLUE BOARD & SCAM LOGIC
+    const [clues, setClues] = useState([]);
+    const [isDetectiveModeOpen, setIsDetectiveModeOpen] = useState(false);
+    const [isClueButtonVisible, setIsClueButtonVisible] = useState(false);
+    const [usedClueBoard, setUsedClueBoard] = useState(false);
+    const [introCinematicState, setIntroCinematicState] = useState(false);
+    const [outroStep, setOutroStep] = useState(0);
 
-        const finalE = Math.min(100, Math.max(0, e));
-        setEntropy(finalE);
+    // INITIAL EMAILS
+    const TRANSFER_EMAIL = {
+        id: 'transfer',
+        sender: 'HDFC Bank Alerts',
+        subject: 'Confirmed: Electronic Funds Transfer',
+        time: 'Yesterday',
+        senderInitial: 'H',
+        content: `Ref No: 9182743650
+Date: March 7, 2026
 
-        if (password.length === 0) setCrackTime('Seconds');
-        else if (finalE < 20) setCrackTime('< 1 Second');
-        else if (finalE < 40) setCrackTime('< 10 Seconds');
-        else if (finalE < 60) setCrackTime('5 Minutes');
-        else if (finalE < 80) setCrackTime('10 Years');
-        else setCrackTime('20,000+ Centuries');
-    }, [password]);
+Dear Customer,
 
-    const handleConfirm = () => {
-        const hasSymbols = /[^A-Za-z0-9]/.test(password) || /[0-9]/.test(password);
-        const isLong = password.length >= 15;
-        const hasPII = PII_KEYWORDS.some(word => password.toLowerCase().includes(word));
-        const isPattern = /(123|abc|qwerty|asdf)/i.test(password);
+This is to confirm an outward fund transfer of ₹15,000.00 from your account ending in XX90.
+Beneficiary: Rent (ICICI Bank)
 
-        if (isLong && hasSymbols && !hasPII && !isPattern && entropy > 85) {
-            onComplete();
-        } else {
-            let error = "Password does not meet the safety requirements.";
-            if (!isLong) error = "Rule #2: Too short. Remember the Great Wall (15+ chars).";
-            else if (!hasSymbols) error = "Rule #1: Missing 'metals' (Special characters or numbers).";
-            else if (hasPII) error = "Rule #3: Personal details detected! Keep names out of it.";
-            else if (isPattern) error = "Rule #4: Do not follow a straight path (No patterns).";
-            onFail(error);
+If you did not initiate this transaction, please visit our nearest branch immediately.
+
+Standard Bank Ltd (HDFC Group)`
+    };
+
+    const ALERT_EMAIL = {
+        id: 'alert',
+        sender: 'Google Security',
+        subject: 'Security alert: New login on Windows',
+        time: 'Yesterday',
+        senderInitial: 'G',
+        content: `A new login was detected on your account (user@securemail.com) from a Windows device in Bengaluru, Karnataka.
+
+Device: Chrome on Windows 11
+Location: Bengaluru, India
+Time: March 7, 20:14 IST
+
+If this was you, you can disregard this message. If not, please review your account activity.
+
+Google Account Security Team`
+    };
+
+    const PWD_EMAIL = {
+        id: 'pwd',
+        sender: 'SecureMail Admin',
+        subject: 'Account Notification: Password changed successfully',
+        time: '09:15',
+        senderInitial: 'A',
+        content: `Hello,
+
+This is an automated confirmation that the password for your SecureMail account was successfully changed at 09:15 IST today.
+
+Location: Mumbai (Your current location)
+IP Address: 192.168.1.45 (Local)
+
+Security Tip: Change your passwords every 90 days to stay secure.
+
+SecureMail Support Team`,
+        isUnread: true
+    };
+
+    const SCAM_EMAIL = {
+        id: 'scam',
+        sender: 'SBI Security Alert',
+        subject: '⚠️ ACTION REQUIRED: Update Your Account Information',
+        time: '08:42',
+        isScam: true,
+        isUnread: true
+    };
+
+    const [inboxEmails, setInboxEmails] = useState([PWD_EMAIL, ALERT_EMAIL, TRANSFER_EMAIL]);
+    const [activeEmailId, setActiveEmailId] = useState(null);
+    const [scamEmailArrived, setScamEmailArrived] = useState(false);
+
+    // EMAIL BROWSER STATE
+    const [hoveredLink, setHoveredLink] = useState(null);
+    const [showLockInfo, setShowLockInfo] = useState(false);
+    const [hasClickedFakeLink, setHasClickedFakeLink] = useState(false);
+
+    // Timed arrival logic
+    useEffect(() => {
+        if (gameState === 'email_view' && activeEmailId === 'pwd') {
+            // mark pwd as read
+            setInboxEmails(prev => prev.map(em => em.id === 'pwd' ? { ...em, isUnread: false } : em));
+
+            if (!scamEmailArrived) {
+                const timer = setTimeout(() => {
+                    setInboxEmails(prev => [SCAM_EMAIL, ...prev]);
+                    setScamEmailArrived(true);
+
+                    // visual/audio pop
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.1);
+
+                    setFeedbackMsg("🔔 New Email Arrived!");
+                    setTimeout(() => setFeedbackMsg(null), 2000);
+                }, 2000);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [gameState, activeEmailId, scamEmailArrived]);
+
+    // MINI-GAME STATE
+    const [urls, setUrls] = useState([
+        { id: 'u1', text: 'https://www.sbi.co.in/login', isSafe: true, status: 'unassigned' },
+        { id: 'u2', text: 'http://sbi-secure.verify247.com', isSafe: false, status: 'unassigned' },
+        { id: 'u3', text: 'https://amazon-support.free-gifts.in', isSafe: false, status: 'unassigned' },
+        { id: 'u4', text: 'https://accounts.google.com/signin', isSafe: true, status: 'unassigned' }
+    ]);
+    const [draggedUrlId, setDraggedUrlId] = useState(null);
+    const [miniGameOver, setMiniGameOver] = useState(false);
+
+    const unlockClue = (clueId, clueData) => {
+        if (!clues.find(c => c.id === clueId)) {
+            const gridPositions = [
+                { x: 140, y: 160 }, { x: 420, y: 180 }, { x: 700, y: 160 },
+                { x: 180, y: 380 }, { x: 460, y: 400 }, { x: 260, y: 550 },
+                { x: 540, y: 560 }
+            ];
+            const pos = gridPositions[clues.length % gridPositions.length];
+            const x = pos.x + (Math.random() * 40 - 20);
+            const y = pos.y + (Math.random() * 40 - 20);
+            setClues(prev => [...prev, { id: clueId, ...clueData, x, y }]);
+            setFeedbackMsg("🔍 Clue Discovered!");
+            setTimeout(() => setFeedbackMsg(null), 2000);
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[3000] bg-zinc-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white overflow-hidden">
-            <div className="w-full max-w-4xl bg-zinc-900 border border-white/10 rounded-3xl p-12 shadow-2xl relative overflow-hidden animate-in scale-in-95 duration-500">
-                <div className="flex justify-between items-start mb-12">
-                    <div>
-                        <h2 className="text-4xl font-black uppercase tracking-tighter text-white mb-2 italic">Secure Your Account</h2>
-                        <p className="text-cyan-500 font-mono text-[10px] uppercase tracking-[0.3em] font-black">Authentication Shield v2.0</p>
-                    </div>
-                </div>
+    useEffect(() => {
+        if (gameState === 'intro_cinematic') {
+            const t1 = setTimeout(() => {
+                triggerTransition('email_view', 500);
+                setIntroCinematicState(true);
+            }, 4000);
+            return () => clearTimeout(t1);
+        }
+    }, [gameState]);
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div className="space-y-10">
-                        <div>
-                            <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4">Set New Passphrase:</label>
-                            <input
-                                type="text"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-black border-2 border-white/10 rounded-2xl px-8 py-6 text-3xl font-black text-white focus:border-cyan-500 outline-none transition-all placeholder:text-zinc-800"
-                                placeholder="........"
-                                autoFocus
-                            />
+    useEffect(() => {
+        if (gameState === 'outro_pov') {
+            const t1 = setTimeout(() => setOutroStep(1), 100);
+            const t2 = setTimeout(() => setOutroStep(2), 4000);
+            const t3 = setTimeout(() => setOutroStep(3), 5500);
+            const t4 = setTimeout(() => completeLevel(true, usedClueBoard ? 10 : 5, 0), 9000);
+            return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+        }
+    }, [gameState, usedClueBoard, completeLevel]);
+
+    // --- RENDERERS ---
+
+    if (gameState === 'intro_pov') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden relative animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #000 40px, #000 80px)' }}></div>
+                <div className="text-white font-mono text-[10px] absolute top-8 left-8 opacity-40 uppercase tracking-[0.5em] pointer-events-none">POV_SESSION_03 // LEVEL 3</div>
+
+                <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden relative">
+                    <div
+                        className="w-full h-full transition-all duration-300"
+                        style={{
+                            backgroundImage: 'url("/assets/temppho.png")',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center'
+                        }}
+                    />
+
+                    {/* Hint */}
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn fade-in">
+                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                        <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
+                            Inspect the computer
+                        </div>
+                    </div>
+
+                    {/* Interactive Monitor Hitbox */}
+                    <button
+                        onMouseEnter={() => setIsHoveringLaptop(true)}
+                        onMouseLeave={() => setIsHoveringLaptop(false)}
+                        onClick={() => triggerTransition('laptop_ui')}
+                        className="absolute left-[36%] top-[39%] w-[27%] h-[27%] bg-transparent cursor-pointer group z-40 outline-none"
+                        title="Check Computer"
+                        aria-label="Check Computer"
+                    >
+                        {/* Hover Overlay Outline matching the monitor screen loosely */}
+                        <div className={`absolute inset-0 border-2 rounded-sm transition-all duration-300 ${isHoveringLaptop ? 'border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-cyan-400/5' : 'border-transparent'}`}></div>
+                    </button>
+
+                    {/* Soft pulse on hit zone when not hovered to draw attention passively */}
+                    {!isHoveringLaptop && (
+                        <div className="absolute left-[36%] top-[39%] w-[27%] h-[27%] border-2 border-cyan-400/20 rounded-sm animate-pulse pointer-events-none"></div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'intro_cinematic') {
+        return (
+            <div className="absolute inset-0 z-[1000] bg-black flex flex-col justify-center items-center animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="relative group text-center animate-fadeInSlow">
+                    <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mb-8 mx-auto animate-[width_1.5s_ease-in-out]" />
+                    <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
+                        Level 3
+                        {/* Chromatic aberration layers */}
+                        <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-[aberration_3s_infinite]">Level 3</span>
+                        <span className="absolute inset-0 text-cyan-400 opacity-60 -translate-x-1 -z-10 animate-[aberration-alt_3s_infinite]">Level 3</span>
+                    </h2>
+                    <h3 className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase opacity-80 font-bold drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                        The Phishing Net
+                    </h3>
+                </div>
+                <div className="mt-12 w-32 h-px bg-gradient-to-r from-transparent via-red-500/50 to-transparent animate-[width_1.5s_ease-in-out]" />
+            </div>
+        );
+    }
+
+    if (['laptop_ui', 'email_view', 'browser_view'].includes(gameState)) {
+        return (
+            <div className="w-full h-full bg-[#1A1C1E] p-4 flex flex-col relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                {/* Feedback Toast */}
+                {feedbackMsg && (
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-xl shadow-[0_15px_30px_rgba(37,99,235,0.4)] z-[1000] font-bold text-center animate-bounce border border-blue-400">
+                        {feedbackMsg}
+                    </div>
+                )}
+
+                <div className="flex-1 flex overflow-hidden gap-6 p-2 relative">
+                    {/* BROWSER CONTAINER */}
+                    <div className={`bg-white rounded-[3rem] shadow-[0_40px_100px_rgba(0,0,0,0.5)] border-[12px] border-[#1a1c1e] flex flex-col overflow-hidden relative transition-all duration-500 ease-in-out ${isDetectiveModeOpen ? 'flex-1 shrink' : 'flex-1 max-w-6xl mx-auto shadow-[0_20px_50px_rgba(0,0,0,0.3)]'}`}>
+                        {/* BROWSER CHROME */}
+                        <div className="bg-[#f1f3f4] border-b border-[#dee1e6] px-6 py-4 flex items-center gap-6 select-none shrink-0">
+                            <div className="flex gap-2.5 mr-2">
+                                <div className="w-3.5 h-3.5 rounded-full bg-[#ff5f57] border border-[#e0443e]" />
+                                <div className="w-3.5 h-3.5 rounded-full bg-[#ffbc2e] border border-[#d89f1b]" />
+                                <div className="w-3.5 h-3.5 rounded-full bg-[#28c840] border border-[#1aab29]" />
+                            </div>
+
+                            <div className="flex items-center gap-4 mr-4">
+                                <button
+                                    onClick={() => { if (gameState === 'browser_view') triggerTransition('email_view'); }}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${gameState === 'browser_view' ? 'hover:bg-gray-200 text-gray-700 active:scale-90' : 'text-gray-300 cursor-default'}`}
+                                    title="Back to Inbox"
+                                >
+                                    <span className="text-xl font-bold">←</span>
+                                </button>
+                                <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 cursor-default">
+                                    <span className="text-xl font-bold">→</span>
+                                </button>
+                                <button
+                                    onClick={() => { setFeedbackMsg("Refreshed"); setTimeout(() => setFeedbackMsg(null), 1000); }}
+                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-200 active:rotate-180 transition-all duration-500"
+                                >
+                                    <span className="text-xl font-bold">↻</span>
+                                </button>
+                            </div>
+
+                            <div className="flex-1 bg-white border border-[#dadce0] rounded-full px-6 py-2.5 flex items-center gap-3 text-[14px] text-[#202124] shadow-sm transform transition-all group hover:border-[#bdc1c6]">
+                                <span className={`${gameState === 'browser_view' ? 'text-red-500' : 'text-gray-400'} transition-colors`}>{gameState === 'browser_view' ? '⚠️' : '🔒'}</span>
+                                <span className="truncate flex-1 font-medium font-sans">
+                                    {gameState === 'browser_view' ? (
+                                        <span draggable onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 'fake_url', title: 'Suspicious URL', desc: 'The address "sbi-secure-login.verify247.in" is a domain known for phishing.' })); setIsDetectiveModeOpen(true); }} className="cursor-grab border-b-2 border-dashed border-red-300 hover:bg-red-50">https://sbi-secure-login.verify247.in/login</span>
+                                    ) : (
+                                        'https://mail.google.com/inbox'
+                                    )}
+                                </span>
+                            </div>
+                            <div className="w-10 h-10 rounded-full bg-[#0b57d0] flex items-center justify-center text-white text-sm font-black shadow-lg">J</div>
                         </div>
 
-                        <div className="bg-white/5 border border-white/5 p-8 rounded-3xl backdrop-blur-md">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.3em] mb-6 flex justify-between">
-                                <span>Grandfather's Rules</span>
-                                <span className="text-cyan-400">{rulesFound}/4 FOUND</span>
-                            </h3>
-                            <div className="space-y-6">
-                                {['rule_symbols', 'rule_length', 'rule_pii', 'rule_patterns'].map((r, i) => (
-                                    <div key={r} className={`flex gap-4 ${rulesFound > i ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                                        <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black border mt-1 ${rulesFound > i ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-black/40 border-white/5'}`}>
-                                            {rulesFound > i ? '✓' : i + 1}
+                        {/* CONTENT AREA */}
+                        <div className="flex-1 flex overflow-hidden">
+                            {/* SIDEBAR */}
+                            {gameState !== 'browser_view' ? (
+                                <div className="w-[260px] bg-white border-r border-[#F1F3F4] flex flex-col shrink-0">
+                                    <div className="p-4 flex flex-col gap-5">
+                                        <button className="bg-[#C2E7FF] hover:bg-[#B3D7EF] transition-all py-4 px-6 rounded-2xl flex items-center gap-4 text-[14px] font-bold text-[#001D35] shadow-md active:scale-95">
+                                            <span className="text-xl">✎</span> Compose
+                                        </button>
+                                        <div className="flex flex-col gap-0.5 px-1">
+                                            <div className="bg-[#D3E3FD] text-[#001D35] px-4 py-2 rounded-full text-[14px] font-bold flex justify-between items-center transition-colors">
+                                                <div className="flex items-center gap-4 border-l-4 border-[#0B57D0] pl-1"><span>📥</span> Inbox</div>
+                                                <span>{inboxEmails.filter(e => e.isUnread).length}</span>
+                                            </div>
+                                            <div className="text-[#444746] hover:bg-[#F3F4ED] px-4 py-2 rounded-full text-[14px] font-medium flex items-center gap-4 cursor-pointer transition-colors pl-6"><span>⭐</span> Starred</div>
+                                            <div className="text-[#444746] hover:bg-[#F3F4ED] px-4 py-2 rounded-full text-[14px] font-medium flex items-center gap-4 cursor-pointer transition-colors pl-6"><span>📤</span> Sent</div>
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span className={`text-[11px] font-black tracking-widest uppercase ${rulesFound > i ? 'text-white' : ''}`}>
-                                                {rulesFound > i ? CLUE_INFO[r].title : 'RULE UNDISCOVERED'}
-                                            </span>
-                                            {rulesFound > i && (
-                                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                                                    {CLUE_INFO[r].desc}
-                                                </p>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto flex flex-col border-t border-[#F1F3F4] custom-scrollbar">
+                                        {inboxEmails.map((em) => (
+                                            <div
+                                                key={em.id}
+                                                className={`px-6 py-4 border-b border-[#F7F8F9] cursor-pointer transition-all duration-200 border-l-4 ${activeEmailId === em.id ? 'bg-[#F2F6FC] border-[#0B57D0]' : 'bg-white border-transparent hover:bg-[#F7F8F9]'}`}
+                                                onClick={() => {
+                                                    setActiveEmailId(em.id);
+                                                    if (em.isScam) {
+                                                        setIsClueButtonVisible(true);
+                                                        if (!introCinematicState && gameState !== 'intro_cinematic') {
+                                                            triggerTransition('intro_cinematic');
+                                                        } else {
+                                                            if (gameState !== 'email_view') triggerTransition('email_view');
+                                                        }
+                                                    } else {
+                                                        setIsClueButtonVisible(false);
+                                                        if (gameState !== 'email_view') triggerTransition('email_view');
+                                                    }
+                                                }}
+                                            >
+                                                <div className="flex justify-between items-baseline mb-1">
+                                                    <span className={`text-[13px] truncate ${em.isUnread ? 'font-bold text-[#1F1F1F]' : 'font-medium text-[#444746]'}`}>{em.sender}</span>
+                                                    <span className={`text-[11px] font-medium ${em.isUnread ? 'text-[#0B57D0]' : 'text-[#747775]'}`}>{em.time}</span>
+                                                </div>
+                                                <div className={`text-[12px] truncate ${em.isUnread ? 'font-bold text-[#1F1F1F]' : 'text-[#444746]'}`}>{em.subject}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="w-[80px] bg-[#f8f9fa] border-r border-[#dee1e6] flex flex-col items-center py-6 gap-8 shrink-0">
+                                    <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl cursor-not-allowed">🏠</div>
+                                    <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl cursor-not-allowed opacity-50">👤</div>
+                                    <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl cursor-not-allowed opacity-50">⚙️</div>
+                                </div>
+                            )}
+
+                            {/* READING PANE / BROWSER CONTENT */}
+                            <div className="flex-1 bg-white relative flex flex-col overflow-hidden">
+                                {gameState === 'browser_view' ? (
+                                    <div className="flex-1 bg-white transition-all duration-500 animate-fadeIn overflow-y-auto custom-scrollbar">
+                                        <div className="bg-[#003366] text-white p-6 flex justify-between items-center shadow-md">
+                                            <div className="flex items-center gap-4">
+                                                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/5/58/State_Bank_of_India_logo.svg/300px-State_Bank_of_India_logo.svg.png" className="h-10 brightness-0 invert" alt="SBI" />
+                                                <span className="text-2xl font-black tracking-tighter">SBI PERSONAL BANKING</span>
+                                            </div>
+                                            <div className="flex gap-6 text-sm font-bold opacity-80 uppercase tracking-widest">
+                                                <span>Services</span>
+                                                <span>Security</span>
+                                                <span>Support</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="max-w-md mx-auto mt-16 p-10 bg-white border border-gray-200 rounded-3xl shadow-[0_30px_60px_rgba(0,0,0,0.05)]">
+                                            <h2 className="text-2xl font-black text-[#003366] mb-8 text-center uppercase tracking-tight">Login Credentials Required</h2>
+                                            <div className="space-y-6">
+                                                <div>
+                                                    <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Username</label>
+                                                    <input type="text" className="w-full bg-[#f8f9fa] border-2 border-gray-100 rounded-xl px-5 py-4 focus:border-[#0B57D0] focus:bg-white outline-none transition-all font-mono" placeholder="Ex: GrandPa123" disabled />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2">Password</label>
+                                                    <input type="password" value="********" className="w-full bg-[#f8f9fa] border-2 border-gray-100 rounded-xl px-5 py-4 focus:border-[#0B57D0] focus:bg-white outline-none transition-all font-mono" disabled />
+                                                </div>
+                                                <button
+                                                    onClick={() => triggerTransition('final_decision')}
+                                                    className="w-full bg-gradient-to-r from-[#003366] to-[#004d99] text-white py-5 rounded-xl font-black shadow-xl hover:shadow-2xl transition-all scale-100 active:scale-95 uppercase tracking-widest"
+                                                >
+                                                    Sign In & Sync
+                                                </button>
+                                            </div>
+                                            <div className="mt-8 pt-8 border-t border-gray-100 flex flex-col gap-4 text-center">
+                                                <span className="text-[12px] text-gray-400 font-medium py-2">© 2026 SBI Secure Connect. All rights reserved.</span>
+                                                <button
+                                                    onClick={() => triggerTransition('email_view')}
+                                                    className="text-[#003366] font-black text-[12px] uppercase tracking-widest hover:underline mt-2"
+                                                >
+                                                    ← Return to Mail
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="fixed bottom-0 left-0 right-0 bg-[#f8f9fa] border-t border-gray-100 p-4 text-[10px] text-gray-400 flex justify-center gap-10">
+                                            <span>Privacy Policy</span>
+                                            <span>Terms of Service</span>
+                                            <span>Customer Service</span>
+                                        </div>
+                                    </div>
+                                ) : !activeEmailId ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#F8F9FA]">
+                                        <div className="w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 mb-6 font-bold text-6xl opacity-10">📥</div>
+                                        <h2 className="text-xl font-black text-[#BDC1C6] uppercase tracking-[0.2em]">Select an email</h2>
+                                    </div>
+                                ) : (
+                                    <div className="flex-1 overflow-y-auto p-12 relative flex flex-col animate-fadeIn bg-white custom-scrollbar">
+                                        {activeEmailId === 'scam' && (
+                                            <div className="absolute top-6 right-10 bg-[#FEF7E0] text-[#785C00] px-5 py-2.5 rounded-2xl text-[12px] font-black z-20 border border-[#FAD242] shadow-sm animate-bounce">
+                                                🔍 DRAG SUSPICIOUS TEXT TO BOARD →
+                                            </div>
+                                        )}
+
+                                        <div className="max-w-3xl mx-auto w-full">
+                                            <h2 className="text-[28px] font-extrabold text-[#1F1F1F] mb-8">
+                                                {inboxEmails.find(e => e.id === activeEmailId)?.subject}
+                                            </h2>
+                                            <div className="flex items-center gap-4 mb-10 pb-8 border-b border-[#F1F3F4]">
+                                                <div className="w-14 h-14 bg-[#0B57D0] text-white rounded-full flex items-center justify-center font-bold text-xl">{inboxEmails.find(e => e.id === activeEmailId)?.senderInitial}</div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-[#1F1F1F]">
+                                                        {inboxEmails.find(e => e.id === activeEmailId)?.sender}
+                                                    </span>
+                                                    <span
+                                                        draggable={activeEmailId === 'scam'}
+                                                        onDragStart={(e) => {
+                                                            if (activeEmailId === 'scam') {
+                                                                e.dataTransfer.setData('application/json', JSON.stringify({ id: 1, title: 'Suspicious Domain', desc: 'The email domain "sbiindia-verify.com" is not legitimate.' }));
+                                                                setIsDetectiveModeOpen(true);
+                                                            }
+                                                        }}
+                                                        className={`text-[13px] ${activeEmailId === 'scam' ? 'cursor-grab border-b-2 border-dashed border-red-400 text-red-600' : 'text-gray-500'}`}
+                                                    >
+                                                        {activeEmailId === 'scam' ? '<security-alert@sbiindia-verify.com>' : '<support@official.com>'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {activeEmailId === 'scam' ? (
+                                                <div className="text-[#1F1F1F] text-[16px] leading-[1.8] font-sans">
+                                                    <img
+                                                        src="https://upload.wikimedia.org/wikipedia/en/thumb/5/58/State_Bank_of_India_logo.svg/300px-State_Bank_of_India_logo.svg.png"
+                                                        alt="SBI Logo"
+                                                        draggable
+                                                        onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 7, title: 'Copied Logo', desc: 'Anyone can copy a bank logo and paste it into a fake email.' })); setIsDetectiveModeOpen(true); }}
+                                                        className="h-10 w-auto mb-8 cursor-grab border-b-2 border-dashed border-red-400 hover:bg-red-50 p-1"
+                                                    />
+                                                    <p className="mb-6 font-bold">
+                                                        <span draggable onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 8, title: 'Generic Greeting', desc: 'Banks usually address you by name. "Dear Customer" is a sign of a mass phishing mail.' })); setIsDetectiveModeOpen(true); }} className="cursor-grab border-b-2 border-dashed border-red-400 hover:bg-red-50">Dear Customer,</span>
+                                                    </p>
+                                                    <p className="mb-6">Our security systems have detected <span draggable onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 'ip', title: 'Suspicious IP', desc: 'The IP address listed is from a restricted region.' })); setIsDetectiveModeOpen(true); }} className="cursor-grab border-b-2 border-dashed border-red-400 font-bold bg-red-50 px-1">suspicious login attempts (IP: 45.12.88.94)</span>.</p>
+                                                    <p className="mb-10">To <span draggable onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 'login', title: 'Urgent Pressure', desc: 'Demanding immediate re-verification is a common tactic to bypass your critical thinking.' })); setIsDetectiveModeOpen(true); }} className="cursor-grab border-b-2 border-dashed border-red-400 font-bold bg-red-50 px-1">re-verify your identity</span>, please visit our secure portal.</p>
+                                                    <div className="flex justify-center">
+                                                        <button
+                                                            className="bg-[#D93025] hover:bg-[#B9281E] text-white px-12 py-5 rounded-2xl font-black shadow-xl transition-all"
+                                                            draggable
+                                                            onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 'url', title: 'Fake Portal Link', desc: 'Link leads to verify247.in instead of sbi.co.in.' })); setIsDetectiveModeOpen(true); }}
+                                                            onClick={() => { setFeedbackMsg("⚠️ Caution: Investigating..."); setTimeout(() => setGameState('browser_view'), 1000); }}
+                                                        >
+                                                            Secure Login Portal
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="text-[#1F1F1F] text-[16px] leading-[1.8] whitespace-pre-wrap">
+                                                    {inboxEmails.find(e => e.id === activeEmailId)?.content}
+                                                </div>
                                             )}
                                         </div>
                                     </div>
-                                ))}
+                                )}
+                            </div>
+                        </div>
+
+                        {/* BROWSER STATUS BAR */}
+                        <div className="bg-[#F1F3F4] border-t border-gray-200 px-6 py-2.5 flex justify-between items-center text-[12px] font-sans font-bold text-gray-500">
+                            <span className={hoveredLink ? 'text-blue-600' : ''}>{hoveredLink ? `🔗 ${hoveredLink}` : 'Ready'}</span>
+                            <div className="flex items-center gap-4">
+                                <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-500" /> Secure Connection</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex flex-col justify-between">
-                        <div className="text-center bg-zinc-950 border border-white/5 rounded-[3rem] p-12 relative overflow-hidden group shadow-2xl">
-                            <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none" />
-                            <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.5em] block mb-6">Breach Resilience</span>
-                            <div className="text-5xl font-black text-white group-hover:scale-110 transition-transform duration-700">
-                                {crackTime}
+                    {/* INVESTIGATION BOARD PANEL */}
+                    {isDetectiveModeOpen && (
+                        <div className="w-[500px] bg-[#dcc6a0] rounded-[2.5rem] border-[16px] border-[#4a2e1a] shadow-2xl flex flex-col overflow-hidden animate-slideInRight shrink-0 relative">
+                            <div className="flex justify-between items-center z-10 bg-white/90 backdrop-blur-sm p-4 border-b-4 border-stone-400 self-stretch shrink-0">
+                                <h2 className="text-lg font-black text-stone-800 uppercase tracking-[0.2em] font-mono">� Digital Evidence Wall</h2>
+                                <button className="text-red-600 hover:text-red-700 font-black text-2xl transition-colors" onClick={() => setIsDetectiveModeOpen(false)}>✖</button>
                             </div>
-                            <div className="mt-12">
-                                <div className="flex justify-between text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">
-                                    <span>Entropy Level</span>
-                                    <span className="text-cyan-400">{entropy}%</span>
+
+                            <div className="flex-1 p-6 grid grid-cols-2 auto-rows-[140px] gap-6 overflow-y-auto custom-scrollbar bg-amber-50/20" onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
+                                e.preventDefault();
+                                try {
+                                    const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                                    if (data && !clues.find(c => c.id === data.id)) {
+                                        setClues(prev => [...prev, data]);
+                                        setUsedClueBoard(true); // SYNC STATE FOR NO-PENALTY
+                                        setFeedbackMsg('📌 Evidence Pinned!');
+                                        setTimeout(() => setFeedbackMsg(null), 2000);
+                                    }
+                                } catch (err) { }
+                            }}>
+                                {[0, 1, 2, 3, 4, 5].map(idx => {
+                                    const clue = clues[idx];
+                                    return (
+                                        <div key={idx} className="relative border-4 border-dashed border-stone-400/30 rounded-xl bg-stone-300/20 shadow-inner flex flex-col items-center justify-center group overflow-hidden transition-all hover:bg-stone-300/40">
+                                            {!clue ? (
+                                                <div className="text-stone-400 font-mono text-[10px] uppercase tracking-widest animate-pulse font-bold">
+                                                    Slot 0{idx + 1} Empty
+                                                </div>
+                                            ) : (
+                                                <div className="w-full h-full p-4 bg-white/95 shadow-xl border-l-4 border-red-600 flex flex-col animate-pin-bounce">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <div className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
+                                                        <h3 className="text-[12px] font-black uppercase text-red-700 leading-tight truncate">{clue.title}</h3>
+                                                    </div>
+                                                    <p className="text-[10px] text-stone-700 leading-relaxed font-medium mb-3 italic line-clamp-3">"{clue.desc}"</p>
+
+                                                    {/* Decorative string connection effects */}
+                                                    <div className="mt-auto pt-2 border-t border-stone-100 flex justify-between items-center">
+                                                        <span className="text-[8px] text-stone-400 font-mono uppercase tracking-tighter">Verified Clue</span>
+                                                        <div className="flex gap-0.5">
+                                                            <div className="w-1 h-1 rounded-full bg-amber-500" />
+                                                            <div className="w-3 h-1 rounded-full bg-amber-500/20" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Decorative Corner Tabs */}
+                                            <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-stone-400/50" />
+                                            <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-stone-400/50" />
+                                            <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-stone-400/50" />
+                                            <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-stone-400/50" />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="p-4 bg-white/95 border-t-8 border-[#4a2e1a]">
+                                <div className="flex justify-between text-[11px] font-black mb-2 text-stone-500 uppercase">
+                                    <span>Analysis Accuracy</span>
+                                    <span>{clues.length}/6 Required</span>
                                 </div>
-                                <div className="h-3 bg-zinc-900 rounded-full overflow-hidden p-0.5">
-                                    <div className="h-full bg-cyan-500 transition-all duration-700 rounded-full" style={{ width: `${entropy}%` }} />
+                                <div className="h-2 w-full bg-stone-100 rounded-full overflow-hidden mb-4">
+                                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${Math.min(100, (clues.length / 6) * 100)}%`, backgroundColor: clues.length >= 6 ? '#10b981' : '#f59e0b' }} />
                                 </div>
+                                {clues.length >= 6 && (
+                                    <button onClick={() => setGameState('final_decision')} className="w-full bg-[#D93025] hover:bg-[#B9281E] text-white py-3 rounded-2xl font-black shadow-lg uppercase tracking-widest text-[12px] animate-pulse">Reach Verdict</button>
+                                )}
                             </div>
                         </div>
+                    )}
+                </div>
+
+                {/* FLOATING ACTION BUTTONS */}
+                {isClueButtonVisible && (
+                    <div className="absolute bottom-6 left-6 z-[600]">
+                        <button onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)} className={`w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg border-2 border-amber-300 transition-all text-2xl ${!usedClueBoard ? 'animate-bounce' : 'hover:scale-110 active:scale-90'}`}>
+                            🔍
+                            {clues.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-amber-500">{clues.length}</span>}
+                        </button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+
+    if (gameState === 'final_decision') {
+        return (
+            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative p-8 overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                {/* Background FX */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-900/20 rounded-full blur-[100px]"></div>
+                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-900/20 rounded-full blur-[100px]"></div>
+                </div>
+
+                <div className="w-full max-w-4xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-12 select-none z-10">
+                    <div className="flex flex-col items-center mb-12">
+                        <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-6 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                            <span className="text-3xl">⚖️</span>
+                        </div>
+                        <h2 className="text-4xl font-black text-white uppercase tracking-[0.2em] text-center mb-4">Critical Decision</h2>
+                        <p className="text-slate-400 text-xl text-center leading-relaxed max-w-2xl font-light">
+                            You have reviewed the email from 'SBI Security Team'.<br />
+                            <span className="text-amber-400 font-medium inline-block mt-2">Do you trust it with your grandfather's life savings?</span>
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8">
+                        {/* Wrong Choice */}
+                        <button
+                            className="bg-slate-950/50 hover:bg-slate-800 border-2 border-slate-700/50 hover:border-red-500/80 p-10 rounded-2xl transition-all duration-300 group flex flex-col items-center text-center relative overflow-hidden"
+                            onClick={() => {
+                                triggerTransition('scam_outcome');
+                                const basePenalty = 550000;
+                                const finalPenalty = usedClueBoard ? basePenalty : basePenalty * 1.1; // 10% penalty for no board
+                                adjustAssets(-finalPenalty);
+                                if (!usedClueBoard) adjustLives(-1);
+                            }}
+                        >
+                            <div className="absolute inset-0 bg-red-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                            <span className="text-5xl mb-6 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] transition-all relative z-10">🔗</span>
+                            <h3 className="text-2xl font-black text-white mb-3 tracking-wide relative z-10">Click Link & Login</h3>
+                            <p className="text-slate-400 leading-relaxed relative z-10 font-medium">Verify your details immediately to prevent the 24-hour permanent suspension.</p>
+                        </button>
 
                         <button
-                            onClick={handleConfirm}
-                            className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-xl text-sm"
+                            className={`bg-slate-950/50 hover:bg-slate-800 border-2 border-slate-700/50 hover:border-emerald-500/80 p-10 rounded-2xl transition-all duration-300 flex flex-col items-center text-center group relative overflow-hidden ${usedClueBoard ? 'border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.15)] bg-emerald-950/10' : ''}`}
+                            onClick={() => {
+                                triggerTransition('outro_pov');
+                            }}
                         >
-                            Update Credentials
+                            <div className="absolute inset-0 bg-emerald-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
+                            <span className="text-5xl mb-6 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all relative z-10">🛡️</span>
+                            <h3 className="text-2xl font-black text-white mb-3 tracking-wide relative z-10">Delete & Report</h3>
+                            <p className="text-slate-400 leading-relaxed relative z-10 font-medium">Mark as phishing and forward to report.phishing@sbi.co.in. Do not click.</p>
+                            {usedClueBoard && (
+                                <span className="absolute top-4 right-4 text-[10px] bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 px-3 py-1.5 rounded-full font-bold uppercase tracking-widest animate-pulse backdrop-blur-sm shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                                    Confirmed by Evidence
+                                </span>
+                            )}
                         </button>
                     </div>
                 </div>
             </div>
-        </div>
-    );
-};
+        );
+    }
 
-const Level3 = () => {
-    const { completeLevel, setSafetyScore } = useGameState();
-    const [gameState, setGameState] = useState('room');
-    const [playerPos, setPlayerPos] = useState({ x: 800, y: 700 });
-    const [keys, setKeys] = useState({});
-
-    // State
-    const [interactionTarget, setInteractionTarget] = useState(null);
-    const [cluesFound, setCluesFound] = useState([]);
-    const [isDetectiveModeOpen, setIsDetectiveModeOpen] = useState(false);
-    const [feedbackMsg, setFeedbackMsg] = useState(null);
-    const [hackerProgress, setHackerProgress] = useState(0);
-
-    const showFeedback = (msg) => {
-        setFeedbackMsg(msg);
-        setTimeout(() => setFeedbackMsg(null), 3500);
-    };
-
-    const discoverClue = (id) => {
-        if (!cluesFound.includes(id)) {
-            setCluesFound(prev => [...prev, id]);
-            showFeedback(`🔍 RULE UNLOCKED: ${CLUE_INFO[id]?.title}`);
-        }
-    };
-
-    const checkCollision = (px, py, rect) => (
-        px < rect.x + rect.w && px + PLAYER_SIZE > rect.x &&
-        py < rect.y + rect.h && py + PLAYER_SIZE > rect.y
-    );
-
-    // Movement Loop
-    useEffect(() => {
-        const handleKD = (e) => setKeys(prev => ({ ...prev, [e.key.toLowerCase()]: true }));
-        const handleKU = (e) => setKeys(prev => ({ ...prev, [e.key.toLowerCase()]: false }));
-        window.addEventListener('keydown', handleKD);
-        window.addEventListener('keyup', handleKU);
-
-        let rafId;
-        const loop = () => {
-            if (gameState === 'room') {
-                setPlayerPos(p => {
-                    let nx = p.x, ny = p.y;
-                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
-                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
-                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
-                    if (keys['d'] || keys['arrowright']) nx += SPEED;
-
-                    // Obstacle check: DESK (L-Shape)
-                    DESK_PARTS.forEach(part => {
-                        if (checkCollision(nx, ny, part)) {
-                            if (p.x + PLAYER_SIZE <= part.x || p.x >= part.x + part.w) nx = p.x;
-                            if (p.y + PLAYER_SIZE <= part.y || p.y >= part.y + part.h) ny = p.y;
-                        }
-                    });
-
-                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
-                    ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
-
-                    // Check interaction triggers
-                    const range = 60;
-                    let target = null;
-
-                    const testArea = (area) => checkCollision(nx, ny, {
-                        x: area.x - range, y: area.y - range,
-                        w: area.w + range * 2, h: area.h + range * 2
-                    });
-
-                    if (testArea(LAPTOP_AREA)) target = 'laptop';
-                    else if (testArea(STICKY_NOTE_AREA)) target = 'rule_symbols';
-                    else if (testArea(PHOTO_AREA)) target = 'rule_pii';
-                    else if (testArea(BOOK_AREA)) target = 'rule_length';
-                    else if (testArea(POSTER_AREA)) target = 'rule_patterns';
-
-                    setInteractionTarget(target);
-                    return { x: nx, y: ny };
-                });
-
-                setHackerProgress(prev => Math.min(100, prev + 0.01));
-            }
-            rafId = requestAnimationFrame(loop);
-        };
-        rafId = requestAnimationFrame(loop);
-
-        return () => {
-            window.removeEventListener('keydown', handleKD);
-            window.removeEventListener('keyup', handleKU);
-            cancelAnimationFrame(rafId);
-        };
-    }, [gameState, keys]);
-
-    // Action Handler
-    useEffect(() => {
-        const handleE = (e) => {
-            if (e.key.toLowerCase() === 'e' && gameState === 'room' && interactionTarget) {
-                if (interactionTarget === 'laptop') {
-                    if (!cluesFound.includes('alert_received')) {
-                        setGameState('alert');
-                        discoverClue('alert_received');
-                    } else if (cluesFound.length < Object.keys(CLUE_INFO).length) {
-                        showFeedback("I need to find all of my late grandfather's rules before updating my password.");
-                    } else {
-                        setGameState('terminal');
-                    }
-                } else {
-                    discoverClue(interactionTarget);
-                }
-            }
-        };
-        window.addEventListener('keydown', handleE);
-        return () => window.removeEventListener('keydown', handleE);
-    }, [interactionTarget, cluesFound, gameState]);
-
-    const rulesFoundCount = cluesFound.filter(c => c.startsWith('rule_')).length;
-
-    // Assets Rendering (Ported from Level 1)
-    const renderPlant = (x, y) => (
-        <div className="absolute z-20" style={{ left: x, top: y }}>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] bg-[#c05a3c] rounded-full border-[8px] border-[#9c452e] shadow-xl"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] pointer-events-none">
-                {[0, 45, 90, 135].map(deg => (
-                    <div key={deg} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[30px] bg-[#3e8549] rounded-full flex items-center`} style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 5px 15px rgba(0,0,0,0.4)', zIndex: deg }}>
-                        <div className="w-full h-[2px] bg-[#2d6335]"></div>
+    if (gameState === 'outro_pov') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                {outroStep === 1 && (
+                    <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/temppho.png")' }}>
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
+                        <div className="absolute bottom-28 w-full text-center animate-fadeInSlow">
+                            <p className="text-white text-4xl font-serif italic tracking-wide drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] px-16 leading-relaxed">
+                                "It's been too much in a single day... I should probably go to sleep."
+                            </p>
+                            <div className="mt-8 w-32 h-[1px] bg-gradient-to-r from-transparent via-white/60 to-transparent mx-auto animate-[shimmerWidth_2s_infinite]" />
+                        </div>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
+                )}
 
-    const renderBookshelf = (x, y) => (
-        <div className="absolute z-10 bg-[#e08e50] border-[12px] border-[#b86b35] shadow-2xl flex flex-col justify-evenly p-2" style={{ left: x, top: y, width: 150, height: 450 }}>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className={`flex items-end h-[60px] px-2 gap-1 ${interactionTarget === 'rule_length' ? 'scale-110' : ''}`}>
-                <div className={`w-5 h-12 ${interactionTarget === 'rule_length' ? 'bg-cyan-400 ring-4 ring-cyan-500/50' : 'bg-red-600'}`}></div>
-                <div className="w-4 h-14 bg-yellow-500 shadow-sm border-l border-white/20"></div>
-                <div className="w-4 h-10 bg-blue-600 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1 justify-end">
-                <div className="w-6 h-12 bg-emerald-600"></div><div className="w-4 h-9 bg-purple-600"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1">
-                <div className="w-5 h-14 bg-cyan-600"></div><div className="w-4 h-12 bg-red-500"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-        </div>
-    );
+                {(outroStep === 2 || outroStep === 3) && (
+                    <div className="w-full h-full bg-stone-950 flex flex-col items-center justify-center animate-fadeIn relative overflow-hidden">
+                        {/* Scanning line effects */}
+                        <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
+                        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-500/5 to-transparent animate-[scanLine_4s_linear_infinite] pointer-events-none" />
 
-    const renderWindow = (x, y) => (
-        <div className="absolute z-5 bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-xl overflow-hidden" style={{ left: x, top: y, width: 450, height: 180 }}>
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-[80px] flex items-end gap-[1px]">
-                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
-                    <div key={i} className="flex-1 bg-[#090e1a]" style={{ height: h }}></div>
-                ))}
-            </div>
-            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
-        </div>
-    );
+                        <div className="relative group text-center">
+                            <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                            <h2 className="text-white text-6xl font-black tracking-[0.5em] uppercase mb-12 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                                Level 3: The Phishing Net
+                                {outroStep === 3 && (
+                                    <div className="absolute top-1/2 left-[-10%] w-[120%] h-3 bg-red-600/90 -translate-y-1/2 animate-[strikeThrough_0.5s_forwards] shadow-[0_0_25px_rgba(220,38,38,1)] z-20 skew-y-[-1deg]" />
+                                )}
+                            </h2>
 
-    const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
-    const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
+                            {outroStep === 3 && (
+                                <div className={`mt-12 text-8xl font-black italic tracking-[0.2em] uppercase animate-surge relative text-emerald-500`}>
+                                    <span className="relative z-10">COMPLETED</span>
+                                    {/* Chromatic aberration for text */}
+                                    <span className={`absolute inset-0 opacity-40 translate-x-1 animate-[aberration_3s_infinite] text-cyan-400`}>COMPLETED</span>
+                                    <span className={`absolute inset-0 opacity-40 -translate-x-1 animate-[aberration-alt_3s_infinite] text-emerald-300`}>COMPLETED</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="mt-20 flex flex-col items-center gap-4">
+                            <div className="h-px w-80 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+                            <div className="text-[11px] font-mono text-zinc-500 tracking-[0.8em] uppercase opacity-60 animate-pulse">
+                                Digital Forensics Session // STATUS_CLEARED
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (gameState === 'scam_outcome') {
+        return (
+            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 bg-red-950/40 z-0"></div>
+                <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)] pointer-events-none"></div>
+                <div className="w-[800px] h-[800px] absolute bg-red-600/10 rounded-full blur-[150px] z-0 animate-pulse"></div>
+
+                <div className="z-10 text-center max-w-3xl transform transition-all translate-y-0 scale-100">
+                    <span className="text-8xl mb-6 inline-block drop-shadow-[0_0_30px_rgba(239,68,68,0.8)] animate-bounce">💸</span>
+                    <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-red-400 to-red-700 uppercase tracking-[0.2em] mb-4 drop-shadow-lg">ASSETS STOLEN</h1>
+
+                    <div className="bg-slate-900/60 p-10 rounded-3xl border border-red-500/30 mb-10 backdrop-blur-xl text-left shadow-[0_0_50px_rgba(239,68,68,0.1)]">
+                        <p className="text-red-100 text-xl mb-4 font-light leading-relaxed">
+                            You clicked the fake link and entered your internet banking credentials on <strong className="font-mono text-red-400 font-bold bg-red-950/50 px-2 py-0.5 rounded">sbi-secure-login.verify247.in</strong>.
+                        </p>
+                        <p className="text-red-200/80 text-lg mb-6 leading-relaxed">
+                            The attacker instantly captured your username and password, logged into your real SBI account, and transferred funds to a mule account via RTGS.
+                        </p>
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-red-500/50 to-transparent my-8"></div>
+                        <div className="flex justify-between items-center text-2xl font-mono text-red-400 bg-red-950/40 p-5 rounded-xl border border-red-500/20 shadow-inner">
+                            <span className="uppercase tracking-widest font-bold">FUNDS LOST:</span>
+                            <span className="font-black text-3xl">-₹{usedClueBoard ? '5,50,000' : '6,05,000'}</span>
+                        </div>
+                        {!usedClueBoard && (
+                            <div className="flex justify-between items-center text-sm font-mono text-amber-500 mt-4 px-2">
+                                <span className="uppercase tracking-wider">No-Investigation Penalty Included (10%):</span>
+                                <span>-₹55,000</span>
+                            </div>
+                        )}
+                        {!usedClueBoard && (
+                            <div className="flex justify-between items-center text-lg font-black text-red-500 mt-4 animate-pulse uppercase tracking-widest bg-red-950 p-3 rounded border border-red-800">
+                                <span>LIVES LOST:</span>
+                                <span>-1 LIFE</span>
+                            </div>
+                        )}
+                        {usedClueBoard && (
+                            <div className="mt-6 p-5 bg-gradient-to-r from-amber-900/40 to-transparent border-l-4 border-amber-500 rounded text-amber-200 text-sm leading-relaxed shadow-lg">
+                                <strong className="uppercase tracking-widest block mb-1">System Note:</strong> You investigated the evidence... but still chose to trust the email. Trusting your instincts matters as much as gathering data. No lives were lost because you investigated, but the money is gone.
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        className="bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white px-12 py-5 rounded-xl font-bold tracking-[0.3em] uppercase transition-all border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:shadow-[0_0_50px_rgba(239,68,68,0.6)] hover:-translate-y-1"
+                        onClick={() => completeLevel(false, 0, 0)}
+                    >
+                        Accept Consequences
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'victory_outcome') {
+        return (
+            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-8 relative overflow-hidden animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 bg-emerald-950/30 z-0"></div>
+                <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)] pointer-events-none"></div>
+                <div className="w-[800px] h-[800px] absolute bg-emerald-600/10 rounded-full blur-[150px] z-0 animate-pulse"></div>
+
+                <div className="z-10 text-center max-w-3xl transform transition-all translate-y-0 scale-100">
+                    <span className="text-8xl mb-6 inline-block drop-shadow-[0_0_30px_rgba(16,185,129,0.8)] animate-bounce">🛡️</span>
+                    <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-emerald-400 to-emerald-600 uppercase tracking-[0.2em] mb-4 drop-shadow-lg">THREAT NEUTRALIZED</h1>
+
+                    <div className="bg-slate-900/60 p-10 rounded-3xl border border-emerald-500/30 mb-10 backdrop-blur-xl text-left shadow-[0_0_50px_rgba(16,185,129,0.1)]">
+                        <div className="flex items-center gap-3 mb-6">
+                            <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-lg">💡</span>
+                            <h3 className="text-emerald-400 font-bold uppercase tracking-widest text-xl">Cyber Tip: The Phishing Net</h3>
+                        </div>
+                        <p className="text-emerald-50 text-xl mb-4 leading-relaxed font-light">
+                            Always verify the sender's actual email domain — not just the display name. Hover over links <strong className="text-emerald-300 font-bold">BEFORE</strong> clicking to see the real URL.
+                        </p>
+                        <p className="text-emerald-100/70 text-lg leading-relaxed mb-8">
+                            Banks <strong>NEVER</strong> ask for passwords via email. Look for HTTPS and a valid padlock. A convincing logo means nothing without a verified domain. When in doubt, delete the email and call your bank directly using the official number on their website.
+                        </p>
+
+                        <div className="h-px w-full bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent my-8"></div>
+
+                        <div className="flex justify-between items-center text-2xl font-mono text-emerald-400 bg-emerald-950/40 p-5 rounded-xl border border-emerald-500/20 shadow-inner">
+                            <span className="uppercase tracking-widest font-bold text-lg">CYBER SCORE EARNED:</span>
+                            <span className="font-black text-3xl">+{usedClueBoard ? '10' : '5'} PTS</span>
+                        </div>
+                        {!usedClueBoard && (
+                            <div className="text-sm font-medium text-amber-500/80 mt-3 text-right flex items-center justify-end gap-2">
+                                <span>⚠️</span>
+                                Score halved for not fully investigating the Evidence Board
+                            </div>
+                        )}
+                        {usedClueBoard && (
+                            <div className="text-sm font-bold text-emerald-400 mt-3 text-right flex items-center justify-end gap-2 uppercase tracking-wider animate-pulse">
+                                <span>⭐</span>
+                                Flawless Investigation Bonus Applied
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        className="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white px-12 py-5 rounded-xl font-bold tracking-[0.3em] uppercase transition-all border border-emerald-400/50 shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:shadow-[0_0_50px_rgba(16,185,129,0.6)] hover:-translate-y-1"
+                        onClick={() => completeLevel(true, 0, 0)}
+                    >
+                        Continue to Next Day
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
-            {gameState === 'alert' && <GmailAlert onProceed={() => setGameState('room')} />}
-            {gameState === 'terminal' && <SecurityTerminal onComplete={() => setGameState('outcome')} onFail={showFeedback} rulesFound={rulesFoundCount} />}
+        <style dangerouslySetInnerHTML={{
+            __html: `
+        .animate-strikeThrough { animation: strikeThrough 1s forwards; }
+        .animate-scanLine { animation: scanLine 2s linear infinite; }
+        .animate-surge { animation: surge 2s infinite; }
+        .animate-fadeIn { animation: fadeIn 0.5s forwards; }
+        .animate-width { animation: width 1.5s ease-in-out forwards; }
+        .animate-cinematic-sequence { animation: cinematic-sequence 3.5s forwards; }
+        .animate-aberration { animation: aberration 1.5s infinite; }
+        .animate-aberration-alt { animation: aberration-alt 1.5s infinite; }
 
-            {gameState === 'outcome' && (
-                <div className="fixed inset-0 z-[4000] bg-zinc-950 flex flex-col items-center justify-center p-12 text-white">
-                    <h1 className="text-6xl font-black text-emerald-400 mb-8 uppercase tracking-widest">Account Secured</h1>
-                    <p className="text-xl max-w-2xl text-center mb-12">By applying your grandfather's legacy rules, you've made your digital identity impenetrable.</p>
-                    <button onClick={() => completeLevel(true, 100, 0)} className="px-12 py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-full transition-all shadow-xl uppercase tracking-widest">Next Case</button>
-                </div>
-            )}
-
-            <div className={`relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900 transition-all duration-1000 ${hackerProgress > 70 ? 'shadow-[0_0_100px_rgba(220,38,38,0.3)]' : ''}`} style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
-
-                <div className="absolute inset-0 transition-transform duration-100 ease-out" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT, transform: `translate(${-cameraX}px, ${-cameraY}px)` }}>
-
-                    <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                        {/* Wood Floor */}
-                        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
-
-                        {/* Top Wall */}
-                        <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
-
-                        {/* Windows */}
-                        {renderWindow(320, 0)}
-                        {renderWindow(930, 0)}
-
-                        {/* Photo (Between Windows) */}
-                        <div className={`absolute z-10 transition-all cursor-pointer ${interactionTarget === 'rule_pii' ? 'scale-110 ring-4 ring-cyan-400' : ''}`} style={{ left: PHOTO_AREA.x, top: PHOTO_AREA.y, width: PHOTO_AREA.w, height: PHOTO_AREA.h }}>
-                            <div className="w-full h-full bg-[#3d2a25] border-[12px] border-[#b86b35] shadow-xl p-4 flex flex-col items-center justify-center">
-                                <div className="w-full h-full bg-black/40 border border-white/10 flex items-center justify-center grayscale text-4xl">🖼️</div>
-                                <div className="text-[10px] text-white/40 mt-2 font-bold uppercase tracking-widest">FAMILY</div>
-                            </div>
-                        </div>
-
-                        {/* Poster (Right Wall) */}
-                        <div className={`absolute z-10 transition-all cursor-pointer ${interactionTarget === 'rule_patterns' ? 'scale-110 ring-4 ring-cyan-400' : ''}`} style={{ left: POSTER_AREA.x, top: POSTER_AREA.y, width: POSTER_AREA.w, height: POSTER_AREA.h }}>
-                            <div className="w-full h-full bg-[#0d101d] border-8 border-[#1e2a47] shadow-xl p-4 flex items-center justify-center text-cyan-400/40 text-xs font-bold text-center italic">
-                                VOYAGE MAP:<br />NO STRAIGHT PATHS
-                            </div>
-                        </div>
-
-                        {/* Bookshelves */}
-                        {renderBookshelf(60, 350)}
-                        {renderBookshelf(1400, 350)}
-
-                        {/* Potted Plants */}
-                        {renderPlant(180, 850)}
-                        {renderPlant(1420, 850)}
-
-                        {/* The Desk */}
-                        <div className="absolute z-10" style={{ left: 600, top: 400, width: 400, height: 350 }}>
-                            <div className="absolute right-0 top-0 w-full h-[140px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '16px solid #b86b35', borderRight: '12px solid #b86b35', borderLeft: '12px solid #b86b35' }}></div>
-                            <div className="absolute left-0 top-[140px] w-[140px] h-[210px] bg-[#e08e50] shadow-2xl rounded-b-sm" style={{ borderBottom: '16px solid #b86b35', borderLeft: '12px solid #b86b35', borderRight: '12px solid #b86b35' }}></div>
-
-                            {/* Laptop (Upgraded Visuals) */}
-                            <div className={`absolute transition-all cursor-pointer ${interactionTarget === 'laptop' ? 'scale-110' : ''}`} style={{ left: 160, top: 20, width: 140, height: 100 }}>
-                                {/* Screen Part */}
-                                <div className={`w-full h-[85px] bg-slate-900 border-[6px] ${interactionTarget === 'laptop' ? 'border-cyan-400 ring-8 ring-cyan-500/30 shadow-[0_0_30px_#22d3ee]' : 'border-zinc-800'} rounded-t-xl shadow-2xl flex flex-col items-center justify-center p-3 relative overflow-hidden transition-all duration-300`}>
-                                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
-                                    <div className={`w-full h-1.5 mb-2 rounded-full ${cluesFound.includes('alert_received') ? 'bg-cyan-500 animate-pulse shadow-[0_0_10px_#22d3ee]' : 'bg-red-500 animate-bounce shadow-[0_0_10px_#ef4444]'}`}></div>
-                                    <span className={`text-[9px] font-black uppercase tracking-tighter ${cluesFound.includes('alert_received') ? 'text-cyan-400' : 'text-red-500'}`}>
-                                        {cluesFound.includes('alert_received') ? "TERMINAL ACTIVE" : "SECURITY ALERT"}
-                                    </span>
-                                    {/* Scanline effect */}
-                                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, #fff 2px, #fff 4px)', backgroundSize: '100% 4px' }}></div>
-                                </div>
-                                {/* Base Part */}
-                                <div className="w-[160px] h-[15px] bg-zinc-800 rounded-lg absolute -bottom-4 left-1/2 -translate-x-1/2 border-t-2 border-zinc-700 shadow-xl flex justify-center">
-                                    <div className="w-12 h-1 bg-zinc-900 mt-1 rounded-full opacity-50"></div>
-                                </div>
-                            </div>
-
-                            {/* Sticky Note */}
-                            <div className={`absolute transition-all cursor-pointer ${interactionTarget === 'rule_symbols' ? 'scale-150 rotate-0 ring-4 ring-yellow-400 shadow-2xl' : '-rotate-12'}`} style={{ left: 60, top: 180, width: 60, height: 60 }}>
-                                <div className="w-full h-full bg-yellow-300 p-2 shadow-xl flex flex-col justify-end border-b-4 border-yellow-500 rounded-sm">
-                                    <div className="w-full h-[1px] bg-black/10 mb-1"></div>
-                                    <div className="w-2/3 h-[1px] bg-black/10 mb-2"></div>
-                                    <div className="text-[7px] font-black text-black/60 uppercase text-center tracking-widest truncate">RULE #1</div>
-                                </div>
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-red-600 shadow-lg border border-red-800"></div>
-                            </div>
-                        </div>
-
-                        {/* Chair */}
-                        <div className="absolute w-[100px] h-[100px] z-10 flex flex-col items-center drop-shadow-2xl" style={{ left: 750, top: 600 }}>
-                            <div className="w-[70px] h-[45px] bg-[#3a4f6d] rounded-t-2xl border-x-[6px] border-t-[6px] border-[#2c3e50] absolute -top-4"></div>
-                            <div className="w-[85px] h-[55px] bg-[#4a6285] rounded-b-[40px] border-b-[8px] border-[#2c3e50] relative shadow-xl"></div>
-                        </div>
-
-                        <Player x={playerPos.x} y={playerPos.y} />
-                    </div>
-                </div>
-
-                {/* HUD Overlay */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2 z-[400]">
-                    <div className="bg-black/80 p-4 rounded-xl border border-white/10 backdrop-blur-md min-w-[250px]">
-                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block mb-1">Status</span>
-                        <h2 className="text-white text-sm font-bold">
-                            {!cluesFound.includes('alert_received') ? "Investigate the laptop alert." :
-                                rulesFoundCount < 4 ? `Find the Rules (${rulesFoundCount}/4)` :
-                                    "Secure account at the laptop."}
-                        </h2>
-                    </div>
-
-                    <div className="bg-black/80 p-4 rounded-xl border border-white/10 backdrop-blur-md">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Hacking Progress</span>
-                            <span className="text-red-500 text-[10px] font-bold">{Math.floor(hackerProgress)}%</span>
-                        </div>
-                        <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className={`h-full transition-all duration-500 ${hackerProgress > 70 ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${hackerProgress}%` }}></div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Interaction Prompt Overlay */}
-                {interactionTarget && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 z-[500] animate-bounce">
-                        <div className="bg-white text-black font-black px-8 py-4 rounded-full shadow-2xl flex items-center gap-4">
-                            <span className="bg-black text-white px-2 py-1 rounded text-sm">E</span>
-                            <span className="uppercase tracking-widest text-xs">
-                                {interactionTarget === 'laptop' ? (cluesFound.includes('alert_received') ? "Open Terminal" : "Check Alert") : "Recall Rule"}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Journal Trigger */}
-                <div className="absolute bottom-6 right-6 z-[500]">
-                    <button
-                        onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)}
-                        className="w-16 h-16 bg-zinc-900 border-2 border-white/10 rounded-2xl flex items-center justify-center text-4xl shadow-2xl hover:bg-emerald-600 transition-all hover:scale-110"
-                    >
-                        📓
-                    </button>
-                    {cluesFound.length > 0 && (
-                        <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-4 border-zinc-900 animate-in zoom-in">
-                            {cluesFound.length}
-                        </span>
-                    )}
-                </div>
-
-                {/* Journal Overlay */}
-                {isDetectiveModeOpen && (
-                    <div className="absolute inset-y-12 right-12 w-[400px] z-[1000] bg-zinc-950/95 border-2 border-white/10 shadow-2xl rounded-3xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-500 backdrop-blur-xl">
-                        <div className="p-8 border-b border-white/10 flex justify-between items-center">
-                            <h3 className="text-white font-bold uppercase tracking-widest">Grandfather's Archive</h3>
-                            <button onClick={() => setIsDetectiveModeOpen(false)} className="text-zinc-500 hover:text-white">✕</button>
-                        </div>
-                        <div className="flex-1 p-6 space-y-4 overflow-y-auto">
-                            {Object.keys(CLUE_INFO).map(cid => {
-                                const found = cluesFound.includes(cid);
-                                return (
-                                    <div key={cid} className={`p-6 rounded-2xl border transition-all ${found ? 'bg-white/5 border-white/10' : 'bg-transparent border-white/5 opacity-50 filter grayscale'}`}>
-                                        <div className="flex gap-4 items-start">
-                                            <div className="text-3xl">{found ? CLUE_INFO[cid].icon : '🔒'}</div>
-                                            <div>
-                                                <div className="text-[10px] font-bold text-cyan-400 uppercase mb-2">{found ? CLUE_INFO[cid].title : 'UNKNOWN'}</div>
-                                                <p className="text-xs text-zinc-400 italic">
-                                                    {found ? <span>"{CLUE_INFO[cid].desc}"</span> : <span>Search near: {CLUE_INFO[cid].hint}</span>}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                {/* Feedback */}
-                {feedbackMsg && (
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[4000] animate-in slide-in-from-top duration-500">
-                        <div className="bg-red-600 text-white px-8 py-4 rounded-xl shadow-2xl font-bold text-xs uppercase tracking-widest border border-red-400">
-                            {feedbackMsg}
-                        </div>
-                    </div>
-                )}
-
-                {/* Progress Overlay */}
-                <div className="absolute inset-0 pointer-events-none transition-opacity duration-1000 z-[2000]"
-                    style={{
-                        opacity: hackerProgress > 60 ? (hackerProgress - 60) / 40 : 0,
-                        background: 'radial-gradient(circle at center, transparent 40%, rgba(220,38,38,0.3) 100%)'
-                    }}>
-                </div>
-            </div>
-        </div>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes width { from { width: 0; opacity: 0; } to { width: 12rem; opacity: 0.8; } }
+        @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
+        @keyframes fieldZoom { from { transform: scale(1); } to { transform: scale(1.1); } }
+        @keyframes shimmerWidth { from { width: 0; } to { width: 8rem; } }
+        @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
+        @keyframes surge {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.08); filter: brightness(1.3); drop-shadow: 0 0 40px rgba(255,255,255,0.4); }
+        }
+        @keyframes fadeInSlow { from { opacity: 0; } 30% { opacity: 1; } to { opacity: 1; } }
+        @keyframes aberration {
+            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+            25% { transform: translate(-4px, 2px); opacity: 0.8; }
+            50% { transform: translate(4px, -2px); opacity: 0.6; }
+            75% { transform: translate(-2px, -4px); opacity: 0.8; }
+        }
+        @keyframes aberration-alt {
+            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+            25% { transform: translate(4px, -2px); opacity: 0.8; }
+            50% { transform: translate(-4px, 2px); opacity: 0.6; }
+            75% { transform: translate(2px, 4px); opacity: 0.8; }
+        }
+        @keyframes cinematic-sequence {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    ` }} />
     );
 };
 

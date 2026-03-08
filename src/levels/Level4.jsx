@@ -4,6 +4,8 @@ import { useGameState } from '../context/GameStateContext';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
+const LIVING_ROOM_WIDTH = 1600;
+const LIVING_ROOM_HEIGHT = 1100;
 const SPEED = 9;
 const PLAYER_SIZE = 40;
 const DESK_ZONE = { x: 500, y: 280, w: 200, h: 100 };
@@ -32,10 +34,15 @@ const MINI_GAME_APPS = [
 
 const Level4 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
-    const [playerPos, setPlayerPos] = useState({ x: 580, y: 700 });
+    const [playerPos, setPlayerPos] = useState({ x: 500, y: 350 }); // Spawn slightly next to the desk
+    const [livingRoomPlayerPos, setLivingRoomPlayerPos] = useState({ x: 1450, y: 550 }); // Spawns near RIGHT door (from study)
+    const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 600, y: 700 }); // Starts at bottom door in bedroom
     const [keys, setKeys] = useState({});
-    const [gameState, setGameState] = useState('walk');
+
+    // NEW SEQUENCE STATES: study_pov -> study_walk -> living_room -> bedroom_walk -> sleep_pov -> title_card -> sms_ui -> ...
+    const [gameState, setGameState] = useState('study_pov');
     const [canInteract, setCanInteract] = useState(false);
+    const [interactionTarget, setInteractionTarget] = useState(null);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
     const [cluesFound, setCluesFound] = useState([]);
     const [isDetectiveModeOpen, setIsDetectiveModeOpen] = useState(true);
@@ -43,15 +50,27 @@ const Level4 = () => {
     const [clickedSmsLink, setClickedSmsLink] = useState(false);
     const [reportReason, setReportReason] = useState(null);
 
-    // Mini-game state
-    const [safeBucket, setSafeBucket] = useState([]);
-    const [maliciousBucket, setMaliciousBucket] = useState([]);
-    const [draggedApp, setDraggedApp] = useState(null);
-    const [miniGameOver, setMiniGameOver] = useState(false);
-    const [miniGameMsg, setMiniGameMsg] = useState('');
+    // CINEMATIC TRANSITION STATE
+    const [isTransitioning, setIsTransitioning] = useState(true);
+    const [titleCardStep, setTitleCardStep] = useState(0);
+    const [phonePickupStep, setPhonePickupStep] = useState(0);
+    const [outroStep, setOutroStep] = useState(0);
+    const [outroSuccess, setOutroSuccess] = useState(true);
+
+    const triggerTransition = (newState, delay = 500) => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+            if (newState) setGameState(newState);
+            setTimeout(() => setIsTransitioning(false), 200);
+        }, delay);
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsTransitioning(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const usedClueBoard = cluesFound.length >= 3;
-    const unassignedApps = MINI_GAME_APPS.filter(a => !safeBucket.find(s => s.id === a.id) && !maliciousBucket.find(m => m.id === a.id));
 
     useEffect(() => {
         const dk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
@@ -64,33 +83,78 @@ const Level4 = () => {
     // E key interaction
     useEffect(() => {
         const handleKey = (e) => {
-            if (e.key.toLowerCase() === 'e' && canInteract && gameState === 'walk') {
-                setGameState('sms_ui');
+            if (e.key.toLowerCase() === 'e') {
+                if (gameState === 'study_pov') triggerTransition('study_walk');
+                else if (gameState === 'study_walk' && interactionTarget === 'exit') triggerTransition('living_room');
+                else if (gameState === 'living_room' && interactionTarget === 'bedroom') triggerTransition('bedroom_walk');
+                else if (gameState === 'bedroom_walk' && interactionTarget === 'sleep') triggerTransition('sleep_pov');
+                else if (gameState === 'phone_pickup_pov' && phonePickupStep >= 4) triggerTransition('sms_ui');
+                else if (gameState === 'outro_pov_1') triggerTransition('outro_pov_2');
+                else if (gameState === 'walk' && canInteract) setGameState('sms_ui'); // Legacy check
             }
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [canInteract, gameState]);
+    }, [gameState, interactionTarget, canInteract, phonePickupStep]);
 
     useEffect(() => {
-        if (gameState !== 'walk') return;
+        if (!['walk', 'study_walk', 'living_room', 'bedroom_walk'].includes(gameState)) return;
         let frameId;
         const loop = () => {
-            setPlayerPos(p => {
-                let nx = p.x, ny = p.y;
-                if (keys['w'] || keys['arrowup']) ny -= SPEED;
-                if (keys['s'] || keys['arrowdown']) ny += SPEED;
-                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
-                if (keys['d'] || keys['arrowright']) nx += SPEED;
-                nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
-                ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
-                if (checkCollision(nx, ny, DESK_ZONE)) {
-                    if (p.x + PLAYER_SIZE <= DESK_ZONE.x || p.x >= DESK_ZONE.x + DESK_ZONE.w) nx = p.x;
-                    if (p.y + PLAYER_SIZE <= DESK_ZONE.y || p.y >= DESK_ZONE.y + DESK_ZONE.h) ny = p.y;
-                }
-                setCanInteract(checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 }));
-                return { x: nx, y: ny };
-            });
+            if (gameState === 'walk' || gameState === 'study_walk') {
+                setPlayerPos(p => {
+                    let nx = p.x, ny = p.y;
+                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                    if (keys['d'] || keys['arrowright']) nx += SPEED;
+                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                    ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+                    if (checkCollision(nx, ny, DESK_ZONE)) {
+                        if (p.x + PLAYER_SIZE <= DESK_ZONE.x || p.x >= DESK_ZONE.x + DESK_ZONE.w) nx = p.x;
+                        if (p.y + PLAYER_SIZE <= DESK_ZONE.y || p.y >= DESK_ZONE.y + DESK_ZONE.h) ny = p.y;
+                    }
+
+                    let target = null;
+                    if (Math.abs(nx - 600) < 150 && ny > ROOM_HEIGHT - 100) target = 'exit';
+                    setInteractionTarget(target);
+                    setCanInteract(checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 }));
+                    return { x: nx, y: ny };
+                });
+            } else if (gameState === 'living_room') {
+                setLivingRoomPlayerPos(p => {
+                    let nx = p.x, ny = p.y;
+                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                    if (keys['d'] || keys['arrowright']) nx += SPEED;
+
+                    nx = Math.max(120, Math.min(nx, LIVING_ROOM_WIDTH - 120));
+                    ny = Math.max(120, Math.min(ny, LIVING_ROOM_HEIGHT - 120));
+
+                    let target = null;
+                    if (Math.abs(nx - 800) < 150 && ny > LIVING_ROOM_HEIGHT - 150) target = 'bedroom'; // bottom exit
+                    setInteractionTarget(target);
+
+                    return { x: nx, y: ny };
+                });
+            } else if (gameState === 'bedroom_walk') {
+                setBedroomPlayerPos(p => {
+                    let nx = p.x, ny = p.y;
+                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                    if (keys['d'] || keys['arrowright']) nx += SPEED;
+                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                    ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+
+                    let target = null;
+                    if (Math.abs(nx - 600) < 150 && ny < 400) target = 'sleep';
+                    setInteractionTarget(target);
+
+                    return { x: nx, y: ny };
+                });
+            }
             frameId = requestAnimationFrame(loop);
         };
         frameId = requestAnimationFrame(loop);
@@ -106,27 +170,6 @@ const Level4 = () => {
 
     const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
 
-    // Mini-game handlers
-    const handleDragStart = (e, app) => { setDraggedApp(app); e.dataTransfer.effectAllowed = 'move'; };
-    const handleDragOver = (e) => e.preventDefault();
-    const handleDrop = (e, bucket) => {
-        e.preventDefault();
-        if (!draggedApp) return;
-        if (bucket === 'safe') setSafeBucket(prev => [...prev, draggedApp]);
-        else setMaliciousBucket(prev => [...prev, draggedApp]);
-        setDraggedApp(null);
-    };
-    const checkMiniGame = () => {
-        const safeCorrect = safeBucket.every(a => a.safe);
-        const malCorrect = maliciousBucket.every(a => !a.safe);
-        if (safeCorrect && malCorrect) {
-            setMiniGameMsg('🎉 Perfect! All apps sorted correctly!');
-        } else {
-            setMiniGameMsg('❌ Some apps were misplaced. Review the clues!');
-        }
-        setMiniGameOver(true);
-    };
-
     // ─── FEEDBACK TOAST ───
     const FeedbackToast = () => feedbackMsg ? (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[200] bg-amber-500 text-black font-bold px-8 py-3 rounded-full shadow-2xl animate-bounce text-lg">
@@ -134,122 +177,314 @@ const Level4 = () => {
         </div>
     ) : null;
 
+    const [showText, setShowText] = useState(false);
+    const [dimScreen, setDimScreen] = useState(false);
+    useEffect(() => {
+        if (gameState === 'sleep_pov') {
+            const t1 = setTimeout(() => setShowText(true), 2000);
+            const t2 = setTimeout(() => setDimScreen(true), 4500);
+            return () => { clearTimeout(t1); clearTimeout(t2); };
+        }
+        if (gameState === 'title_card') {
+            const t3 = setTimeout(() => {
+                triggerTransition('phone_pickup_pov', 500);
+            }, 4000);
+            return () => clearTimeout(t3);
+        }
+        if (gameState === 'phone_pickup_pov') {
+            const t1 = setTimeout(() => {
+                const au = new Audio('/assets/notification.mp3');
+                au.volume = 0.5;
+                au.play().catch(e => console.log('Audio error:', e));
+                setPhonePickupStep(1);
+            }, 1000);
+            const t2 = setTimeout(() => setPhonePickupStep(2), 3000);
+            const t3 = setTimeout(() => setPhonePickupStep(3), 5000);
+            const t4 = setTimeout(() => setPhonePickupStep(4), 7000);
+            return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+        }
+        if (gameState === 'outro_pov_2') {
+            const t1 = setTimeout(() => setOutroStep(1), 1000);
+            const t2 = setTimeout(() => setOutroStep(2), 5000);
+            const t3 = setTimeout(() => triggerTransition('end_card'), 9000);
+            return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+        }
+        if (gameState === 'end_card') {
+            const t1 = setTimeout(() => setOutroStep(3), 100);
+            const t2 = setTimeout(() => setOutroStep(4), 4000);
+            const t3 = setTimeout(() => setOutroStep(5), 5500);
+            const t4 = setTimeout(() => {
+                const pts = !outroSuccess ? 0 : 10 + (!clickedSmsLink ? 10 : 0) + (usedClueBoard ? 5 : 0);
+                completeLevel(outroSuccess, pts, 0);
+            }, 9000);
+            return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+        }
+    }, [gameState, outroSuccess, clickedSmsLink, usedClueBoard, completeLevel]);
+
     // ═══════════════════════════════════════════
-    // WALK STATE — Thatha's Study
+    // NEW INTRO SEQUENCE STATES
     // ═══════════════════════════════════════════
-    if (gameState === 'walk') {
+
+    if (gameState === 'study_pov') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/temppho.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
+
+                    {/* Ultra-Minimalist Cinematic Prompt */}
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                        <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-md">
+                            Press E to get down from the chair
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'study_walk') {
         return (
             <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <FeedbackToast />
                 <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                    {/* Wood Floor */}
-                    <div className="absolute inset-0 bg-amber-900" style={{
-                        backgroundImage: `repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.3) 48px, rgba(0,0,0,0.3) 50px),
-                        linear-gradient(90deg, rgba(120,53,15,0.7), rgba(160,75,20,0.7)),
-                        repeating-linear-gradient(0deg, transparent, transparent 200px, rgba(0,0,0,0.3) 200px, rgba(0,0,0,0.3) 202px)`
-                    }}></div>
+                    <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/study.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
-                    {/* Top Wall */}
-                    <div className="absolute top-0 left-0 right-0 h-[120px] bg-gradient-to-b from-slate-700 to-slate-600 z-0 border-b-4 border-amber-800">
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-slate-500/30"></div>
-                        <div className="absolute -bottom-1 left-0 right-0 h-2 bg-amber-900"></div>
-                    </div>
-
-                    {/* Window (morning light) */}
-                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[300px] h-[100px] bg-slate-950 border-8 border-amber-800 z-[5] rounded-t-lg overflow-hidden" style={{ boxShadow: 'inset 0 0 30px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute inset-0 bg-gradient-to-b from-sky-300/60 to-amber-100/40"></div>
-                        <div className="absolute bottom-0 left-0 right-0 h-6 flex items-end gap-1 px-2">
-                            <div className="w-8 h-4 bg-emerald-800/60 rounded-t-full"></div>
-                            <div className="w-6 h-6 bg-emerald-700/60 rounded-t-full"></div>
-                            <div className="w-10 h-3 bg-emerald-800/60 rounded-t-full"></div>
-                            <div className="w-5 h-5 bg-emerald-700/60 rounded-t-full"></div>
-                        </div>
-                        <div className="absolute top-0 bottom-0 left-1/2 w-1 bg-amber-800 -translate-x-1/2"></div>
-                        <div className="absolute left-0 right-0 top-1/2 h-1 bg-amber-800 -translate-y-1/2"></div>
-                    </div>
-
-                    {/* Picture frames */}
-                    <div className="absolute top-6 left-[140px] w-16 h-12 bg-zinc-700 border-4 border-amber-700 z-[5] rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                        <div className="w-full h-full bg-gradient-to-br from-emerald-900/40 to-cyan-900/40"></div>
-                    </div>
-                    <div className="absolute top-8 right-[140px] w-14 h-10 bg-zinc-700 border-4 border-amber-700 z-[5] rounded-sm" style={{ boxShadow: '2px 2px 6px rgba(0,0,0,0.4)' }}>
-                        <div className="w-full h-full bg-gradient-to-br from-amber-900/40 to-red-900/40"></div>
-                    </div>
-
-                    {/* Rug */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/4 w-[600px] h-[400px] bg-red-950 border-[10px] border-red-900/80 rounded-lg z-0 overflow-hidden" style={{ boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
-                        <div className="w-[92%] h-[90%] m-auto mt-[5%] border-2 border-yellow-700/40 flex justify-center items-center">
-                            <div className="w-[85%] h-[85%] border-2 border-red-800/60 flex justify-center items-center">
-                                <div className="w-28 h-28 bg-yellow-700/20 rotate-45 border border-yellow-800/30"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Bookshelf left */}
-                    <div className="absolute top-[120px] left-12 w-44 h-20 bg-amber-950 z-10 flex p-2 gap-1 items-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <div className="w-3 h-14 bg-red-800 rounded-t-sm"></div>
-                        <div className="w-4 h-12 bg-blue-800 rounded-t-sm"></div>
-                        <div className="w-3 h-10 bg-green-800 rounded-t-sm -rotate-6"></div>
-                        <div className="w-4 h-14 bg-yellow-700 rounded-t-sm ml-2"></div>
-                        <div className="w-3 h-13 bg-slate-600 rounded-t-sm"></div>
-                        <div className="w-4 h-11 bg-indigo-700 rounded-t-sm"></div>
-                        <div className="w-3 h-14 bg-rose-700 rounded-t-sm"></div>
-                    </div>
-
-                    {/* Bookshelf right */}
-                    <div className="absolute top-[120px] right-12 w-44 h-20 bg-amber-950 z-10 flex p-2 gap-1 items-end justify-end rounded-b-sm" style={{ borderBottom: '6px solid #78350f', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                        <div className="w-3 h-12 bg-indigo-800 rounded-t-sm rotate-6"></div>
-                        <div className="w-4 h-14 bg-rose-800 rounded-t-sm"></div>
-                        <div className="w-5 h-10 bg-emerald-700 rounded-t-sm ml-2"></div>
-                        <div className="w-3 h-14 bg-slate-700 rounded-t-sm"></div>
-                        <div className="w-4 h-12 bg-cyan-800 rounded-t-sm"></div>
-                        <div className="w-3 h-11 bg-amber-700 rounded-t-sm"></div>
-                    </div>
-
-                    {/* Desk */}
-                    <div className="absolute bg-amber-800 shadow-2xl rounded-md z-10" style={{ left: DESK_ZONE.x, top: DESK_ZONE.y, width: DESK_ZONE.w, height: DESK_ZONE.h, boxShadow: '0 6px 20px rgba(0,0,0,0.6)' }}>
-                        <div className="absolute top-2 left-3 w-6 h-4 bg-amber-100/80 border border-amber-600 rounded-sm"></div>
-                        <div className="absolute top-2 left-12 w-8 h-5 bg-slate-800 border border-slate-600 rounded-sm"></div>
-                        <div className="absolute top-2 right-3 w-5 h-7 bg-slate-300 border border-slate-400 rounded-sm">
-                            <div className="w-3 h-1 bg-blue-500 mx-auto mt-1 rounded-full animate-pulse"></div>
-                        </div>
-                        <div className="absolute bottom-0 left-4 w-2 h-6 bg-amber-950"></div>
-                        <div className="absolute bottom-0 right-4 w-2 h-6 bg-amber-950"></div>
-                    </div>
-
-                    {/* Phone notification bubble */}
-                    {canInteract && (
-                        <div className="absolute z-30 animate-bounce" style={{ left: DESK_ZONE.x + DESK_ZONE.w - 20, top: DESK_ZONE.y - 30 }}>
-                            <div className="bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg">1</div>
-                        </div>
-                    )}
-
-                    {/* Potted Plant left */}
                     <div className="absolute top-[130px] left-4 z-20 flex flex-col items-center">
                         <div className="w-20 relative" style={{ height: 72 }}>
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-5 bg-red-800 rounded-b-lg rounded-t-sm border-2 border-red-900"></div>
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1 h-10 bg-green-900"></div>
-                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 bg-green-700 rounded-full opacity-80" style={{ filter: 'blur(2px)' }}></div>
-                            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-10 h-10 bg-green-600 rounded-full opacity-70" style={{ filter: 'blur(1px)' }}></div>
+                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-5 bg-red-800 rounded-b-lg rounded-t-sm border-2 border-red-900" />
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1 h-10 bg-green-900" />
+                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 bg-green-700 rounded-full opacity-80" style={{ filter: 'blur(2px)' }} />
+                            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-10 h-10 bg-green-600 rounded-full opacity-70" style={{ filter: 'blur(1px)' }} />
                         </div>
                     </div>
 
                     <Player x={playerPos.x} y={playerPos.y} />
 
-                    {/* Interaction Prompt */}
-                    {canInteract && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-amber-500/60 text-amber-400 font-bold px-8 py-4 rounded-xl animate-bounce cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.3)] z-50 select-none"
-                            onClick={() => setGameState('sms_ui')}>
-                            <span className="text-amber-300 mr-2">[ E ]</span> CHECK PHONE 📱
+                    {interactionTarget === 'exit' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                Press E to exit the room
+                            </div>
                         </div>
                     )}
 
-                    {/* Day/Location label */}
                     <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
-                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">DAY 3 — MORNING</p>
+                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">DAY 4 — NIGHT</p>
                         <p className="text-slate-400 text-[10px] font-mono">THATHA'S STUDY</p>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'living_room') {
+        const VIEWPORT_WIDTH = 1200;
+        const VIEWPORT_HEIGHT = 800;
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: '#2c3e50' }}>
+                        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/60 pointer-events-none z-10"></div>
+
+                        {/* Top Return Door */}
+                        <div className={`absolute top-0 right-0 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 opacity-80 transition-all`} />
+                        {/* Bottom Double Door (Bedroom Exit) */}
+                        <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-b-0 flex z-10 ${interactionTarget === 'bedroom' ? 'opacity-100 scale-105' : 'opacity-80'} transition-all`}>
+                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">BEDROOM</div>
+                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
+                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            </div>
+                        </div>
+
+                        {/* RUGS FROM LEVEL 9 */}
+                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0"></div>
+                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0"></div>
+
+                        {/* SOFA */}
+                        <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start z-20 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                            <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2 shadow-inner"></div>
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mb-2 shadow-inner"></div>
+                            </div>
+                            <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black shadow-inner"></div>
+                            <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black shadow-inner"></div>
+                            <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black shadow-inner"></div>
+                            <div className="absolute -bottom-8 left-4 right-4 h-8 bg-black/40 blur-xl rounded-full -z-10"></div>
+                        </div>
+                        {/* COFFEE TABLE */}
+                        <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-2xl flex items-center justify-center">
+                            <div className="absolute top-full left-2 right-2 h-6 bg-black/40 blur-xl rounded-full -z-10"></div>
+                        </div>
+
+                        {/* LAMPS FROM LEVEL 9 */}
+                        <div className="absolute right-[410px] top-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
+                        <div className="absolute right-[410px] bottom-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
+
+                        {/* TV UNIT FROM LEVEL 9 */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[180px] h-[340px] bg-[#222938] border-4 border-l-0 border-black flex items-center z-20 shadow-[20px_0_40px_rgba(0,0,0,0.6)]">
+                            <div className="w-[120px] h-[260px] bg-[#1e4868] border-4 border-[#122336] ml-4 relative overflow-hidden shadow-inner">
+                                <div className="w-[180px] h-[40px] bg-white/10 -rotate-45 absolute top-4 -left-8"></div>
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-blue-500/20 blur-lg animate-pulse"></div>
+                                <div className="absolute top-1/2 left-full -translate-y-1/2 w-40 h-56 bg-blue-500/5 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        {/* CORNER PLANTS FROM LEVEL 9 */}
+                        <div className="absolute left-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
+                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center relative overflow-hidden">
+                                <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
+                                <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
+                            </div>
+                        </div>
+                        <div className="absolute right-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
+                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center relative overflow-hidden">
+                                <div className="w-[60px] h-[10px] bg-[#22c55e] rotate-45 absolute shadow-[0_0_10px_#22c55e]"></div>
+                                <div className="w-[60px] h-[10px] bg-[#22c55e] -rotate-45 absolute"></div>
+                            </div>
+                        </div>
+
+                        <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
+                    </div>
+
+                    {interactionTarget === 'bedroom' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                Press E to enter bedroom
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'bedroom_walk') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
+                    <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.8)' }} />
+                    <div className="absolute inset-0 bg-blue-900/10 pointer-events-none mix-blend-multiply z-10"></div>
+
+                    <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
+
+                    {interactionTarget === 'sleep' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                Press E to lay down
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
+                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">DAY 4 — NIGHT</p>
+                        <p className="text-slate-400 text-[10px] font-mono">YOUR BEDROOM</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'sleep_pov') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
+
+                    <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-[3000ms] ${showText ? 'opacity-100' : 'opacity-0'} z-30`}>
+                        <p className="text-white text-3xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
+                            "It feels different without you, Grandpa..."
+                        </p>
+                    </div>
+
+                    <div
+                        className={`absolute inset-0 z-50 bg-black transition-opacity duration-[3000ms] ease-in-out ${dimScreen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        onTransitionEnd={(e) => {
+                            if (dimScreen && e.propertyName === 'opacity') {
+                                triggerTransition('title_card');
+                            }
+                        }}
+                    ></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'title_card') {
+        return (
+            <div className="absolute inset-0 z-[1000] bg-black flex flex-col justify-center items-center animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="relative group text-center animate-fadeInSlow">
+                    <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mb-8 mx-auto animate-[width_1.5s_ease-in-out]" />
+                    <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
+                        Level 4
+                    </h2>
+                    <div className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                        The Malicious Link
+                    </div>
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mt-8 mx-auto animate-[width_1.5s_ease-in-out]" />
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'phone_pickup_pov') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence flex flex-col items-center justify-center">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="flex flex-col gap-8 text-center max-w-xl px-8 z-20">
+                    {phonePickupStep >= 1 && (
+                        <p className="text-white/60 text-xl font-serif italic tracking-wide animate-slideUp">
+                            "What was that?"
+                        </p>
+                    )}
+                    {phonePickupStep >= 2 && (
+                        <p className="text-white/80 text-2xl font-serif italic tracking-wider animate-slideUp">
+                            "My phone?"
+                        </p>
+                    )}
+                    {phonePickupStep >= 3 && (
+                        <p className="text-white text-3xl font-light italic tracking-widest animate-slideUp drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
+                            "Who is it at this hour..."
+                        </p>
+                    )}
+                </div>
+
+                {phonePickupStep >= 4 && (
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                        <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-md">
+                            Press E to pick up the phone
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
@@ -259,9 +494,13 @@ const Level4 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'sms_ui') {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4 relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bed.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3)' }} />
+
                 <FeedbackToast />
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
+                <div className="z-10 w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col items-center">
                     {/* Status bar */}
                     <div className="w-full flex justify-between items-center px-8 pt-3 pb-1 text-[10px] text-slate-400 font-mono">
                         <span>9:41 AM</span>
@@ -467,15 +706,10 @@ const Level4 = () => {
                         </div>
                     </div>
 
-                    {/* Bottom Bar */}
                     <div className="bg-slate-800 px-6 py-3 flex items-center justify-between border-t border-slate-700">
                         <button className="bg-slate-700 hover:bg-slate-600 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                             onClick={() => setGameState('sms_ui')}>
                             ← Back
-                        </button>
-                        <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-bold text-sm border border-indigo-400 transition-transform hover:scale-105"
-                            onClick={() => setGameState('mini_game')}>
-                            🎓 TRAINING
                         </button>
                     </div>
                 </div>
@@ -588,7 +822,8 @@ const Level4 = () => {
                         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Malicious URL</p><p className="text-red-400 font-mono text-xs">https://sbi-kyc-update24.app/download</p></div>
                         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Evidence Collected</p><p className="text-amber-400 font-mono text-sm">{cluesFound.length} / 6 clues documented</p></div>
                     </div>
-                    <button className="w-full bg-emerald-600 py-4 rounded-xl font-bold text-white shadow-lg hover:bg-emerald-500 transition-colors" onClick={() => setGameState('mini_game')}>
+                    <button className="w-full bg-emerald-600 py-4 rounded-xl font-bold text-white shadow-lg hover:bg-emerald-500 transition-colors"
+                        onClick={() => { setOutroSuccess(true); triggerTransition('outro_pov_1'); }}>
                         ✅ SUBMIT COMPLAINT
                     </button>
                 </div>
@@ -733,7 +968,7 @@ const Level4 = () => {
                     </div>
 
                     <button className="bg-gradient-to-b from-red-600 to-red-800 hover:from-red-500 hover:to-red-700 text-white px-12 py-5 rounded-xl font-bold tracking-[0.3em] uppercase transition-all border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)] hover:shadow-[0_0_50px_rgba(239,68,68,0.6)] hover:-translate-y-1"
-                        onClick={() => { adjustAssets(-650000); adjustLives(-1); completeLevel(false, 0, 0); }}>
+                        onClick={() => { adjustAssets(-650000); adjustLives(-1); setOutroSuccess(false); triggerTransition('outro_pov_1'); }}>
                         Accept Consequences
                     </button>
                 </div>
@@ -797,9 +1032,96 @@ const Level4 = () => {
                     </div>
 
                     <button className="bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white px-12 py-5 rounded-xl font-bold tracking-[0.3em] uppercase transition-all border border-emerald-400/50 shadow-[0_0_30px_rgba(16,185,129,0.4)] hover:shadow-[0_0_50px_rgba(16,185,129,0.6)] hover:-translate-y-1"
-                        onClick={() => completeLevel(true, 10 + (!clickedSmsLink ? 10 : 0) + (usedClueBoard ? 5 : 0), 0)}>
+                        onClick={() => { setOutroSuccess(true); triggerTransition('outro_pov_1'); }}>
                         Continue to Overworld
                     </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'outro_pov_1') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")', filter: 'brightness(0.5)' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
+
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                        <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                            Press E to keep phone aside and sleep
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'outro_pov_2') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
+
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-30 space-y-8">
+                        {outroStep >= 1 && (
+                            <p className="text-white text-3xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] animate-fadeIn">
+                                "It's been a long day..."
+                            </p>
+                        )}
+                        {outroStep >= 2 && (
+                            <p className="text-white/80 text-2xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] animate-fadeIn">
+                                "Is this what you've been going through daily, Grandpa?"
+                            </p>
+                        )}
+                    </div>
+
+                    <div className={`absolute inset-0 bg-black transition-opacity duration-[3000ms] pointer-events-none z-50 ${outroStep >= 2 ? 'opacity-100' : 'opacity-0'}`} />
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'end_card') {
+        return (
+            <div className="w-full h-full bg-stone-950 flex flex-col items-center justify-center animate-fadeIn relative overflow-hidden z-[3000]">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                {/* Scanning line effects */}
+                <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-500/5 to-transparent animate-[scanLine_4s_linear_infinite] pointer-events-none" />
+
+                <div className="relative group text-center">
+                    <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                    <h2 className="text-white text-6xl font-black tracking-[0.5em] uppercase mb-12 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                        Level 4: The Malicious Link
+                        {outroStep >= 4 && (
+                            <div className="absolute top-1/2 left-[-10%] w-[120%] h-3 bg-red-600/90 -translate-y-1/2 animate-[strikeThrough_0.5s_forwards] shadow-[0_0_25px_rgba(220,38,38,1)] z-20 skew-y-[-1deg]" />
+                        )}
+                    </h2>
+
+                    {outroStep >= 4 && (
+                        <div className={`mt-12 text-8xl font-black italic tracking-[0.2em] uppercase animate-surge relative ${outroSuccess ? 'text-emerald-500' : 'text-red-500'}`}>
+                            <span className="relative z-10">{outroSuccess ? 'COMPLETED' : 'FAILED'}</span>
+                            {/* Chromatic aberration for text */}
+                            <span className={`absolute inset-0 opacity-40 translate-x-1 animate-[aberration_3s_infinite] ${outroSuccess ? 'text-cyan-400' : 'text-red-400'}`}>{outroSuccess ? 'COMPLETED' : 'FAILED'}</span>
+                            <span className={`absolute inset-0 opacity-40 -translate-x-1 animate-[aberration-alt_3s_infinite] ${outroSuccess ? 'text-emerald-300' : 'text-orange-600'}`}>{outroSuccess ? 'COMPLETED' : 'FAILED'}</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-20 flex flex-col items-center gap-4">
+                    <div className="h-px w-80 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+                    <div className="text-[11px] font-mono text-zinc-500 tracking-[0.8em] uppercase opacity-60 animate-pulse">
+                        Digital Incident Forensics // STATUS_RECORDED
+                    </div>
                 </div>
             </div>
         );

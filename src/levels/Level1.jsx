@@ -710,24 +710,25 @@ const Level1 = () => {
                         </div>
                     )}
 
-                    {/* Initial Tutorial Hints */}
-                    {!isPhotoZoomed && !showPhoneNoti && (
-                        <div className="absolute right-[12%] top-[50%] -translate-y-full flex flex-col items-center pointer-events-none animate-bounce">
-                            <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl border border-white/50 text-[#8b5e3c] font-black uppercase tracking-[0.2em] text-[11px] mb-4">
+                    {/* Ultra-Minimalist Cinematic Hints (Standardized) */}
+                    {(!isPhotoZoomed && !showPhoneNoti) && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
                                 Inspect the photo frame
                             </div>
-                            <div className="w-1 h-8 bg-gradient-to-b from-white/90 to-transparent shadow-lg" />
                         </div>
                     )}
 
-                    {showPhoneNoti && (
-                        <div className="absolute left-[20%] top-[70%] -translate-y-full flex flex-col items-center pointer-events-none animate-bounce">
-                            <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-2xl border border-white/50 text-cyan-700 font-black uppercase tracking-[0.2em] text-[11px] mb-4">
+                    {(showPhoneNoti && gameState === 'intro_pov') && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-cyan-400 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">
                                 Inspect the phone
                             </div>
-                            <div className="w-1 h-8 bg-gradient-to-b from-white/90 to-transparent shadow-lg" />
                         </div>
                     )}
+
 
                     {!isPhotoZoomed && !showPhoneNoti && (
                         <button
@@ -743,17 +744,18 @@ const Level1 = () => {
                     {showPhoneNoti && (
                         <button
                             onClick={() => setGameState('phone_intro')}
-                            className="absolute left-[21.5%] top-[81%] w-[8.5%] h-[13.5%] bg-white/0 hover:bg-cyan-400/5 transition-all cursor-pointer flex flex-col items-center justify-center -rotate-[15deg] group z-40"
+                            className="absolute left-[21.5%] top-[81%] w-[8.5%] h-[13.5%] bg-transparent transition-all cursor-pointer flex flex-col items-center justify-center -rotate-[15deg] group z-40"
                             title="Open Phone"
                         >
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center rotate-[15deg]">
-                                <div className="text-cyan-400 font-mono text-[9px] uppercase tracking-[0.2em] animate-pulse mb-1 whitespace-nowrap drop-shadow-md">Unlock Device</div>
-                                <div className="w-6 h-6 rounded-full border border-cyan-400/40 flex items-center justify-center animate-ping">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center rotate-[15deg] pointer-events-none">
+                                <div className="text-cyan-400 font-mono text-[10px] uppercase tracking-[0.3em] animate-pulse drop-shadow-md">Unlock</div>
+                                <div className="w-4 h-4 rounded-full border border-cyan-400/40 flex items-center justify-center mt-2">
+                                    <div className="w-1 h-1 rounded-full bg-cyan-400" />
                                 </div>
                             </div>
                         </button>
                     )}
+
 
                     {showPhoneNoti && <div className="absolute inset-0 bg-cyan-400/5 animate-pulse pointer-events-none" />}
                 </div>
