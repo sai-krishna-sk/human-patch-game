@@ -7,10 +7,10 @@ const levelNames = {
     3: 'Phishing Net',
     4: 'The Fake App',
     5: 'QR Code Scam',
-    6: 'Ghost Profile',
-    7: 'SIM Swap',
-    8: 'The Open Network',
-    9: 'The Ghost Store',
+    6: 'SIM Swap',
+    7: 'The Open Network',
+    8: 'The Ghost Store',
+    9: 'Ghost Profile',
     10: 'The Invisible Hook',
     11: 'The Voice That Wasn\'t',
     12: 'Zero Day',
@@ -19,9 +19,11 @@ const levelNames = {
 };
 
 const levelDifficulty = {
-    1: 'EASY', 2: 'EASY', 3: 'EASY', 4: 'MEDIUM', 5: 'MEDIUM',
-    6: 'MEDIUM', 7: 'HARD', 8: 'EXPERT', 9: 'HARD', 10: 'EXPERT',
-    11: 'EXPERT', 12: 'EXTREME', 13: 'EXTREME', 14: 'EXTREME'
+    1: 'EASY', 2: 'EASY', 3: 'EASY',
+    4: 'MEDIUM', 5: 'MEDIUM', 6: 'MEDIUM',
+    7: 'HARD', 8: 'HARD', 9: 'HARD',
+    10: 'EXPERT', 11: 'EXPERT',
+    12: 'EXTREME', 13: 'EXTREME', 14: 'EXTREME'
 };
 
 const difficultyColor = {
