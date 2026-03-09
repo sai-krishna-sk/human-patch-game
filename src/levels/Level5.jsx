@@ -4,6 +4,10 @@ import { useGameState } from '../context/GameStateContext';
 
 const ROOM_WIDTH = 2000;
 const ROOM_HEIGHT = 800;
+const LIVING_ROOM_WIDTH = 1600;
+const LIVING_ROOM_HEIGHT = 1100;
+const VIEWPORT_WIDTH = 1200;
+const VIEWPORT_HEIGHT = 800;
 const SPEED = 15;
 const PLAYER_SIZE = 40;
 const SELVI_ZONE = { x: 800, y: 250, w: 300, h: 300 }; // Raised center-left stall area
@@ -37,7 +41,14 @@ const Level5 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
     const [playerPos, setPlayerPos] = useState({ x: 200, y: 600 });
     const [keys, setKeys] = useState({});
-    const [gameState, setGameState] = useState('market_walk');
+    const [gameState, setGameState] = useState('waking_up');
+    const [isTransitioning, setIsTransitioning] = useState(true);
+    const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 800, y: 400 });
+    const [bedroomInteractionTarget, setBedroomInteractionTarget] = useState(null);
+    const [livingRoomPlayerPos, setLivingRoomPlayerPos] = useState({ x: 800, y: 920 });
+    const [livingRoomStep, setLivingRoomStep] = useState(0);
+    const [livingRoomInteractionTarget, setLivingRoomInteractionTarget] = useState(null);
+    const [hasTriggeredHunger, setHasTriggeredHunger] = useState(false);
     const [canInteract, setCanInteract] = useState(false);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
     const [cluesFound, setCluesFound] = useState([]);
@@ -76,6 +87,45 @@ const Level5 = () => {
         );
     }, []);
 
+    const triggerTransition = (newState, newBedroomPos = null, newLivingPos = null) => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+            if (newState) setGameState(newState);
+            if (newBedroomPos) setBedroomPlayerPos(newBedroomPos);
+            if (newLivingPos) setLivingRoomPlayerPos(newLivingPos);
+            setTimeout(() => {
+                setIsTransitioning(false);
+            }, 200);
+        }, 500);
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsTransitioning(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        if (gameState === 'living_room' && !hasTriggeredHunger) {
+            const timer = setTimeout(() => {
+                setHasTriggeredHunger(true);
+                setLivingRoomStep(1);
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState, hasTriggeredHunger]);
+
+    useEffect(() => {
+        if (gameState === 'living_room') {
+            if (livingRoomStep === 1) {
+                const timer = setTimeout(() => setLivingRoomStep(2), 2500);
+                return () => clearTimeout(timer);
+            } else if (livingRoomStep === 2) {
+                const timer = setTimeout(() => setLivingRoomStep(3), 2500);
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [gameState, livingRoomStep]);
+
     useEffect(() => {
         const dk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
         const uk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
@@ -84,16 +134,30 @@ const Level5 = () => {
         return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
     }, []);
 
-    // E key to interact (market)
+    // E key logic
     useEffect(() => {
         const handleKey = (e) => {
-            if (e.key.toLowerCase() === 'e' && canInteract && gameState === 'market_walk') {
-                setGameState('dialogue');
+            if (e.key.toLowerCase() === 'e') {
+                if (gameState === 'waking_up') {
+                    triggerTransition('bedroom', { x: 800, y: 400 });
+                } else if (gameState === 'bedroom' && bedroomInteractionTarget === 'bathroom') {
+                    triggerTransition('bedroom_freshened');
+                } else if (gameState === 'bedroom_freshened' && bedroomInteractionTarget === 'living_room_door') {
+                    triggerTransition('living_room', null, { x: 800, y: 920 });
+                } else if (gameState === 'living_room' && (livingRoomStep === 1 || livingRoomStep === 2)) {
+                    setLivingRoomStep(3);
+                } else if (gameState === 'living_room' && livingRoomInteractionTarget === 'main_door' && livingRoomStep === 3) {
+                    triggerTransition('market_walk');
+                } else if (canInteract && gameState === 'market_walk') {
+                    setGameState('dialogue');
+                } else if (canInteractLaptop && gameState === 'room_walk') {
+                    setGameState('incident_report');
+                }
             }
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [canInteract, gameState]);
+    }, [canInteract, gameState, bedroomInteractionTarget, livingRoomInteractionTarget, livingRoomStep, canInteractLaptop]);
 
     // Room walk movement loop
     useEffect(() => {
@@ -160,6 +224,61 @@ const Level5 = () => {
         frameId = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(frameId);
     }, [keys, gameState]);
+
+    // Bedroom movement loop
+    useEffect(() => {
+        if (gameState !== 'bedroom' && gameState !== 'bedroom_freshened') return;
+        let frameId;
+        const loop = () => {
+            setBedroomPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+                nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                ny = Math.max(250, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+
+                let target = null;
+                if (nx < 150) target = 'bathroom';
+                if (gameState === 'bedroom_freshened' && ny > ROOM_HEIGHT - 100 && nx > ROOM_WIDTH / 2 - 200 && nx < ROOM_WIDTH / 2 + 200) target = 'living_room_door';
+                setBedroomInteractionTarget(target);
+
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState]);
+
+    // Living room movement loop
+    useEffect(() => {
+        if (gameState !== 'living_room' || livingRoomStep === 1 || livingRoomStep === 2) return; // Freeze movement during dim dialog
+        let frameId;
+        const loop = () => {
+            setLivingRoomPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+
+                // Boundaries for CSS Room
+                nx = Math.max(120, Math.min(nx, LIVING_ROOM_WIDTH - 120));
+                ny = Math.max(120, Math.min(ny, LIVING_ROOM_HEIGHT - 120));
+
+                let target = null;
+                if (Math.abs(nx - 800) < 120 && ny < 150) target = 'main_door';
+                setLivingRoomInteractionTarget(target);
+
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState, livingRoomStep]);
 
     // Check interaction zone outside of state updater
     useEffect(() => {
@@ -270,6 +389,219 @@ const Level5 = () => {
             )}
         </>
     );
+
+    // WAKING UP STATE
+    // ═══════════════════════════════════════════
+    if (gameState === 'waking_up') {
+        return (
+            <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden relative font-sans">
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div
+                    className="w-full h-full transition-all duration-1000"
+                    style={{
+                        backgroundImage: `url("/assets/morning_bed.png")`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                    }}
+                />
+
+                {/* Ultra-Minimalist Cinematic Prompt */}
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                    <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                    <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                        Press E to get up from bed
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // BEDROOM STATE
+    // ═══════════════════════════════════════════
+    if (gameState === 'bedroom' || gameState === 'bedroom_freshened') {
+        const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+        const cameraX = Math.max(0, Math.min(bedroomPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
+        return (
+            <div className="w-full h-full flex flex-col bg-black overflow-hidden relative font-sans">
+                <FeedbackToast />
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
+                    <div className="absolute top-0 left-0 w-full h-full z-0">
+                        <img src="/assets/morning_bedplain.png" alt="Bedroom" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
+                    </div>
+
+                    {/* Adjusted Player Position */}
+                    <div className="absolute z-30" style={{
+                        left: bedroomPlayerPos.x,
+                        top: bedroomPlayerPos.y,
+                        transform: `scale(${0.6 + (bedroomPlayerPos.y / ROOM_HEIGHT) * 0.4})`,
+                        transformOrigin: 'bottom center',
+                        transition: 'scale 0.1s linear'
+                    }}>
+                        <Player x={0} y={0} />
+                    </div>
+
+                    {/* Interactive Bathroom (Left) */}
+                    {bedroomInteractionTarget === 'bathroom' && gameState === 'bedroom' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to freshen up
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Interactive Living Room Door (Bottom) */}
+                    {bedroomInteractionTarget === 'living_room_door' && gameState === 'bedroom_freshened' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to exit room
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {gameState === 'bedroom_freshened' && (
+                    <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
+                            Walk to the living room (door at bottom)
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // LIVING ROOM STATE
+    // ═══════════════════════════════════════════
+    if (gameState === 'living_room') {
+        const cameraX = Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH));
+        const cameraY = Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT));
+
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative">
+                <FeedbackToast />
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                {/* Dialogue Overlay */}
+                {(livingRoomStep === 1 || livingRoomStep === 2) && (
+                    <div className="fixed inset-0 z-[9000] bg-black/80 flex flex-col justify-end pb-32 items-center animate-in fade-in duration-500">
+                        <div className="text-center pointer-events-none">
+                            <p className="text-white/95 text-3xl font-serif italic tracking-wider drop-shadow-[0_4px_12px_rgba(0,0,0,1)] px-12 animate-slideUp">
+                                {livingRoomStep === 1 ? '"I am hungry but there is no food at home..."' : '"I should go to the market and buy some."'}
+                            </p>
+                            <div className="mt-6 w-16 h-[2px] bg-white/40 mx-auto animate-drawWidth" />
+                        </div>
+                    </div>
+                )}
+
+                <div
+                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900"
+                    style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
+                >
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            width: LIVING_ROOM_WIDTH,
+                            height: LIVING_ROOM_HEIGHT,
+                            transform: `translate(${-cameraX}px, ${-cameraY}px)`,
+                            backgroundColor: '#2c3e50',
+                            transition: 'transform 0.1s linear'
+                        }}
+                    >
+                        <div className="absolute inset-0 opacity-80" style={{
+                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
+                        }}></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none z-10"></div>
+
+                        {/* Top Double Door (Main Exit) */}
+                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 ${Math.abs(livingRoomPlayerPos.x - 800) < 120 && livingRoomPlayerPos.y < 150 ? 'opacity-100 scale-105' : 'opacity-80'} transition-all`}>
+                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">EXIT</div>
+                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
+                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            </div>
+                            <div className="absolute top-[40px] left-[110px] w-4 h-1 bg-black"></div>
+                            <div className="absolute top-[40px] right-[110px] w-4 h-1 bg-black"></div>
+                        </div>
+
+                        {/* Bottom Single Door (Bedroom entry point) */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[60px] bg-[#8a5a44] border-4 border-black border-b-0 p-3 flex items-center justify-center z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+                            <div className="text-[9px] text-white/60 font-black tracking-[0.3em] mr-8">BEDROOM</div>
+                            <div className="w-[120px] h-[30px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            <div className="absolute right-6 top-2 w-6 h-1 bg-black"></div>
+                        </div>
+
+                        {/* Rugs */}
+                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0">
+                            <div className="flex flex-col justify-between h-full -ml-2 absolute left-0 py-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
+                            </div>
+                            <div className="flex flex-col justify-between h-full -mr-2 absolute right-0 py-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
+                            </div>
+                        </div>
+                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0">
+                            <div className="flex justify-between w-full -mt-2 absolute top-0 px-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
+                            </div>
+                            <div className="flex justify-between w-full -mb-2 absolute bottom-0 px-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
+                            </div>
+                        </div>
+
+                        {/* Furniture */}
+                        <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start z-20 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                            <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2 shadow-inner"></div>
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mb-2 shadow-inner"></div>
+                            </div>
+                            <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black shadow-inner"></div>
+                            <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black shadow-inner"></div>
+                            <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black shadow-inner"></div>
+                        </div>
+                        <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-2xl flex items-center justify-center">
+                            <div className="w-[80px] h-[160px] border border-white/10"></div>
+                        </div>
+                        <div className="absolute left-[120px] top-1/2 -translate-y-1/2 w-[160px] h-[120px] bg-[#2a2c38] border-8 border-black z-20 shadow-xl flex items-center justify-center">
+                            <div className="w-[140px] h-[100px] bg-black border-4 border-zinc-900 overflow-hidden relative">
+                                <div className="absolute inset-0 bg-blue-500/10"></div>
+                                <div className="w-full h-px bg-white/10 absolute top-1/2"></div>
+                            </div>
+                        </div>
+                        <div className="absolute left-[200px] top-1/2 -translate-y-1/2 w-[240px] h-[80px] border-4 border-white/10 z-10 flex"></div>
+
+                        <div className="absolute z-30" style={{
+                            left: livingRoomPlayerPos.x,
+                            top: livingRoomPlayerPos.y,
+                            transform: `scale(1.2)`,
+                            transformOrigin: 'bottom center',
+                            transition: 'scale 0.1s linear'
+                        }}>
+                            <Player x={0} y={0} />
+                        </div>
+                    </div>
+                </div>
+
+                {livingRoomInteractionTarget === 'main_door' && livingRoomStep === 3 && (
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                        <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                            Press E to go to market
+                        </div>
+                    </div>
+                )}
+                {livingRoomStep === 3 && !livingRoomInteractionTarget && (
+                    <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
+                            Go to the main door (top)
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     // MARKET WALK STATE
     // ═══════════════════════════════════════════
