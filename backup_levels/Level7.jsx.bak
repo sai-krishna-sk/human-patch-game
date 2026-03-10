@@ -40,7 +40,7 @@ const CLUE_DATA = [
     }
 ];
 
-const Level6 = () => {
+const Level7 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
 
     // ═══ STATE ═══
@@ -875,5 +875,4 @@ const Level6 = () => {
     );
 };
 
-export default Level6;
-
+export default Level7;

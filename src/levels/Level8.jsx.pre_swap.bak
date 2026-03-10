@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
 
@@ -47,7 +47,7 @@ const StatusBar = ({ dark = false }) => (
 
 const SOCIAL_MEDIA_BKG = "data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7z' fill='%2364748b' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E";
 
-const Level9 = () => {
+const Level8 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
     const [playerPos, setPlayerPos] = useState({ x: 200, y: 600 });
     const [keys, setKeys] = useState({});
@@ -147,12 +147,12 @@ const Level9 = () => {
 
     // Escalation timer for scam sequence
     const escalationMessages = [
-        { amount: 8000, message: "Thank you so much! You're a lifesaver. But the doctor just said they need ₹5,000 more for the X-ray and medicines. Please, I'll return everything by tomorrow morning." },
-        { amount: 5000, message: "The medicines are stronger than expected. They need ₹12,000 more for specialist consultation and physiotherapy. Please help!" },
-        { amount: 12000, message: "I need to travel back to Chennai. They're asking for ₹20,000 more for taxi, tickets, and follow-up appointments. This is the last time, I promise!" },
+        { amount: 8000, message: "Thank you so much! You're a lifesaver. But the doctor just said they need â‚¹5,000 more for the X-ray and medicines. Please, I'll return everything by tomorrow morning." },
+        { amount: 5000, message: "The medicines are stronger than expected. They need â‚¹12,000 more for specialist consultation and physiotherapy. Please help!" },
+        { amount: 12000, message: "I need to travel back to Chennai. They're asking for â‚¹20,000 more for taxi, tickets, and follow-up appointments. This is the last time, I promise!" },
     ];
 
-    // No auto-escalation — player makes choices at each step
+    // No auto-escalation â€” player makes choices at each step
 
     const playerScale = 0.6 + (playerPos.y / ROOM_HEIGHT) * 0.4;
 
@@ -165,13 +165,13 @@ const Level9 = () => {
         const utter = new SpeechSynthesisUtterance(text);
         const voices = window.speechSynthesis.getVoices();
         if (isNithya) {
-            // Girl voice — higher pitch, female voice
+            // Girl voice â€” higher pitch, female voice
             const femaleVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google UK English Female') || v.name.toLowerCase().includes('female'));
             if (femaleVoice) utter.voice = femaleVoice;
             utter.pitch = 1.5;
             utter.rate = 1.05;
         } else {
-            // Boy voice — lower pitch, male voice
+            // Boy voice â€” lower pitch, male voice
             const maleVoice = voices.find(v => v.name.includes('David') || v.name.includes('Google UK English Male') || v.name.toLowerCase().includes('male'));
             if (maleVoice) utter.voice = maleVoice;
             utter.pitch = 0.7;
@@ -210,13 +210,13 @@ const Level9 = () => {
                     {canInteract && (
                         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-amber-500/60 text-amber-400 font-bold px-8 py-4 rounded-xl animate-bounce cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.3)] z-50 select-none"
                             onClick={() => setGameState('social_media_feed')}>
-                            <span className="text-amber-300 mr-2">[ E ]</span> CHECK PHONE 📱
+                            <span className="text-amber-300 mr-2">[ E ]</span> CHECK PHONE ðŸ“±
                         </div>
                     )}
 
                     {/* Day/Location label */}
                     <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
-                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">NIGHT — 9:30 PM</p>
+                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">NIGHT â€” 9:30 PM</p>
                         <p className="text-slate-400 text-[10px] font-mono">YOUR ROOM</p>
                     </div>
                 </div>
@@ -317,13 +317,13 @@ const Level9 = () => {
     if (gameState === 'message_received') {
         const messages = [
             { sender: 'nithya', text: "Hey! Oh my god it's been so long!! How are you?" },
-            { sender: 'nithya', text: "I heard about your grandfather — I'm so sorry. I wanted to message earlier but things have been... it's been a rough week for me too. Actually really rough." },
+            { sender: 'nithya', text: "I heard about your grandfather â€” I'm so sorry. I wanted to message earlier but things have been... it's been a rough week for me too. Actually really rough." },
             { sender: 'nithya', text: "I'm so embarrassed to even ask this. You don't have to if it's too much." },
             { sender: 'you', text: "Hey Nithya! It's okay, don't worry. What happened? You alright?" },
             { sender: 'nithya', text: "I'm at Coimbatore. I came for a cousin's function." },
-            { sender: 'nithya', text: "But last night my bag got stolen at the bus stand — phone, wallet, everything. I'm using someone's borrowed phone right now." },
-            { sender: 'nithya', text: "I'm at a private hospital — I slipped and sprained my ankle badly while running after the thief and it needs immediate treatment." },
-            { sender: 'nithya', text: "They're asking for ₹8,000 cash deposit before treatment. I tried calling home but no one's picking up." },
+            { sender: 'nithya', text: "But last night my bag got stolen at the bus stand â€” phone, wallet, everything. I'm using someone's borrowed phone right now." },
+            { sender: 'nithya', text: "I'm at a private hospital â€” I slipped and sprained my ankle badly while running after the thief and it needs immediate treatment." },
+            { sender: 'nithya', text: "They're asking for â‚¹8,000 cash deposit before treatment. I tried calling home but no one's picking up." },
             { sender: 'nithya', text: "I know we haven't talked in a while and I hate asking but you're literally the only contact I remember by heart. Please, I'll pay you back as soon as I get back to Chennai." },
             { sender: 'nithya', text: "Account number: 789XXXXXXX IFSC: ICIC000XXXX. I'm in so much pain." }
         ];
@@ -387,12 +387,12 @@ const Level9 = () => {
                             <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
                         </div>
 
-                        {/* Inner Thought — appears after delay on last message */}
+                        {/* Inner Thought â€” appears after delay on last message */}
                         {messageStep === messages.length - 1 && showThought && (
                             <div className="mx-4 my-2 p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl animate-in slide-in-from-bottom duration-700 shadow-lg relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
                                 <div className="flex items-start gap-3">
-                                    <span className="text-2xl pt-1">💡</span>
+                                    <span className="text-2xl pt-1">ðŸ’¡</span>
                                     <div>
                                         <p className="text-amber-800 font-black text-[10px] uppercase tracking-widest mb-1">Critical Insight</p>
                                         <p className="text-amber-900 text-sm italic leading-relaxed font-medium">
@@ -409,19 +409,19 @@ const Level9 = () => {
                                 <div className="space-y-2.5">
                                     <button className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] border-b-4 border-slate-700 flex items-center justify-center gap-2 group"
                                         onClick={() => setGameState('profile_investigation')}>
-                                        <span>🔍 Verify Identity First</span>
-                                        <span className="group-hover:translate-x-1 transition-transform">➔</span>
+                                        <span>ðŸ” Verify Identity First</span>
+                                        <span className="group-hover:translate-x-1 transition-transform">âž”</span>
                                     </button>
                                     <button className="w-full bg-white hover:bg-red-50 text-red-600 font-bold py-3 rounded-xl transition-all active:scale-[0.98] text-xs uppercase tracking-widest"
                                         onClick={() => setGameState('scam_sequence')}>
-                                        I trust her, Send ₹8,000
+                                        I trust her, Send â‚¹8,000
                                     </button>
                                 </div>
                             ) : messageStep < messages.length - 1 ? (
                                 <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] border-b-4 border-purple-800 flex items-center justify-center gap-2"
                                     onClick={() => setMessageStep(prev => prev + 1)}>
                                     <span>Read Next Message</span>
-                                    <span className="animate-bounce-horizontal">➔</span>
+                                    <span className="animate-bounce-horizontal">âž”</span>
                                 </button>
                             ) : (
                                 <div className="bg-gray-50 p-4 rounded-xl text-center flex items-center justify-center gap-2 text-gray-400 text-xs font-bold animate-pulse">
@@ -521,44 +521,44 @@ const Level9 = () => {
                                     </div>
                                 </div>
 
-                                {/* Message Analysis — clickable clues for 3, 4, 5 */}
+                                {/* Message Analysis â€” clickable clues for 3, 4, 5 */}
                                 <div className="mt-6">
-                                    <p className="text-sm text-gray-700 uppercase tracking-wider font-black mb-4">📋 Review Message</p>
+                                    <p className="text-sm text-gray-700 uppercase tracking-wider font-black mb-4">ðŸ“‹ Review Message</p>
 
                                     <div className={`bg-gray-50 p-4 rounded-xl text-left cursor-pointer transition-all mb-3 hover:shadow-md border ${cluesFound.includes(3) ? 'ring-2 ring-red-500 bg-red-50 border-red-300' : 'border-gray-200 hover:border-gray-300'}`}
                                         onClick={() => {
                                             if (!cluesFound.includes(3)) {
                                                 setCluesFound(prev => [...prev, 3]);
-                                                showFeedback("🔴 Emotional manipulation detected!");
+                                                showFeedback("ðŸ”´ Emotional manipulation detected!");
                                             }
                                         }}>
                                         <p className="text-xs text-gray-600 mb-1">Message Pattern</p>
-                                        <p className="font-black text-base text-gray-900">"warm-up → self-deprecation → crisis"</p>
-                                        {cluesFound.includes(3) && <span className="text-red-600 text-xs font-bold block mt-2">⭕ 3-stage social engineering pattern</span>}
+                                        <p className="font-black text-base text-gray-900">"warm-up â†’ self-deprecation â†’ crisis"</p>
+                                        {cluesFound.includes(3) && <span className="text-red-600 text-xs font-bold block mt-2">â­• 3-stage social engineering pattern</span>}
                                     </div>
 
                                     <div className={`bg-gray-50 p-4 rounded-xl text-left cursor-pointer transition-all mb-3 hover:shadow-md border ${cluesFound.includes(4) ? 'ring-2 ring-red-500 bg-red-50 border-red-300' : 'border-gray-200 hover:border-gray-300'}`}
                                         onClick={() => {
                                             if (!cluesFound.includes(4)) {
                                                 setCluesFound(prev => [...prev, 4]);
-                                                showFeedback("🔴 Every detail blocks verification!");
+                                                showFeedback("ðŸ”´ Every detail blocks verification!");
                                             }
                                         }}>
                                         <p className="text-xs text-gray-600 mb-1">Scenario Details</p>
                                         <p className="font-black text-base text-gray-900">Coimbatore + Hospital + Stolen Phone + No Family</p>
-                                        {cluesFound.includes(4) && <span className="text-red-600 text-xs font-bold block mt-2">⭕ All verification paths blocked</span>}
+                                        {cluesFound.includes(4) && <span className="text-red-600 text-xs font-bold block mt-2">â­• All verification paths blocked</span>}
                                     </div>
 
                                     <div className={`bg-gray-50 p-4 rounded-xl text-left cursor-pointer transition-all hover:shadow-md border ${cluesFound.includes(5) ? 'ring-2 ring-red-500 bg-red-50 border-red-300' : 'border-gray-200 hover:border-gray-300'}`}
                                         onClick={() => {
                                             if (!cluesFound.includes(5)) {
                                                 setCluesFound(prev => [...prev, 5]);
-                                                showFeedback("🔴 Bank transfer hides identity!");
+                                                showFeedback("ðŸ”´ Bank transfer hides identity!");
                                             }
                                         }}>
                                         <p className="text-xs text-gray-600 mb-1">Payment Method</p>
                                         <p className="font-black text-base text-gray-900">Bank Transfer (Account: 789XXXXXXX)</p>
-                                        {cluesFound.includes(5) && <span className="text-red-600 text-xs font-bold block mt-2">⭕ No recipient name verification</span>}
+                                        {cluesFound.includes(5) && <span className="text-red-600 text-xs font-bold block mt-2">â­• No recipient name verification</span>}
                                     </div>
                                 </div>
                             </div>
@@ -590,7 +590,7 @@ const Level9 = () => {
                             className="absolute bottom-6 left-6 w-14 h-14 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.6)] border-2 border-amber-300 z-50 text-2xl"
                             onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)}
                         >
-                            🔍
+                            ðŸ”
                             {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-6 h-6 rounded-full flex justify-center items-center">{cluesFound.length}</span>}
                         </button>
                         <div className="absolute bottom-1 left-4 font-mono text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Detective Mode</div>
@@ -634,7 +634,7 @@ const Level9 = () => {
                     <div className="flex justify-between items-start mb-6 z-10 gap-4">
                         <div className="bg-yellow-50 p-4 rounded-sm shadow-md transform -rotate-1 border border-yellow-200" style={{ boxShadow: '2px 3px 8px rgba(0,0,0,0.15)' }}>
                             <h2 className="text-lg font-black text-stone-800 uppercase tracking-wider font-mono">
-                                📌 PROFILE FORENSICS
+                                ðŸ“Œ PROFILE FORENSICS
                             </h2>
                             <p className="text-stone-500 text-[10px] font-mono mt-1">Click profile elements to uncover evidence</p>
                         </div>
@@ -717,7 +717,7 @@ const Level9 = () => {
                                 <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
                                 <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">The Emotional Softening Technique</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">The message follows a 3-stage manipulation: warm-up → self-deprecation → crisis.</p>
+                                <p className="text-xs text-stone-700 font-mono leading-tight">The message follows a 3-stage manipulation: warm-up â†’ self-deprecation â†’ crisis.</p>
                             </div>
                         )}
 
@@ -796,7 +796,7 @@ const Level9 = () => {
                             >
                                 {/* Lock icon */}
                                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                    <span className="text-white text-xs font-black">ðŸ”’</span>
                                 </div>
 
                                 <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #1</h4>
@@ -815,7 +815,7 @@ const Level9 = () => {
                             >
                                 {/* Lock icon */}
                                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                    <span className="text-white text-xs font-black">ðŸ”’</span>
                                 </div>
 
                                 <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #2</h4>
@@ -834,7 +834,7 @@ const Level9 = () => {
                             >
                                 {/* Lock icon */}
                                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                    <span className="text-white text-xs font-black">ðŸ”’</span>
                                 </div>
 
                                 <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #3</h4>
@@ -853,7 +853,7 @@ const Level9 = () => {
                             >
                                 {/* Lock icon */}
                                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                    <span className="text-white text-xs font-black">ðŸ”’</span>
                                 </div>
 
                                 <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #4</h4>
@@ -872,7 +872,7 @@ const Level9 = () => {
                             >
                                 {/* Lock icon */}
                                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                    <span className="text-white text-xs font-black">ðŸ”’</span>
                                 </div>
 
                                 <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #5</h4>
@@ -891,7 +891,7 @@ const Level9 = () => {
                             >
                                 {/* Lock icon */}
                                 <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                    <span className="text-white text-xs font-black">ðŸ”’</span>
                                 </div>
 
                                 <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #6</h4>
@@ -912,7 +912,7 @@ const Level9 = () => {
         );
     }
 
-    // CALL REAL NITHYA STATE — Split Screen
+    // CALL REAL NITHYA STATE â€” Split Screen
     if (gameState === 'call_real_nithya') {
         return (
             <div className="w-full h-full bg-gradient-to-br from-slate-950 via-zinc-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
@@ -927,7 +927,7 @@ const Level9 = () => {
                 {/* Split Screen Container */}
                 <div className="flex items-center gap-8 z-10">
 
-                    {/* LEFT — Player's Phone (Outgoing Call) */}
+                    {/* LEFT â€” Player's Phone (Outgoing Call) */}
                     <div className="w-[320px] max-h-[85vh] h-[680px] bg-zinc-900 border-[10px] border-black rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col">
                         {/* Dynamic Island */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-50 flex items-center justify-center">
@@ -944,7 +944,7 @@ const Level9 = () => {
                             <div className="relative z-10 flex flex-col items-center">
                                 <p className="text-xs opacity-60 uppercase tracking-[0.3em] mb-2 font-bold">Outgoing Call</p>
                                 <div className="w-24 h-24 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center text-5xl mb-6 shadow-xl border-2 border-white/20">
-                                    👤
+                                    ðŸ‘¤
                                 </div>
                                 <p className="font-black text-2xl mb-1">You</p>
                                 <p className="text-sm opacity-70">Calling Nithya...</p>
@@ -958,7 +958,7 @@ const Level9 = () => {
                         </div>
                     </div>
 
-                    {/* CENTER — Connection pulse */}
+                    {/* CENTER â€” Connection pulse */}
                     <div className="flex flex-col items-center gap-4">
                         <div className="flex gap-2">
                             <div className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce" />
@@ -968,7 +968,7 @@ const Level9 = () => {
                         <p className="text-white/40 text-xs font-bold uppercase tracking-[0.2em]">Connecting</p>
                     </div>
 
-                    {/* RIGHT — Nithya's Phone (Incoming Call) */}
+                    {/* RIGHT â€” Nithya's Phone (Incoming Call) */}
                     <div className="w-[320px] max-h-[85vh] h-[680px] bg-zinc-900 border-[10px] border-black rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col">
                         {/* Dynamic Island */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-50 flex items-center justify-center">
@@ -984,7 +984,7 @@ const Level9 = () => {
                             <div className="relative z-10 flex flex-col items-center flex-1 justify-center">
                                 <p className="text-xs opacity-60 uppercase tracking-[0.3em] mb-2 font-bold">Incoming Call</p>
                                 <div className="w-28 h-28 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center text-6xl mb-6 shadow-xl border-2 border-white/20 animate-pulse">
-                                    👩
+                                    ðŸ‘©
                                 </div>
                                 <p className="font-black text-2xl mb-1">Nithya Krishnan</p>
                                 <p className="text-sm opacity-70">Chennai, Tamil Nadu</p>
@@ -1020,19 +1020,19 @@ const Level9 = () => {
 
                 {/* Label */}
                 <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-800/80 backdrop-blur-sm px-6 py-2 rounded-full border border-slate-700/50">
-                    <p className="text-white/80 text-sm font-bold tracking-wider">📞 VERIFYING REAL IDENTITY</p>
+                    <p className="text-white/80 text-sm font-bold tracking-wider">ðŸ“ž VERIFYING REAL IDENTITY</p>
                 </div>
             </div>
         );
     }
 
-    // CALL CONFIRMATION STATE — Voice Dialogue
+    // CALL CONFIRMATION STATE â€” Voice Dialogue
     if (gameState === 'call_confirmation') {
         const dialogueLines = [
             { sender: 'you', text: "Nithya, are you in Coimbatore? Are you at a hospital?" },
             { sender: 'nithya', text: "What?! No! I'm at home in Chennai, just finished dinner. Why? Did someone message you pretending to be me??" },
-            { sender: 'you', text: "Yes. A fake account in your name asked me to send ₹8,000 for a hospital emergency in Coimbatore. I didn't send anything — I verified first. But the account has 12 of our mutual friends added. We should warn them." },
-            { sender: 'nithya', text: "Oh my god. My account was not hacked — they made a COPY. I'm going to report this right now. Can you help me send a warning to our group?" },
+            { sender: 'you', text: "Yes. A fake account in your name asked me to send â‚¹8,000 for a hospital emergency in Coimbatore. I didn't send anything â€” I verified first. But the account has 12 of our mutual friends added. We should warn them." },
+            { sender: 'nithya', text: "Oh my god. My account was not hacked â€” they made a COPY. I'm going to report this right now. Can you help me send a warning to our group?" },
         ];
 
         const showNextLine = () => {
@@ -1062,13 +1062,13 @@ const Level9 = () => {
                     <div className="absolute bottom-1/3 right-1/3 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
                 </div>
 
-                {/* Split Screen — Connected Call */}
+                {/* Split Screen â€” Connected Call */}
                 <div className="flex items-stretch gap-6 z-10 max-w-5xl w-full">
 
-                    {/* LEFT — Player's side */}
+                    {/* LEFT â€” Player's side */}
                     <div className="w-48 flex-shrink-0 bg-gradient-to-b from-blue-700 to-indigo-800 rounded-3xl p-6 flex flex-col items-center justify-center text-white shadow-2xl border border-blue-600/30">
                         <div className="w-20 h-20 bg-white/15 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-white/20">
-                            👤
+                            ðŸ‘¤
                         </div>
                         <p className="font-black text-lg mb-1">You</p>
                         <div className="flex items-center gap-2 mt-2">
@@ -1084,20 +1084,20 @@ const Level9 = () => {
                         </div>
                     </div>
 
-                    {/* CENTER — Dialogue */}
+                    {/* CENTER â€” Dialogue */}
                     <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
                         {/* Header */}
                         <div className="bg-emerald-600/20 border-b border-emerald-500/20 px-6 py-4 flex items-center justify-between flex-shrink-0">
                             <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
                                 <h2 className="text-white font-black text-lg">Call Connected</h2>
-                                <span className="text-emerald-300/60 text-xs font-mono">— Real Nithya is safe in Chennai</span>
+                                <span className="text-emerald-300/60 text-xs font-mono">â€” Real Nithya is safe in Chennai</span>
                             </div>
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
                                 className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isMuted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'}`}
                             >
-                                {isMuted ? '🔇 Muted' : '🔊 Audio On'}
+                                {isMuted ? 'ðŸ”‡ Muted' : 'ðŸ”Š Audio On'}
                             </button>
                         </div>
 
@@ -1114,7 +1114,7 @@ const Level9 = () => {
                                         : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-100 rounded-tr-sm'
                                         }`}>
                                         <p className={`text-xs font-black uppercase tracking-wider mb-2 ${line.sender === 'you' ? 'text-blue-400' : 'text-emerald-400'}`}>
-                                            {line.sender === 'you' ? '👤 You:' : '👩 Nithya (Real):'}
+                                            {line.sender === 'you' ? 'ðŸ‘¤ You:' : 'ðŸ‘© Nithya (Real):'}
                                         </p>
                                         <p className="text-sm leading-relaxed">"{line.text}"</p>
                                     </div>
@@ -1142,20 +1142,20 @@ const Level9 = () => {
                                     onClick={showNextLine}
                                 >
                                     <span>Continue Conversation</span>
-                                    <span className="animate-bounce">→</span>
+                                    <span className="animate-bounce">â†’</span>
                                 </button>
                             ) : (
                                 <div className="space-y-3">
                                     {!scamReported && (
                                         <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
                                             onClick={() => setGameState('report_fake_account')}>
-                                            🚨 Report Fake Account
+                                            ðŸš¨ Report Fake Account
                                         </button>
                                     )}
                                     {!communityAlerted && (
                                         <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
                                             onClick={() => setGameState('alert_community')}>
-                                            👥 Alert Mutual Friends
+                                            ðŸ‘¥ Alert Mutual Friends
                                         </button>
                                     )}
                                     {scamReported && communityAlerted && (
@@ -1164,7 +1164,7 @@ const Level9 = () => {
                                                 window.speechSynthesis?.cancel();
                                                 setGameState('correct_path');
                                             }}>
-                                            ✅ All Done — View Results
+                                            âœ… All Done â€” View Results
                                         </button>
                                     )}
                                 </div>
@@ -1172,10 +1172,10 @@ const Level9 = () => {
                         </div>
                     </div>
 
-                    {/* RIGHT — Nithya's side */}
+                    {/* RIGHT â€” Nithya's side */}
                     <div className="w-48 flex-shrink-0 bg-gradient-to-b from-emerald-700 to-teal-800 rounded-3xl p-6 flex flex-col items-center justify-center text-white shadow-2xl border border-emerald-600/30">
                         <div className="w-20 h-20 bg-white/15 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-white/20">
-                            👩
+                            ðŸ‘©
                         </div>
                         <p className="font-black text-lg mb-1">Nithya</p>
                         <p className="text-xs opacity-60">Chennai</p>
@@ -1259,10 +1259,10 @@ const Level9 = () => {
                             <button className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95"
                                 onClick={() => {
                                     setScamReported(true);
-                                    showFeedback("✅ Fake account reported!");
+                                    showFeedback("âœ… Fake account reported!");
                                     setGameState('call_confirmation');
                                 }}>
-                                Submit Report 🚨
+                                Submit Report ðŸš¨
                             </button>
                             <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-3 rounded-2xl transition-all text-sm"
                                 onClick={() => setGameState('call_confirmation')}>
@@ -1304,7 +1304,7 @@ const Level9 = () => {
                             <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-2xl shadow-lg">
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md">!</div>
-                                    <p className="font-black text-yellow-900 text-sm">⚠️ SECURITY ALERT</p>
+                                    <p className="font-black text-yellow-900 text-sm">âš ï¸ SECURITY ALERT</p>
                                 </div>
                                 <p className="text-xs text-gray-700 leading-relaxed">A fake account impersonating Nithya Krishnan is sending fraud messages asking for money. DO NOT send any money. Report the account immediately. The real Nithya is safe in Chennai.</p>
                             </div>
@@ -1322,7 +1322,7 @@ const Level9 = () => {
                                     <div className="w-9 h-9 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">P</div>
                                     <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
                                         <p className="font-black text-xs mb-0.5 text-gray-900">Priya</p>
-                                        <p className="text-xs text-gray-700">Just reported the account! Everyone stay safe 🙏</p>
+                                        <p className="text-xs text-gray-700">Just reported the account! Everyone stay safe ðŸ™</p>
                                     </div>
                                 </div>
 
@@ -1330,7 +1330,7 @@ const Level9 = () => {
                                     <div className="w-9 h-9 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">R</div>
                                     <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
                                         <p className="font-black text-xs mb-0.5 text-gray-900">Rahul</p>
-                                        <p className="text-xs text-gray-700">You saved us all! Thank you for being careful 🙏</p>
+                                        <p className="text-xs text-gray-700">You saved us all! Thank you for being careful ðŸ™</p>
                                     </div>
                                 </div>
                             </div>
@@ -1340,10 +1340,10 @@ const Level9 = () => {
                             <button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
                                 onClick={() => {
                                     setCommunityAlerted(true);
-                                    showFeedback("✅ Community alerted!");
+                                    showFeedback("âœ… Community alerted!");
                                     setGameState('call_confirmation');
                                 }}>
-                                <span className="text-lg">📢</span>
+                                <span className="text-lg">ðŸ“¢</span>
                                 <span>Send Alert</span>
                             </button>
                         </div>
@@ -1378,24 +1378,24 @@ const Level9 = () => {
                         {/* Completed Steps */}
                         <div className="space-y-6">
                             <div className="p-6 rounded-[2rem] bg-emerald-900/20 border-2 border-emerald-500/50">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter text-emerald-400">✓ Step 1: Profile Investigation</h4>
+                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter text-emerald-400">âœ“ Step 1: Profile Investigation</h4>
                                 <p className="text-slate-300 leading-relaxed text-sm">
                                     You discovered the fake profile was created 4 days ago, used stock photos, and had suspicious mutual friend patterns.
                                 </p>
                             </div>
 
                             <div className="p-6 rounded-[2rem] bg-emerald-500 text-black border-4 border-transparent shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">✓ Step 2: Real Contact Verified</h4>
+                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">âœ“ Step 2: Real Contact Verified</h4>
                                 <p className="text-black/80 text-sm leading-relaxed">Verified identity through a different channel before taking action.</p>
                             </div>
 
                             <div className="p-6 rounded-[2rem] bg-red-500 text-white border-4 border-transparent shadow-[0_10px_30px_rgba(220,38,38,0.3)]">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">✓ Step 3: Fake Account Reported</h4>
+                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">âœ“ Step 3: Fake Account Reported</h4>
                                 <p className="text-white/80 text-sm leading-relaxed">Reported impersonation accounts to protect the community.</p>
                             </div>
 
                             <div className="p-6 rounded-[2rem] bg-blue-500 text-white border-4 border-transparent shadow-[0_10px_30px_rgba(59,130,246,0.3)]">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">✓ Step 4: Community Alerted</h4>
+                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">âœ“ Step 4: Community Alerted</h4>
                                 <p className="text-white/80 text-sm leading-relaxed">Warned mutual friends about the impersonation attempt.</p>
                             </div>
                         </div>
@@ -1409,7 +1409,7 @@ const Level9 = () => {
                                 <div className="space-y-4">
                                     <div className="bg-emerald-900/40 border border-emerald-500/30 rounded-xl p-4">
                                         <p className="text-emerald-400 font-black text-sm uppercase tracking-widest mb-1">Financial Loss Prevented</p>
-                                        <p className="text-emerald-200 text-3xl font-black font-mono">₹8,000</p>
+                                        <p className="text-emerald-200 text-3xl font-black font-mono">â‚¹8,000</p>
                                     </div>
 
                                     <div className="bg-blue-900/40 border border-blue-500/30 rounded-xl p-4">
@@ -1424,7 +1424,7 @@ const Level9 = () => {
                                 </div>
 
                                 <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p className="text-white/80 font-black text-sm mb-2">🏅 Achievement Unlocked:</p>
+                                    <p className="text-white/80 font-black text-sm mb-2">ðŸ… Achievement Unlocked:</p>
                                     <p className="text-white font-black text-lg">The Verifier</p>
                                     <p className="text-white/60 text-xs mt-1">Confirmed identity before acting, protected community</p>
                                 </div>
@@ -1434,7 +1434,7 @@ const Level9 = () => {
                                 <div className="mt-8 animate-in fade-in duration-500">
                                     <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] animate-pulse"
                                         onClick={() => completeLevel(true, 35, 0)}>
-                                        COMPLETE LEVEL ➔
+                                        COMPLETE LEVEL âž”
                                     </button>
                                 </div>
                             )}
@@ -1473,7 +1473,7 @@ const Level9 = () => {
                                     <div className="flex-1">
                                         <p className="text-blue-400 font-black text-sm mb-2">Fake Nithya:</p>
                                         <p className="text-white/60 text-sm leading-relaxed">{msg.message}</p>
-                                        <p className="text-red-400 font-black font-mono mt-2 text-sm">Sent: ₹{msg.amount.toLocaleString('en-IN')} ✓</p>
+                                        <p className="text-red-400 font-black font-mono mt-2 text-sm">Sent: â‚¹{msg.amount.toLocaleString('en-IN')} âœ“</p>
                                     </div>
                                 </div>
                             </div>
@@ -1487,7 +1487,7 @@ const Level9 = () => {
                                     <div className="flex-1">
                                         <p className="text-blue-400 font-black text-sm mb-2">Fake Nithya:</p>
                                         <p className="text-white text-lg leading-relaxed">{currentMsg.message}</p>
-                                        <p className="text-red-400 font-black font-mono mt-2">Requesting: ₹{currentMsg.amount.toLocaleString('en-IN')}</p>
+                                        <p className="text-red-400 font-black font-mono mt-2">Requesting: â‚¹{currentMsg.amount.toLocaleString('en-IN')}</p>
                                     </div>
                                 </div>
 
@@ -1499,11 +1499,11 @@ const Level9 = () => {
                                             adjustAssets(-currentMsg.amount);
                                             setEscalationStep(prev => prev + 1);
                                         }}>
-                                        💸 Send ₹{currentMsg.amount.toLocaleString('en-IN')}
+                                        ðŸ’¸ Send â‚¹{currentMsg.amount.toLocaleString('en-IN')}
                                     </button>
                                     <button className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-2xl text-sm shadow-xl transition-all active:scale-95 border-2 border-emerald-400/30"
                                         onClick={() => setGameState('profile_investigation')}>
-                                        🤔 Wait... Let me check
+                                        ðŸ¤” Wait... Let me check
                                     </button>
                                 </div>
                             </div>
@@ -1521,7 +1521,7 @@ const Level9 = () => {
                     <div className="mt-12 p-10 bg-red-600/10 rounded-[2.5rem] border-4 border-red-600/20 text-center shadow-inner relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(45deg, #dc2626 25%, transparent 25%, transparent 50%, #dc2626 50%, #dc2626 75%, transparent 75%, transparent 100%)', backgroundSize: '10px 10px' }}></div>
                         <h2 className="text-red-500 text-2xl font-black mb-2 uppercase tracking-[0.5em]">TOTAL LOSS</h2>
-                        <span className="text-8xl font-black text-white font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">-₹{stolenAmount.toLocaleString('en-IN')}</span>
+                        <span className="text-8xl font-black text-white font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">-â‚¹{stolenAmount.toLocaleString('en-IN')}</span>
                     </div>
 
                     {escalationStep >= escalationMessages.length && (
@@ -1536,7 +1536,7 @@ const Level9 = () => {
                             </button>
                             <button className="bg-red-600 hover:bg-red-500 text-white font-black py-6 rounded-2xl text-2xl shadow-[0_20px_60px_rgba(220,38,38,0.5)] uppercase tracking-widest animate-pulse border-4 border-red-400 flex items-center justify-center gap-4 transition-transform hover:scale-105 active:scale-95"
                                 onClick={() => setGameState('recovery_screen')}>
-                                <span className="text-3xl">🚨</span>
+                                <span className="text-3xl">ðŸš¨</span>
                                 <span>CALL 1930 HELPLINE</span>
                             </button>
                         </div>
@@ -1553,7 +1553,7 @@ const Level9 = () => {
                 <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.1)_0%,transparent_70%)] pointer-events-none"></div>
 
                 <div className="z-10 w-full max-w-4xl bg-white rounded-[3rem] md:rounded-[4rem] p-10 md:p-16 shadow-[0_50px_100px_rgba(0,0,0,0.5)] text-center animate-in zoom-in duration-500 my-auto">
-                    <div className="w-24 h-24 md:w-32 md:h-32 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl md:text-6xl mx-auto mb-8 md:mb-10 shadow-inner">⚡</div>
+                    <div className="w-24 h-24 md:w-32 md:h-32 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-5xl md:text-6xl mx-auto mb-8 md:mb-10 shadow-inner">âš¡</div>
                     <h2 className="text-slate-900 font-black text-4xl md:text-5xl uppercase tracking-tighter mb-4 italic">PARTIAL RECOVERY</h2>
                     <p className="text-slate-600 text-lg md:text-xl font-serif italic leading-relaxed mb-10 px-4 md:px-12 opacity-80">
                         "The 1930 Cyber Helpline initiated financial tracking. Since you reported quickly, some funds were frozen in mule accounts, but the scammer had already transferred most of the money."
@@ -1561,12 +1561,12 @@ const Level9 = () => {
                     <div className="bg-emerald-50 border-4 border-emerald-500/20 p-10 rounded-[3rem] mb-12 flex justify-between items-center shadow-inner">
                         <div className="text-left">
                             <h4 className="text-emerald-900 font-black uppercase text-sm tracking-widest mb-1">Amount Recovered</h4>
-                            <p className="text-emerald-600 text-5xl font-black font-mono mt-1">+₹3,000</p>
+                            <p className="text-emerald-600 text-5xl font-black font-mono mt-1">+â‚¹3,000</p>
                         </div>
                         <div className="text-slate-300 w-px h-20 bg-emerald-500/20 mx-8"></div>
                         <div className="text-right">
                             <h4 className="text-slate-400 font-black uppercase text-sm tracking-widest mb-1">Net Loss</h4>
-                            <p className="text-red-500 text-5xl font-black font-mono mt-1">-₹5,000</p>
+                            <p className="text-red-500 text-5xl font-black font-mono mt-1">-â‚¹5,000</p>
                         </div>
                     </div>
                     <button className="w-full bg-slate-950 hover:bg-black text-white font-black py-8 rounded-[2.5rem] text-3xl shadow-3xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
@@ -1574,7 +1574,7 @@ const Level9 = () => {
                             adjustAssets(-5000);
                             completeLevel(false, 0, 0);
                         }}>
-                        Accept & Continue →
+                        Accept & Continue â†’
                     </button>
                 </div>
             </div>
@@ -1584,6 +1584,6 @@ const Level9 = () => {
     return null;
 };
 
-export default Level9;
+export default Level8;
 
 

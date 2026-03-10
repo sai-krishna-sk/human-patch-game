@@ -2,15 +2,28 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
 
-const ROOM_WIDTH = 2000;
-const ROOM_HEIGHT = 800;
+const ROOM_WIDTH = 1600;
+const ROOM_HEIGHT = 1100;
 const LIVING_ROOM_WIDTH = 1600;
 const LIVING_ROOM_HEIGHT = 1100;
 const VIEWPORT_WIDTH = 1200;
 const VIEWPORT_HEIGHT = 800;
-const SPEED = 15;
+const SPEED = 12;
 const PLAYER_SIZE = 40;
 const SELVI_ZONE = { x: 800, y: 250, w: 300, h: 300 }; // Raised center-left stall area
+
+// Interactive Area Constants (Relative to Room) - From Level 2
+const DESK_PARTS = [
+    { x: 600, y: 400, w: 400, h: 140 }, // Top
+    { x: 600, y: 540, w: 140, h: 210 }  // Left Return
+];
+const LAPTOP_AREA = { x: 740, y: 420, w: 140, h: 100 };
+const TABLE_LEFT_AREA = { x: 610, y: 560, w: 90, h: 120 }; // Left side of table (return)
+const TABLE_PHOTO_AREA = { x: 935, y: 465, w: 60, h: 60 }; // Behind Grandpa frame on table (moved right)
+const BOOK_AREA = { x: 40, y: 60, w: 160, h: 380 }; // Left Bookshelf (Higher up)
+const BOOK_RIGHT_AREA = { x: 1400, y: 60, w: 160, h: 380 }; // Right Bookshelf (Higher up)
+const PLANT_AREA = { x: 50, y: 850, w: 200, h: 200 }; // Left Flower Pot (At the bottom)
+const PLANT_RIGHT_AREA = { x: 1350, y: 850, w: 200, h: 200 }; // Right Flower Pot (At the bottom)
 
 // No external assets - using pure 2D CSS art
 
@@ -62,10 +75,16 @@ const Level5 = () => {
     const [evidence, setEvidence] = useState([]);
     const [isBinderOpen, setIsBinderOpen] = useState(false);
 
-    // Room walk state (post-payment room scene)
-    const ROOM_DESK_ZONE = { x: 500, y: 300, w: 200, h: 100 };
-    const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 580, y: 700 });
+    // Garden state
+    const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 600, y: 150 });
+    const [isNearCar, setIsNearCar] = useState(false);
+    const [gardenFadeOut, setGardenFadeOut] = useState(false);
+    const [isGardenReturnCar, setIsGardenReturnCar] = useState(false);
+
+    // Room walk state (post-payment room scene) - Using Level 2 constants
+    const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 800, y: 950 });
     const [canInteractLaptop, setCanInteractLaptop] = useState(false);
+    const [interactionTarget, setInteractionTarget] = useState(null);
 
     // Mini-game state
     const [safeBucket, setSafeBucket] = useState([]);
@@ -126,6 +145,45 @@ const Level5 = () => {
         }
     }, [gameState, livingRoomStep]);
 
+    // Handle Title Card transition for Level 5
+    useEffect(() => {
+        if (gameState === 'title_card') {
+            // Play cinematic surge sound
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const masterGain = ctx.createGain();
+                masterGain.connect(ctx.destination);
+                masterGain.gain.setValueAtTime(0, ctx.currentTime);
+                masterGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
+                masterGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3);
+
+                const osc1 = ctx.createOscillator();
+                osc1.type = 'sawtooth';
+                osc1.frequency.setValueAtTime(50, ctx.currentTime);
+                osc1.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 2);
+                osc1.connect(masterGain);
+
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(40, ctx.currentTime);
+                osc2.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 3);
+                osc2.connect(masterGain);
+
+                osc1.start(); osc2.start();
+                osc1.stop(ctx.currentTime + 3);
+                osc2.stop(ctx.currentTime + 3);
+            } catch (err) { console.error("Audio error", err); }
+
+            const timer = setTimeout(() => {
+                setGardenPlayerPos({ x: 800, y: 100 });
+                triggerTransition('garden');
+            }, 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState]);
+
     useEffect(() => {
         const dk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
         const uk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
@@ -147,7 +205,9 @@ const Level5 = () => {
                 } else if (gameState === 'living_room' && (livingRoomStep === 1 || livingRoomStep === 2)) {
                     setLivingRoomStep(3);
                 } else if (gameState === 'living_room' && livingRoomInteractionTarget === 'main_door' && livingRoomStep === 3) {
-                    triggerTransition('market_walk');
+                    triggerTransition('title_card');
+                } else if (gameState === 'garden' && isNearCar) {
+                    triggerTransition('travel');
                 } else if (canInteract && gameState === 'market_walk') {
                     setGameState('dialogue');
                 } else if (canInteractLaptop && gameState === 'room_walk') {
@@ -157,30 +217,44 @@ const Level5 = () => {
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [canInteract, gameState, bedroomInteractionTarget, livingRoomInteractionTarget, livingRoomStep, canInteractLaptop]);
+    }, [canInteract, gameState, bedroomInteractionTarget, livingRoomInteractionTarget, livingRoomStep, canInteractLaptop, isNearCar]);
 
     // Room walk movement loop
     useEffect(() => {
         if (gameState !== 'room_walk') return;
-        const ROOM_W = 1200;
-        const ROOM_H = 800;
-        const RM_SPEED = 9;
         let frameId;
         const loop = () => {
             setRoomPlayerPos(p => {
                 let nx = p.x, ny = p.y;
-                if (keys['w'] || keys['arrowup']) ny -= RM_SPEED;
-                if (keys['s'] || keys['arrowdown']) ny += RM_SPEED;
-                if (keys['a'] || keys['arrowleft']) nx -= RM_SPEED;
-                if (keys['d'] || keys['arrowright']) nx += RM_SPEED;
-                nx = Math.max(0, Math.min(nx, ROOM_W - PLAYER_SIZE));
-                ny = Math.max(0, Math.min(ny, ROOM_H - PLAYER_SIZE));
-                // Desk collision
-                if (checkCollision(nx, ny, ROOM_DESK_ZONE)) {
-                    if (p.x + PLAYER_SIZE <= ROOM_DESK_ZONE.x || p.x >= ROOM_DESK_ZONE.x + ROOM_DESK_ZONE.w) nx = p.x;
-                    if (p.y + PLAYER_SIZE <= ROOM_DESK_ZONE.y || p.y >= ROOM_DESK_ZONE.y + ROOM_DESK_ZONE.h) ny = p.y;
-                }
-                const interactArea = { x: ROOM_DESK_ZONE.x - 40, y: ROOM_DESK_ZONE.y - 40, w: ROOM_DESK_ZONE.w + 80, h: ROOM_DESK_ZONE.h + 80 };
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+                nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+
+                // Obstacle check: DESK (L-Shape) - Using Level 2 constants
+                DESK_PARTS.forEach(part => {
+                    if (checkCollision(nx, ny, part)) {
+                        if (p.x + PLAYER_SIZE <= part.x || p.x >= part.x + part.w) nx = p.x;
+                        if (p.y + PLAYER_SIZE <= part.y || p.y >= part.y + part.h) ny = p.y;
+                    }
+                });
+
+                // Interaction detection - Level 2 style
+                const testArea = (area) => checkCollision(nx, ny, area);
+                let target = null;
+                if (testArea(LAPTOP_AREA)) target = 'laptop';
+                else if (testArea(TABLE_LEFT_AREA)) target = 'rule_symbols';
+                else if (testArea(TABLE_PHOTO_AREA)) target = 'rule_pii';
+                else if (testArea(BOOK_AREA)) target = 'rule_length';
+                else if (testArea(BOOK_RIGHT_AREA)) target = 'empty_book';
+                else if (testArea(PLANT_AREA)) target = 'rule_patterns';
+                else if (testArea(PLANT_RIGHT_AREA)) target = 'empty_plant';
+
+                setInteractionTarget(target);
+
+                const interactArea = { x: LAPTOP_AREA.x - 40, y: LAPTOP_AREA.y - 40, w: LAPTOP_AREA.w + 80, h: LAPTOP_AREA.h + 80 };
                 setCanInteractLaptop(checkCollision(nx, ny, interactArea));
                 return { x: nx, y: ny };
             });
@@ -225,6 +299,45 @@ const Level5 = () => {
         return () => cancelAnimationFrame(frameId);
     }, [keys, gameState]);
 
+    // Garden movement loop
+    useEffect(() => {
+        if (gameState !== 'garden') return;
+        let frameId;
+        const loop = () => {
+            const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+            setGardenPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+                nx = Math.max(0, Math.min(nx, currentRoomWidth - PLAYER_SIZE));
+                ny = Math.max(50, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE)); // Allow reaching top door area
+
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState]);
+
+    // Garden car proximity check
+    useEffect(() => {
+        if (gameState !== 'garden') return;
+        const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+        const carZone = { x: currentRoomWidth / 2 - 140, y: ROOM_HEIGHT / 2 - 140, w: 280, h: 280 };
+        setIsNearCar(checkCollision(gardenPlayerPos.x, gardenPlayerPos.y, carZone));
+    }, [gardenPlayerPos, gameState]);
+
+    // Travel to Market transition
+    useEffect(() => {
+        if (gameState === 'travel') {
+            const timer = setTimeout(() => triggerTransition('market_walk'), 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState]);
+
     // Bedroom movement loop
     useEffect(() => {
         if (gameState !== 'bedroom' && gameState !== 'bedroom_freshened') return;
@@ -236,12 +349,13 @@ const Level5 = () => {
                 if (keys['s'] || keys['arrowdown']) ny += SPEED;
                 if (keys['a'] || keys['arrowleft']) nx -= SPEED;
                 if (keys['d'] || keys['arrowright']) nx += SPEED;
-                nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
-                ny = Math.max(250, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+                // Limit movement to bedroom area (avoid black surrounding areas only)
+                nx = Math.max(250, Math.min(nx, 1300)); // Left and right black areas
+                ny = Math.max(300, Math.min(ny, 650)); // Stop at door level, prevent going below door
 
                 let target = null;
-                if (nx < 150) target = 'bathroom';
-                if (gameState === 'bedroom_freshened' && ny > ROOM_HEIGHT - 100 && nx > ROOM_WIDTH / 2 - 200 && nx < ROOM_WIDTH / 2 + 200) target = 'living_room_door';
+                if (nx < 350) target = 'bathroom'; // Bathroom activation at left side (around x: 250)
+                if (gameState === 'bedroom_freshened' && ny > 600 && nx > 550 && nx < 950) target = 'living_room_door'; // Door activation at bottom center (around y: 650)
                 setBedroomInteractionTarget(target);
 
                 return { x: nx, y: ny };
@@ -288,6 +402,130 @@ const Level5 = () => {
         });
         setCanInteract(near);
     }, [playerPos]);
+
+    // -----------------------------------------------------------
+    // RETURN SEQUENCE LOGIC
+    // -----------------------------------------------------------
+
+    // Market Return Loop
+    useEffect(() => {
+        if (gameState !== 'market_return') return;
+        let frameId;
+        const loop = () => {
+            const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+            setPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+                nx = Math.max(0, Math.min(nx, currentRoomWidth - PLAYER_SIZE));
+                ny = Math.max(250, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState]);
+
+    // Market Return Interaction
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (gameState === 'market_return' && e.key.toLowerCase() === 'e' && playerPos.x < 150) {
+                triggerTransition('travel_return');
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [gameState, playerPos]);
+
+    // Travel Return Logic
+    useEffect(() => {
+        if (gameState === 'travel_return') {
+            const timer = setTimeout(() => {
+                setIsGardenReturnCar(true);
+                const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+                setGardenPlayerPos({ x: currentRoomWidth / 2 - 140, y: ROOM_HEIGHT / 2 - 140 });
+                triggerTransition('garden_return');
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState]);
+
+    // Garden Return Loop
+    useEffect(() => {
+        if (gameState !== 'garden_return' || isGardenReturnCar) return;
+        let frameId;
+        const loop = () => {
+            const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+            setGardenPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+                nx = Math.max(0, Math.min(nx, currentRoomWidth - PLAYER_SIZE));
+                ny = Math.max(50, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState, isGardenReturnCar]);
+
+    // Garden Return Interaction
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (gameState === 'garden_return' && e.key.toLowerCase() === 'e') {
+                if (isGardenReturnCar) {
+                    setIsGardenReturnCar(false);
+                    const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+                    setGardenPlayerPos({ x: currentRoomWidth / 2 - 200, y: ROOM_HEIGHT / 2 });
+                } else if (gardenPlayerPos.y < 150) {
+                    triggerTransition('living_room_return', null, { x: 800, y: 150 });
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [gameState, isGardenReturnCar, gardenPlayerPos]);
+
+    // Living Room Return Loop
+    useEffect(() => {
+        if (gameState !== 'living_room_return') return;
+        let frameId;
+        const loop = () => {
+            setLivingRoomPlayerPos(p => {
+                let nx = p.x, ny = p.y;
+                if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                if (keys['d'] || keys['arrowright']) nx += SPEED;
+                nx = Math.max(120, Math.min(nx, LIVING_ROOM_WIDTH - 120));
+                ny = Math.max(120, Math.min(ny, LIVING_ROOM_HEIGHT - 120));
+                return { x: nx, y: ny };
+            });
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState]);
+
+    // Living Room Return Interaction
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (gameState === 'living_room_return' && e.key.toLowerCase() === 'e') {
+                if (livingRoomPlayerPos.x > 1400) {
+                    setRoomPlayerPos({ x: 800, y: 950 });
+                    setGameState('room_walk');
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [gameState, livingRoomPlayerPos]);
 
     const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
 
@@ -431,16 +669,8 @@ const Level5 = () => {
                         <img src="/assets/morning_bedplain.png" alt="Bedroom" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
                     </div>
 
-                    {/* Adjusted Player Position */}
-                    <div className="absolute z-30" style={{
-                        left: bedroomPlayerPos.x,
-                        top: bedroomPlayerPos.y,
-                        transform: `scale(${0.6 + (bedroomPlayerPos.y / ROOM_HEIGHT) * 0.4})`,
-                        transformOrigin: 'bottom center',
-                        transition: 'scale 0.1s linear'
-                    }}>
-                        <Player x={0} y={0} />
-                    </div>
+                    {/* Player Position - Direct Control for Animation */}
+                    <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
 
                     {/* Interactive Bathroom (Left) */}
                     {bedroomInteractionTarget === 'bathroom' && gameState === 'bedroom' && (
@@ -474,7 +704,7 @@ const Level5 = () => {
         );
     }
 
-    // LIVING ROOM STATE
+    // LIVING ROOM STATE (Exact copy from Level 2)
     // ═══════════════════════════════════════════
     if (gameState === 'living_room') {
         const cameraX = Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH));
@@ -511,11 +741,15 @@ const Level5 = () => {
                             transition: 'transform 0.1s linear'
                         }}
                     >
+
+                        {/* Wood Floor */}
                         <div className="absolute inset-0 opacity-80" style={{
                             backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
                         }}></div>
+
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none z-10"></div>
 
+                        {/* DOORS AND OPENINGS */}
                         {/* Top Double Door (Main Exit) */}
                         <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 ${Math.abs(livingRoomPlayerPos.x - 800) < 120 && livingRoomPlayerPos.y < 150 ? 'opacity-100 scale-105' : 'opacity-80'} transition-all`}>
                             <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">EXIT</div>
@@ -526,6 +760,13 @@ const Level5 = () => {
                             <div className="absolute top-[40px] right-[110px] w-4 h-1 bg-black"></div>
                         </div>
 
+                        {/* Right Single Door (Return to Study) */}
+                        <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-r-0 p-3 flex flex-col items-center justify-center z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] ${livingRoomInteractionTarget === 'study_room' ? 'scale-105' : ''} transition-all`}>
+                            <div className="text-[9px] text-white/60 font-black rotate-90 mb-8 tracking-[0.3em]">STUDY</div>
+                            <div className="w-[30px] h-[80px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            <div className="absolute left-2 bottom-6 w-1 h-6 bg-black"></div>
+                        </div>
+
                         {/* Bottom Single Door (Bedroom entry point) */}
                         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[60px] bg-[#8a5a44] border-4 border-black border-b-0 p-3 flex items-center justify-center z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
                             <div className="text-[9px] text-white/60 font-black tracking-[0.3em] mr-8">BEDROOM</div>
@@ -533,7 +774,8 @@ const Level5 = () => {
                             <div className="absolute right-6 top-2 w-6 h-1 bg-black"></div>
                         </div>
 
-                        {/* Rugs */}
+                        {/* RUGS FROM LEVEL 2 */}
+                        {/* HORIZONTAL RED RUG */}
                         <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0">
                             <div className="flex flex-col justify-between h-full -ml-2 absolute left-0 py-2">
                                 {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
@@ -542,6 +784,8 @@ const Level5 = () => {
                                 {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
                             </div>
                         </div>
+
+                        {/* VERTICAL RED RUG */}
                         <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0">
                             <div className="flex justify-between w-full -mt-2 absolute top-0 px-2">
                                 {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
@@ -551,7 +795,8 @@ const Level5 = () => {
                             </div>
                         </div>
 
-                        {/* Furniture */}
+                        {/* FURNITURE FROM LEVEL 2 */}
+                        {/* SOFA */}
                         <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start z-20 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
                             <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
                                 <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2 shadow-inner"></div>
@@ -560,27 +805,53 @@ const Level5 = () => {
                             <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black shadow-inner"></div>
                             <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black shadow-inner"></div>
                             <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black shadow-inner"></div>
+                            {/* Sofa Shadow */}
+                            <div className="absolute -bottom-8 left-4 right-4 h-8 bg-black/40 blur-xl rounded-full -z-10"></div>
                         </div>
+
+                        {/* COFFEE TABLE (Interaction Target) */}
                         <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-2xl flex items-center justify-center">
                             <div className="w-[80px] h-[160px] border border-white/10"></div>
+                            {/* Shadow */}
+                            <div className="absolute top-full left-2 right-2 h-6 bg-black/40 blur-xl rounded-full -z-10"></div>
                         </div>
-                        <div className="absolute left-[120px] top-1/2 -translate-y-1/2 w-[160px] h-[120px] bg-[#2a2c38] border-8 border-black z-20 shadow-xl flex items-center justify-center">
-                            <div className="w-[140px] h-[100px] bg-black border-4 border-zinc-900 overflow-hidden relative">
-                                <div className="absolute inset-0 bg-blue-500/10"></div>
-                                <div className="w-full h-px bg-white/10 absolute top-1/2"></div>
+
+                        {/* LAMPS FROM LEVEL 2 */}
+                        <div className="absolute right-[410px] top-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
+                        <div className="absolute right-[410px] bottom-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
+
+                        {/* TV UNIT FROM LEVEL 2 */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[180px] h-[340px] bg-[#222938] border-4 border-l-0 border-black flex items-center z-20 shadow-[20px_0_40px_rgba(0,0,0,0.6)]">
+                            <div className="w-[120px] h-[260px] bg-[#1e4868] border-4 border-[#122336] ml-4 relative overflow-hidden shadow-inner">
+                                <div className="w-[180px] h-[40px] bg-white/10 -rotate-45 absolute top-4 -left-8"></div>
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-blue-500/20 blur-lg animate-pulse"></div>
+                                <div className="absolute top-1/2 left-full -translate-y-1/2 w-40 h-56 bg-blue-500/5 blur-2xl rounded-full -z-10 animate-pulse"></div>
                             </div>
                         </div>
-                        <div className="absolute left-[200px] top-1/2 -translate-y-1/2 w-[240px] h-[80px] border-4 border-white/10 z-10 flex"></div>
 
-                        <div className="absolute z-30" style={{
-                            left: livingRoomPlayerPos.x,
-                            top: livingRoomPlayerPos.y,
-                            transform: `scale(1.2)`,
-                            transformOrigin: 'bottom center',
-                            transition: 'scale 0.1s linear'
-                        }}>
-                            <Player x={0} y={0} />
+                        {/* CORNER PLANTS FROM LEVEL 2 */}
+                        <div className="absolute left-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
+                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center relative overflow-hidden">
+                                <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
+                                <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
+                            </div>
                         </div>
+                        <div className="absolute right-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
+                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center relative overflow-hidden">
+                                <div className="w-[60px] h-[10px] bg-[#22c55e] rotate-45 absolute shadow-[0_0_10px_#22c55e]"></div>
+                                <div className="w-[60px] h-[10px] bg-[#22c55e] -rotate-45 absolute"></div>
+                            </div>
+                        </div>
+
+                        {/* Player in Living Room - Direct Control for Animation */}
+                        <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
+
                     </div>
                 </div>
 
@@ -588,7 +859,7 @@ const Level5 = () => {
                     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
                         <div className="h-[2px] w-12 bg-white/30 mb-3" />
                         <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                            Press E to go to market
+                            Press E to go to garden
                         </div>
                     </div>
                 )}
@@ -603,6 +874,64 @@ const Level5 = () => {
         );
     }
 
+    // GARDEN STATE
+    // ═══════════════════════════════════════════
+    if (gameState === 'garden') {
+        const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+        const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
+        return (
+            <div className="w-full h-full flex flex-col bg-slate-900 overflow-hidden relative font-sans">
+                <FeedbackToast />
+                {/* Fade overlays */}
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-1000 pointer-events-none ${isTransitioning || gardenFadeOut ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
+
+                    {/* The Full Reference Background Image */}
+                    <div className="absolute top-0 left-0 w-full h-full z-0">
+                        <img src="/assets/garden_day.png" alt="Garden Day" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
+                    </div>
+
+                    {/* Player Position - Direct Control for Animation */}
+                    <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />
+
+                    {/* Interactive Car Trigger Area */}
+                    {isNearCar && !gardenFadeOut && (
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to get into car
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // TRAVEL STATE
+    // ═══════════════════════════════════════════
+    if (gameState === 'travel') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-black overflow-hidden relative font-sans">
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 bg-cover bg-center animate-[pulse_3s_infinite]" style={{ backgroundImage: 'url("/assets/daycar.png")' }} />
+
+                {/* Movement lines overlay effect to simulate traveling */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(255,255,255,0.1) 100px, rgba(255,255,255,0.1) 105px)', animation: 'scroll-left-daycar 2s linear infinite' }}></div>
+
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                        @keyframes scroll-left-daycar {
+                            from { transform: translateX(0); }
+                            to { transform: translateX(-105px); }
+                        }
+                    `
+                }} />
+            </div>
+        );
+    }
+
     // MARKET WALK STATE
     // ═══════════════════════════════════════════
     if (gameState === 'market_walk') {
@@ -612,6 +941,7 @@ const Level5 = () => {
             <div className="w-full h-full flex flex-col bg-[#7fc2ed] overflow-hidden relative font-sans">
                 <FeedbackToast />
                 <EvidenceBinder />
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
                 <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
 
@@ -653,24 +983,16 @@ const Level5 = () => {
                         </div>
                     </div>
 
-                    {/* Adjusted Player Position with scale trick for pseudo-3D depth */}
-                    <div className="absolute z-30" style={{
-                        left: playerPos.x,
-                        top: playerPos.y,
-                        transform: `scale(${0.6 + (playerPos.y / ROOM_HEIGHT) * 0.4})`,
-                        transformOrigin: 'bottom center',
-                        transition: 'scale 0.1s linear'
-                    }}>
-                        <Player x={0} y={0} />
-                    </div>
+                    {/* Player in Market - Direct Control for Animation */}
+                    <Player x={playerPos.x} y={playerPos.y} />
 
                     {/* Premium Interaction UI - Triggered when near Selvi */}
                     {canInteract && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
-                            <button className="bg-white border-2 border-slate-800 text-slate-800 pl-4 pr-10 py-3 rounded-full font-black shadow-[0_5px_0_#1e293b] flex items-center gap-6 group hover:translate-y-1 hover:shadow-[0_2px_0_#1e293b] transition-all" onClick={() => setGameState('dialogue')}>
-                                <div className="bg-blue-600 text-white w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-inner border-2 border-slate-800 group-hover:scale-110 transition-transform">E</div>
-                                <span className="text-xl uppercase tracking-widest font-mono">Talk to Selvi</span>
-                            </button>
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to talk to Selvi
+                            </div>
                         </div>
                     )}
                 </div>
@@ -851,8 +1173,35 @@ const Level5 = () => {
                 </div>
 
                 <style>{`
-                    @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
-                    .animate-scan { animation: scan 3s infinite linear; }
+                    @keyframes aberration {
+                        0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                        25% { transform: translate(-4px, 2px); opacity: 0.8; }
+                        50% { transform: translate(4px, -2px); opacity: 0.6; }
+                        75% { transform: translate(-2px, -4px); opacity: 0.8; }
+                    }
+                    @keyframes aberration-alt {
+                        0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                        25% { transform: translate(4px, -2px); opacity: 0.8; }
+                        50% { transform: translate(-4px, 2px); opacity: 0.6; }
+                        75% { transform: translate(2px, 4px); opacity: 0.8; }
+                    }
+                    @keyframes cinematic-sequence {
+                        0% { opacity: 0; }
+                        15% { opacity: 1; }
+                        85% { opacity: 1; }
+                        100% { opacity: 0; }
+                    }
+                    @keyframes surge {
+                        0%, 100% { transform: scale(1); filter: brightness(1); }
+                        50% { transform: scale(1.08); filter: brightness(1.3); }
+                    }
+                    @keyframes width { from { width: 0; opacity: 0; } to { width: 12rem; opacity: 0.8; } }
+                    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+                    .animate-cinematic-sequence { animation: cinematic-sequence 3.5s forwards; }
+                    .animate-width { animation: width 1.5s ease-in-out forwards; }
+                    .animate-aberration { animation: aberration 1.5s infinite; }
+                    .animate-aberration-alt { animation: aberration-alt 1.5s infinite; }
                 `}</style>
             </div>
         );
@@ -1299,7 +1648,7 @@ const Level5 = () => {
                                 <p className="text-emerald-200 text-xs mt-1">Go back to your room and report this scam on the Cyber Crime Portal!</p>
                             </div>
                             <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] animate-pulse flex items-center justify-center gap-3 transition-all active:scale-95"
-                                onClick={() => { setRoomPlayerPos({ x: 580, y: 700 }); setGameState('room_walk'); }}>
+                                onClick={() => { setPlayerPos({ x: 800, y: 600 }); setGameState('market_return'); }}>
                                 ⬅ BACK — Go to Room & Report Scam
                             </button>
                         </div>
@@ -1499,196 +1848,86 @@ const Level5 = () => {
     }
 
     // ═══════════════════════════════════════════
-    // ROOM WALK (Post-payment, Level 1 Style Room)
+    // ROOM WALK (Study Room - Level 2 Style)
     // ═══════════════════════════════════════════
     if (gameState === 'room_walk') {
-        const ROOM_W = 1200;
-        const ROOM_H = 800;
-
         return (
             <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
                 <div
                     className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans"
-                    style={{ width: ROOM_W, height: ROOM_H }}
+                    style={{
+                        width: VIEWPORT_WIDTH,
+                        height: VIEWPORT_HEIGHT
+                    }}
                 >
-                    {/* Room Background — Dark Teal Wall + Wood Floor */}
-                    <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                        {/* Wood Floor Planks */}
-                        <div className="absolute inset-0 opacity-80" style={{
-                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
-                        }}></div>
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            width: ROOM_WIDTH,
+                            height: ROOM_HEIGHT,
+                            transform: `translate(${-Math.max(0, Math.min(roomPlayerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH))}px, ${-Math.max(0, Math.min(roomPlayerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT))}px)`,
+                            willChange: 'transform'
+                        }}
+                    >
+                        <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/30 pointer-events-none z-20" />
+                            <div
+                                className="absolute inset-0 z-0"
+                                style={{
+                                    backgroundImage: "url('/assets/study.png')",
+                                    backgroundSize: '100% 100%',
+                                    backgroundPosition: 'left top'
+                                }}
+                            />
 
-                        {/* Top Wall */}
-                        <div className="absolute top-0 left-0 right-0 h-[180px] bg-[#233547] z-0 border-b-[12px] border-slate-800 shadow-xl"></div>
+                            {/* Collision Areas Only - No Visual Elements */}
+                            {/* Desk Parts - Collision Only (L-Shape) */}
+                            {DESK_PARTS.map((part, index) => (
+                                <div
+                                    key={index}
+                                    className="absolute"
+                                    style={{
+                                        left: part.x,
+                                        top: part.y,
+                                        width: part.w,
+                                        height: part.h,
+                                        // Invisible collision area
+                                    }}
+                                />
+                            ))}
 
-                        {/* Light Casts from Window */}
-                        <div className="absolute top-[180px] left-[350px] w-[500px] h-[600px] bg-blue-400/8 z-0 transform skew-x-[-25deg] origin-top-left pointer-events-none mix-blend-screen" style={{ WebkitMaskImage: 'linear-gradient(to bottom, black, transparent)', maskImage: 'linear-gradient(to bottom, black, transparent)' }}></div>
-
-                        {/* Window — Night City Skyline */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[450px] h-[160px] bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-[inset_0_0_50px_rgba(0,0,0,0.8),0_10px_30px_rgba(0,0,0,0.6)] overflow-hidden z-[5]">
-                            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
-                            <div className="absolute bottom-0 left-0 right-0 h-[70px] flex items-end gap-[1px]">
-                                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
-                                    <div key={i} className="flex-1 bg-[#090e1a] flex flex-wrap gap-1 p-1 items-start justify-center" style={{ height: h }}>
-                                        {i % 2 === 0 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
-                                        {i % 3 === 0 && <div className="w-2 h-2 bg-yellow-100/60 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.6)]"></div>}
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
-                            {/* Stars */}
-                            <div className="absolute top-3 left-12 w-1 h-1 bg-white rounded-full animate-pulse"></div>
-                            <div className="absolute top-6 right-20 w-1 h-1 bg-white rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                            <div className="absolute top-4 left-1/3 w-0.5 h-0.5 bg-white rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                        </div>
-
-                        {/* Left Bookshelf — Level 1 Style */}
-                        <div className="absolute top-[180px] left-8 w-[100px] z-10 bg-[#e08e50] border-[8px] border-[#b86b35] shadow-[0_12px_30px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-1.5 rounded-b-sm" style={{ height: 280 }}>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[40px] px-1 gap-0.5">
-                                <div className="w-3 h-8 bg-red-600 shadow-sm border-l border-white/20"></div>
-                                <div className="w-3.5 h-10 bg-blue-600 shadow-sm border-l border-white/20"></div>
-                                <div className="w-3 h-6 bg-yellow-500 ml-1 shadow-sm border-l border-white/20"></div>
-                            </div>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[40px] px-1 gap-0.5 justify-end">
-                                <div className="w-4 h-10 bg-emerald-600 shadow-sm border-l border-white/20"></div>
-                                <div className="w-3 h-7 bg-purple-600 shadow-sm border-l border-white/20"></div>
-                            </div>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[40px] px-1 gap-0.5">
-                                <div className="w-3.5 h-10 bg-cyan-600 shadow-sm border-l border-white/20"></div>
-                                <div className="w-3 h-8 bg-red-500 shadow-sm border-l border-white/20"></div>
-                                <div className="w-4 h-6 bg-slate-600 ml-2 shadow-sm border-l border-white/20"></div>
-                            </div>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                        </div>
-
-                        {/* Right Bookshelf */}
-                        <div className="absolute top-[180px] right-8 w-[100px] z-10 bg-[#e08e50] border-[8px] border-[#b86b35] shadow-[0_12px_30px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-1.5 rounded-b-sm" style={{ height: 280 }}>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[40px] px-1 gap-0.5">
-                                <div className="w-3 h-10 bg-indigo-700 shadow-sm transform rotate-3"></div>
-                                <div className="w-4 h-8 bg-rose-600 shadow-sm"></div>
-                            </div>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[40px] px-1 gap-0.5 justify-end">
-                                <div className="w-3 h-6 bg-amber-700 shadow-sm"></div>
-                                <div className="w-4 h-10 bg-teal-700 shadow-sm"></div>
-                                <div className="w-3 h-8 bg-slate-500 shadow-sm"></div>
-                            </div>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                            <div className="flex items-end h-[40px] px-1 gap-0.5">
-                                <div className="w-4 h-9 bg-orange-600 shadow-sm"></div>
-                                <div className="w-3 h-7 bg-sky-700 shadow-sm"></div>
-                            </div>
-                            <div className="w-full h-[6px] bg-[#9c5525] shadow-sm"></div>
-                        </div>
-
-                        {/* Ornate Rug */}
-                        <div className="absolute left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-red-950 border-[8px] border-red-900/80 rounded-lg z-0 overflow-hidden" style={{ top: 380, boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}>
-                            <div className="w-[92%] h-[90%] m-auto mt-[4%] border-2 border-yellow-700/40 flex justify-center items-center">
-                                <div className="w-[85%] h-[85%] border-2 border-red-800/60 flex justify-center items-center">
-                                    <div className="w-20 h-20 bg-yellow-700/20 rotate-45 border border-yellow-800/30"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* L-Shaped Desk — Level 1 Style */}
-                        <div className="absolute z-10" style={{ left: ROOM_DESK_ZONE.x - 50, top: ROOM_DESK_ZONE.y - 20, width: 300, height: 180 }}>
-                            {/* Shadow underneath desk */}
-                            <div className="absolute -inset-6 top-[80px] bg-black/40 blur-2xl z-[-1] rounded-[60px]"></div>
-
-                            {/* Main Desk Board */}
-                            <div className="absolute right-0 top-0 w-full h-[90px] bg-[#e08e50] shadow-2xl rounded-sm" style={{ borderBottom: '12px solid #b86b35', borderRight: '8px solid #b86b35', borderLeft: '8px solid #b86b35' }}></div>
-
-                            {/* Monitors on desk */}
-                            <div className="absolute top-[-24px] left-1/2 -translate-x-1/2 flex items-end gap-1 z-30">
-                                {/* Left Monitor */}
-                                <div className="w-[100px] h-[14px] bg-[#2a3b4c] rounded-sm transform -rotate-[15deg] translate-y-2 translate-x-2 border border-[#1e2a38] shadow-[0_10px_20px_rgba(0,0,0,0.8)] relative">
-                                    <div className="absolute -bottom-4 w-[70px] h-[8px] bg-cyan-400/20 blur-[4px] rounded-full left-1/2 -translate-x-1/2"></div>
-                                    <div className="absolute top-full mt-0.5 w-[40px] h-[20px] bg-[#cbd5e1] rounded shadow-md -z-10 left-1/2 -translate-x-1/2"></div>
-                                </div>
-                                {/* Main Monitor — glowing blue to attract */}
-                                <div className="w-[130px] h-[16px] bg-[#2a3b4c] rounded border border-[#1e2a38] shadow-[0_10px_20px_rgba(0,0,0,0.8),0_0_30px_rgba(59,130,246,0.4)] flex justify-center relative z-10 animate-pulse">
-                                    <div className="absolute -bottom-6 w-[100px] h-[10px] bg-blue-400/30 blur-[6px] rounded-full"></div>
-                                    <div className="absolute top-full mt-0.5 w-[50px] h-[25px] bg-[#cbd5e1] rounded shadow-md -z-10"></div>
-                                    <span className="text-[6px] text-blue-300 font-mono self-center">🛡️ CYBERCRIME</span>
-                                </div>
-                            </div>
-
-                            {/* Keyboard */}
-                            <div className="absolute top-[50px] left-[100px] w-[80px] h-[26px] bg-slate-200 flex flex-wrap gap-[1px] p-1 rounded shadow-[0_3px_8px_rgba(0,0,0,0.4)] border border-slate-400 z-30">
-                                {[...Array(24)].map((_, i) => <div key={i} className="w-[5px] h-[4px] bg-white rounded-sm shadow-sm"></div>)}
-                            </div>
-
-                            {/* Coffee Cup */}
-                            <div className="absolute top-[30px] right-[25px] w-[18px] h-[18px] bg-white rounded-full shadow-[3px_6px_10px_rgba(0,0,0,0.6)] border-2 border-slate-200 z-30">
-                                <div className="absolute top-0.5 left-0.5 w-2.5 h-2.5 bg-[#3a2010] rounded-full"></div>
-                                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-3 border-[3px] border-slate-300 rounded-l-full"></div>
-                            </div>
-
-                            {/* Desk Lamp */}
-                            <div className="absolute top-[10px] left-[20px] z-30">
-                                <div className="w-[30px] h-[30px] bg-white rounded-full shadow-[inset_-3px_-3px_8px_rgba(0,0,0,0.2),0_6px_12px_rgba(0,0,0,0.6)] border border-slate-200"></div>
-                                <div className="absolute -top-2 left-3 w-1 h-6 bg-slate-400 transform rotate-[30deg] rounded-full shadow-md"></div>
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] bg-amber-400/8 blur-[20px] rounded-full pointer-events-none"></div>
-                            </div>
-
-                            {/* Notepad */}
-                            <div className="absolute bottom-[80px] right-[10px] w-10 h-14 bg-yellow-100 rounded-sm shadow-md border border-yellow-300 z-10">
-                                <div className="w-full h-0.5 bg-red-400 mt-1.5"></div>
-                                <div className="p-0.5 space-y-0.5 mt-0.5">
-                                    <div className="w-6 h-0.5 bg-blue-300/50"></div>
-                                    <div className="w-5 h-0.5 bg-blue-300/50"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Office Chair */}
-                        <div className="absolute w-16 h-16 rounded-3xl z-0 flex flex-col items-center" style={{ left: ROOM_DESK_ZONE.x + 50, top: ROOM_DESK_ZONE.y + 120 }}>
-                            <div className="w-14 h-8 bg-zinc-800 border-t-4 border-zinc-700 rounded-t-xl z-0 shadow-lg absolute -top-4"></div>
-                            <div className="w-16 h-12 bg-zinc-900 border-b-4 border-zinc-950 rounded-b-3xl z-10 shadow-xl relative">
-                                <div className="absolute -left-2 top-2 w-2 h-8 bg-zinc-800 rounded-full shadow"></div>
-                                <div className="absolute -right-2 top-2 w-2 h-8 bg-zinc-800 rounded-full shadow"></div>
-                            </div>
-                        </div>
-
-                        {/* Left Potted Plant — Level 1 style */}
-                        <div className="absolute z-20" style={{ left: 30, top: 620 }}>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40px] h-[40px] bg-[#c05a3c] rounded-full border-[6px] border-[#9c452e] shadow-xl"></div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] pointer-events-none">
-                                {[0, 45, 90, 135].map(deg => (
-                                    <div key={deg} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[20px] bg-[#3e8549] rounded-full flex items-center" style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 3px 10px rgba(0,0,0,0.4)' }}>
-                                        <div className="w-full h-[1px] bg-[#2d6335]"></div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Right Potted Plant */}
-                        <div className="absolute z-20" style={{ right: 30, top: 620 }}>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[40px] h-[40px] bg-[#c05a3c] rounded-full border-[6px] border-[#9c452e] shadow-xl"></div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[100px] pointer-events-none">
-                                {[0, 45, 90, 135].map(deg => (
-                                    <div key={deg} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100px] h-[20px] bg-[#3e8549] rounded-full flex items-center" style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 3px 10px rgba(0,0,0,0.4)' }}>
-                                        <div className="w-full h-[1px] bg-[#2d6335]"></div>
-                                    </div>
-                                ))}
-                            </div>
+                            <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
                         </div>
                     </div>
 
-                    {/* Player */}
-                    <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
+                    {/* Interaction Prompt - Level 5 Style */}
+                    {interactionTarget && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                {(() => {
+                                    switch (interactionTarget) {
+                                        case 'laptop': return "Press E to open laptop";
+                                        case 'rule_symbols': return "Press E to search draws";
+                                        case 'rule_pii': return "Press E to check frame";
+                                        case 'rule_length':
+                                        case 'empty_book': return "Press E to inspect bookshelf";
+                                        case 'rule_patterns':
+                                        case 'empty_plant': return "Press E to inspect plant";
+                                        default: return "Press E to inspect";
+                                    }
+                                })()}
+                            </div>
+                        </div>
+                    )}
 
-                    {/* Interaction Prompt */}
+                    {/* Laptop-specific interaction prompt */}
                     {canInteractLaptop && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-10 fade-in duration-300">
-                            <button className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white pl-4 pr-10 py-3 rounded-full font-black shadow-[0_5px_0_#1e3a5f,0_0_30px_rgba(59,130,246,0.4)] flex items-center gap-6 group hover:translate-y-1 hover:shadow-[0_2px_0_#1e3a5f] transition-all border border-blue-400/50" onClick={() => setGameState('incident_report')}>
-                                <div className="bg-white text-blue-600 w-14 h-14 rounded-full flex items-center justify-center text-3xl shadow-inner border-2 border-blue-300 group-hover:scale-110 transition-transform font-black">E</div>
-                                <span className="text-xl uppercase tracking-widest font-mono">Open Laptop</span>
-                            </button>
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to open laptop
+                            </div>
                         </div>
                     )}
 
@@ -2151,6 +2390,232 @@ const Level5 = () => {
                         Accept & Continue →
                     </button>
                 </div>
+            </div>
+        );
+    }
+
+    // -----------------------------------------------------------
+    // RETURN SEQUENCE RENDER
+    // -----------------------------------------------------------
+
+    if (gameState === 'title_card') {
+        return (
+            <div className="absolute inset-0 z-[9999] bg-black flex flex-col items-center justify-center overflow-hidden font-sans">
+                <div className="flex flex-col items-center relative">
+                    <div className="absolute inset-0 bg-red-500/10 rounded-full blur-3xl animate-ping scale-[2.5] opacity-30" />
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mb-8 animate-width" />
+
+                    <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative opacity-0" style={{ animation: 'fadeIn 1s forwards, surge 3.5s infinite' }}>
+                        <span className="relative z-10">Level 5</span>
+                        {/* Chromatic aberration layers */}
+                        <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-aberration">Level 5</span>
+                        <span className="absolute inset-0 text-cyan-400 opacity-60 -translate-x-1 -z-10 animate-aberration-alt">Level 5</span>
+                    </h2>
+
+                    <h3 className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase opacity-0 font-bold" style={{ animation: 'fadeIn 1s forwards 1.2s' }}>
+                        The QR Scam
+                    </h3>
+
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mt-12 animate-width" />
+
+                    {/* Tension metadata */}
+                    <div className="mt-8 text-[8px] font-mono text-zinc-800 tracking-widest uppercase animate-pulse">
+                        INITIALISING MARKET FORENSICS... [25%] [50%] [75%] [100%]
+                    </div>
+                </div>
+
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @keyframes aberration {
+                        0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                        25% { transform: translate(-4px, 2px); opacity: 0.8; }
+                        50% { transform: translate(4px, -2px); opacity: 0.6; }
+                        75% { transform: translate(-2px, -4px); opacity: 0.8; }
+                    }
+                    @keyframes aberration-alt {
+                        0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                        25% { transform: translate(4px, -2px); opacity: 0.8; }
+                        50% { transform: translate(-4px, 2px); opacity: 0.6; }
+                        75% { transform: translate(2px, 4px); opacity: 0.8; }
+                    }
+                    @keyframes surge {
+                        0%, 100% { transform: scale(1); filter: brightness(1); }
+                        50% { transform: scale(1.08); filter: brightness(1.3); }
+                    }
+                    @keyframes width { from { width: 0; opacity: 0; } to { width: 12rem; opacity: 0.8; } }
+                    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+                    .animate-width { animation: width 1.5s ease-in-out forwards; }
+                    .animate-aberration { animation: aberration 1.5s infinite; }
+                    .animate-aberration-alt { animation: aberration-alt 1.5s infinite; }
+                ` }} />
+            </div>
+        );
+    }
+
+    if (gameState === 'market_return') {
+        const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+        const cameraX = Math.max(0, Math.min(playerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
+        return (
+            <div className="w-full h-full flex flex-col bg-[#7fc2ed] overflow-hidden relative font-sans">
+                <FeedbackToast />
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
+                    <div className="absolute top-0 left-0 w-full h-full z-0">
+                        <img src="/assets/market_bg.png" alt="Kailash Market" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
+                    </div>
+
+                    {/* Adjusted Player Position - Direct Control for Animation */}
+                    <Player x={playerPos.x} y={playerPos.y} />
+
+                    {/* Prompt to leave */}
+                    {playerPos.x < 150 && (
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to go to car
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* HUD */}
+                <div className="absolute top-8 left-8 z-50 bg-white/95 p-4 rounded-3xl border-2 border-slate-800 shadow-[0_4px_0_#1e293b] flex items-center gap-4">
+                    <div className="w-10 h-10 bg-sky-100 rounded-lg border-2 border-slate-800 flex items-center justify-center text-xl shadow-inner">🚗</div>
+                    <div>
+                        <h3 className="text-slate-900 font-black text-lg uppercase tracking-wide">Return Home</h3>
+                        <p className="text-slate-500 text-[10px] font-bold font-mono">WALK TO LEFT TO FIND CAR</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'travel_return') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-black overflow-hidden relative font-sans">
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 bg-cover bg-center animate-[pulse_3s_infinite]" style={{ backgroundImage: 'url("/assets/daycar.png")' }} />
+                <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 100px, rgba(255,255,255,0.1) 100px, rgba(255,255,255,0.1) 105px)', animation: 'scroll-left-daycar 2s linear infinite' }}></div>
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-black/50 text-white px-6 py-2 rounded-full font-mono text-xs uppercase tracking-widest backdrop-blur-md border border-white/20">
+                    Heading back to estate...
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'garden_return') {
+        const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+        const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
+        return (
+            <div className="w-full h-full flex flex-col bg-slate-900 overflow-hidden relative font-sans">
+                <FeedbackToast />
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-1000 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
+                    <div className="absolute top-0 left-0 w-full h-full z-0">
+                        <img src="/assets/garden_day.png" alt="Garden Day" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
+                    </div>
+
+                    {/* If inside car, don't show player, show prompt */}
+                    {!isGardenReturnCar && (
+                        <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />
+                    )}
+
+                    {isGardenReturnCar && (
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to get down from car
+                            </div>
+                        </div>
+                    )}
+
+                    {!isGardenReturnCar && gardenPlayerPos.y < 150 && (
+                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to enter Home
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'living_room_return') {
+        const cameraX = Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH));
+        const cameraY = Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT));
+
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative">
+                <FeedbackToast />
+                <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div
+                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900"
+                    style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
+                >
+                    <div
+                        className="absolute inset-0"
+                        style={{
+                            width: LIVING_ROOM_WIDTH,
+                            height: LIVING_ROOM_HEIGHT,
+                            transform: `translate(${-cameraX}px, ${-cameraY}px)`,
+                            backgroundColor: '#2c3e50',
+                            transition: 'transform 0.1s linear'
+                        }}
+                    >
+                        {/* Reusing Living Room Background logic manually since it's inline in original */}
+                        <div className="absolute inset-0 opacity-80" style={{
+                            backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
+                        }}></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none z-10"></div>
+
+                        {/* Top Double Door (Main Exit) */}
+                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 transition-all opacity-100`}>
+                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">EXIT</div>
+                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
+                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            </div>
+                        </div>
+
+                        {/* Bottom Single Door (Bedroom entry point) */}
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[60px] bg-[#8a5a44] border-4 border-black border-b-0 p-3 flex items-center justify-center z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+                            <div className="text-[9px] text-white/60 font-black tracking-[0.3em] mr-8">BEDROOM</div>
+                        </div>
+
+                        {/* RIGHT SIDE STUDY ROOM DOOR */}
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[240px] bg-[#8a5a44] border-4 border-black border-r-0 flex flex-col items-center justify-center z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+                            <div className="text-[9px] text-white/60 font-black tracking-[0.3em] rotate-90 whitespace-nowrap">STUDY ROOM</div>
+                        </div>
+
+                        {/* Furniture (simplified or same) */}
+                        {/* Rugs */}
+                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0"></div>
+
+                        <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
+                    </div>
+                </div>
+
+                {/* Study Room Prompt */}
+                {livingRoomPlayerPos.x > 1400 && (
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
+                            Press E to enter Study Room
+                        </div>
+                    </div>
+                )}
+
+                {livingRoomPlayerPos.x <= 1400 && (
+                    <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
+                            Go to Study Room (Right)
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

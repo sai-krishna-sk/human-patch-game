@@ -32,7 +32,7 @@ export const GameStateProvider = ({ children }) => {
                 setRank('Junior Detective');
             }
         }
-        setCurrentLevel(0); // Return to overworld
+        setCurrentLevel(-1); // Return to level selector
     };
 
     return (

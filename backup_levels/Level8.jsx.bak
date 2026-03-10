@@ -18,7 +18,7 @@ const NETWORKS = [
     { id: 'bsnl_fiber', name: 'BSNL_Fiber_Home42', signal: 1, locked: true, security: 'WPA2-PSK', mac: '00:FF:AA:BB:CC:DD', created: 'Router — Residential', desc: 'A home router from the building above. Very faint signal.', safe: true },
 ];
 
-const Level7 = () => {
+const Level8 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
 
     const [gameState, setGameState] = useState('cafe');
@@ -694,4 +694,4 @@ const Level7 = () => {
     return null;
 };
 
-export default Level7;
+export default Level8;

@@ -13,7 +13,6 @@ const Level1 = () => {
     const [callOutcome, setCallOutcome] = useState(null); // 'won' or 'lost' — determines what 1930 says
     const [outroStep, setOutroStep] = useState(0); // 0: none, 1: zoom reflection, 2: black screen card, 3: completed
 
-    // CALL & DIALOGUE STATE
     const [dialogueIndex, setDialogueIndex] = useState(0);
     const [timer, setTimer] = useState(120); // 2:00
     const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -21,7 +20,7 @@ const Level1 = () => {
     // TYPING ANIMATION
     const [typingProgress, setTypingProgress] = useState(0);
     const [isTypingDone, setIsTypingDone] = useState(false);
-    const [typingTarget, setTypingTarget] = useState(''); // full text being typed
+    const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
     // CHAT HISTORY — stores all displayed messages permanently
     // Each entry: { type: 'scammer'|'player'|'reply', text, parts?, dialogueIdx? }
@@ -48,6 +47,7 @@ const Level1 = () => {
 
     // PROCEDURAL AUDIO SYNTHESIZER
     const audioCtxRef = useRef(null);
+    const dialogueAudioRef = useRef(null);
     const ambienceNodesRef = useRef(null);
 
     const getAudioContext = () => {
@@ -366,35 +366,33 @@ const Level1 = () => {
                 { text: "Good afternoon, sir. Am I speaking with the primary account holder for " },
                 { text: "your SBI account", isDraggable: true, clueId: 6, title: 'Knows Your Bank', desc: 'How does the caller already know which bank you use? They could be guessing or using leaked data.' },
                 { text: "?" }
-            ]
+            ], audio: "/Dia_audio/lvl1/L1_DIA_001.mp3"
         },
         {
             speaker: 'PLAYER', options: [
-                { text: "Yes, this is me. Who is this?", isCorrect: true, scammerReply: "Thank you for confirming, sir. I need to inform you of a very urgent security matter." },
-                { text: "How did you get my number?", isCorrect: true, scammerReply: "Sir, we have your number on file as the registered contact. But that is not why I am calling — this is urgent." },
-                { text: "I don't have any bank account!", isCorrect: false, penalty: 500, feedback: "Never reveal what banks you do or don't use to unknown callers.", scammerReply: "Sir, our records show otherwise. Please listen carefully, this is a matter of your financial security." }
+                { text: "Yes, this is me. Who is this?", isCorrect: true, playerAudio: "/Dia_audio/lvl1/L1_DIA_002.mp3", scammerReply: "Thank you for confirming, sir. I need to inform you of a very urgent security matter.", audio: "/Dia_audio/lvl1/L1_DIA_003.mp3" },
+                { text: "How did you get my number?", isCorrect: true, playerAudio: "/Dia_audio/lvl1/L1_DIA_004.mp3", scammerReply: "Sir, we have your number on file as the registered contact. But that is not why I am calling — this is urgent.", audio: "/Dia_audio/lvl1/L1_DIA_005.mp3" },
+                { text: "I don't have any bank account!", isCorrect: false, penalty: 500, feedback: "Never reveal what banks you do or don't use to unknown callers.", playerAudio: "/Dia_audio/lvl1/L1_DIA_006.mp3", scammerReply: "Sir, our records show otherwise. Please listen carefully, this is a matter of your financial security.", audio: "/Dia_audio/lvl1/L1_DIA_007.mp3" }
             ]
         },
         {
             speaker: 'SCAMMER', parts: [
                 { text: "Sir, I am Ravi Kumar, Senior Fraud Prevention Officer from the State Bank of India. My " },
                 { text: "employee ID is SBI-CYB-4492", isDraggable: true, clueId: 1, title: 'Unverifiable Employee ID', desc: 'Anyone can make up an employee ID. There is no way to verify this over the phone.' },
-                { text: ". I am calling on " },
-                { text: "high priority", isHighlighted: true },
-                { text: "." }
-            ]
+                { text: ". I am calling on high priority." }
+            ], audio: "/Dia_audio/lvl1/L1_DIA_008.mp3"
         },
         {
             speaker: 'SCAMMER', parts: [
                 { text: "Our system has flagged three suspicious login attempts on your account from " },
                 { text: "Bengaluru and outside India", isDraggable: true, clueId: 2, title: 'Scare Tactics', desc: 'Using specific foreign locations to trigger panic. They want you to stop thinking rationally.' },
                 { text: ". Your entire balance is at risk." }
-            ]
+            ], audio: "/Dia_audio/lvl1/L1_DIA_009.mp3"
         },
         {
             speaker: 'PLAYER', options: [
-                { text: "That sounds serious. What should I do?", isCorrect: true, scammerReply: "Don't worry sir, I will guide you through the security verification process right now." },
-                { text: "Let me just transfer my money to a safe account!", isCorrect: false, penalty: 2000, feedback: "Never transfer money based on a phone call. That is exactly what scammers want.", scammerReply: "No no sir, do NOT transfer anything. We will secure it from our end. Just follow my instructions." }
+                { text: "That sounds serious. What should I do?", isCorrect: true, playerAudio: "/Dia_audio/lvl1/L1_DIA_010.mp3", scammerReply: "Don't worry sir, I will guide you through the security verification process right now.", audio: "/Dia_audio/lvl1/L1_DIA_011.mp3" },
+                { text: "Let me just transfer my money to a safe account!", isCorrect: false, penalty: 2000, feedback: "Never transfer money based on a phone call. That is exactly what scammers want.", playerAudio: "/Dia_audio/lvl1/L1_DIA_012.mp3", scammerReply: "No no sir, do NOT transfer anything. We will secure it from our end. Just follow my instructions.", audio: "/Dia_audio/lvl1/L1_DIA_013.mp3" }
             ]
         },
         {
@@ -402,13 +400,13 @@ const Level1 = () => {
                 { text: "To lock your account, I need to verify you are the genuine holder. It is a " },
                 { text: "standard RBI security protocol", isDraggable: true, clueId: 3, title: 'Fake RBI Protocol', desc: 'RBI never asks banks to collect OTPs over the phone. Banks can lock accounts from their own systems.' },
                 { text: "." }
-            ]
+            ], audio: "/Dia_audio/lvl1/L1_DIA_014.mp3"
         },
         {
             speaker: 'PLAYER', options: [
-                { text: "Okay, what do you need from me?", isCorrect: true, scammerReply: "I will send an OTP to your registered mobile number. You just need to read it out to me for verification." },
-                { text: "I will call my branch manager to confirm.", isCorrect: true, scammerReply: "Sir, by the time you reach your branch, the hackers will have already drained your account. We must act NOW." },
-                { text: "Fine, just do whatever you need quickly!", isCorrect: false, penalty: 0, feedback: "Rushing is exactly what the scammer wants. Stay calm and listen carefully.", scammerReply: "That's the right attitude, sir. Time is critical. I am initiating the OTP process now." }
+                { text: "Okay, what do you need from me?", isCorrect: true, playerAudio: "/Dia_audio/lvl1/L1_DIA_015.mp3", scammerReply: "I will send an OTP to your registered mobile number. You just need to read it out to me for verification.", audio: "/Dia_audio/lvl1/L1_DIA_016.mp3" },
+                { text: "I will call my branch manager to confirm.", isCorrect: true, playerAudio: "/Dia_audio/lvl1/L1_DIA_017.mp3", scammerReply: "Sir, by the time you reach your branch, the hackers will have already drained your account. We must act NOW.", audio: "/Dia_audio/lvl1/L1_DIA_018.mp3" },
+                { text: "Fine, just do whatever you need quickly!", isCorrect: false, penalty: 0, feedback: "Rushing is exactly what the scammer wants. Stay calm and listen carefully.", playerAudio: "/Dia_audio/lvl1/L1_DIA_019.mp3", scammerReply: "That's the right attitude, sir. Time is critical. I am initiating the OTP process now.", audio: "/Dia_audio/lvl1/L1_DIA_020.mp3" }
             ]
         },
         {
@@ -418,20 +416,78 @@ const Level1 = () => {
                 { text: ". You have exactly " },
                 { text: "two minutes", isDraggable: true, clueId: 8, title: 'Artificial Time Pressure', desc: 'Scammers use fake deadlines to prevent you from thinking clearly or consulting someone.' },
                 { text: " before the hacker's session locks you out permanently." }
-            ], triggerTimer: true, triggerSms: true
+            ], triggerTimer: true, triggerSms: true, audio: "/Dia_audio/lvl1/L1_DIA_021.mp3"
         },
         {
             speaker: 'SCAMMER', parts: [
                 { text: "Sir, did you receive the OTP? Please read it out immediately. Every second you wait, the risk increases." }
-            ]
+            ], audio: "/Dia_audio/lvl1/L1_DIA_022.mp3"
         },
         {
             speaker: 'SCAMMER', parts: [
                 { text: "Sir! One minute left! If you don't read the OTP NOW, the entire " },
                 { text: "forty-two lakhs will be at risk!", isDraggable: true, clueId: 5, title: 'Knows Your Exact Balance', desc: 'How does a random caller know your exact balance of ₹42 lakhs? This data was leaked or stolen.' }
-            ], triggerEndCall: true
+            ], triggerEndCall: true, audio: "/Dia_audio/lvl1/L1_DIA_023.mp3"
         }
     ];
+
+    const [typingTarget, setTypingTarget] = useState(''); // full text being typed
+
+    // 1930 CALL CONVERSATION DATA
+    const callConversation = callOutcome === 'won' ? [
+        { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
+        { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?', audio: '/Dia_audio/lvl1/L1_DIA_024.mp3' },
+        { speaker: 'YOU', text: 'I just received a suspicious call from someone claiming to be from SBI Bank. They asked me for my OTP.' },
+        { speaker: 'OFFICER', text: 'Good that you called us. Did you share the OTP with them?', audio: '/Dia_audio/lvl1/L1_DIA_026.mp3' },
+        { speaker: 'YOU', text: 'No, I refused to share it. I identified multiple red flags in their conversation.' },
+        { speaker: 'OFFICER', text: 'Excellent awareness! You did the right thing. We will trace this number and add it to our database. Always remember — no bank will ever ask for your OTP over a phone call.', audio: '/Dia_audio/lvl1/L1_DIA_028.mp3' },
+        { speaker: 'SYSTEM', text: '✅ Complaint registered successfully. Case ID: CYB-2024-4829' },
+        { speaker: 'SYSTEM', text: '🎉 You have completed Level 1: The OTP Trap!' },
+    ] : [
+        { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
+        { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?', audio: '/Dia_audio/lvl1/L1_DIA_024.mp3' }, // Reusing 24 as suggested
+        { speaker: 'YOU', text: 'I shared my OTP with someone who claimed to be from SBI. I think I\'ve been scammed.' },
+        { speaker: 'OFFICER', text: 'I understand this is stressful. We are registering your complaint immediately. Please contact your bank RIGHT NOW and request an emergency freeze on your account.', audio: '/Dia_audio/lvl1/L1_DIA_031.mp3' },
+        { speaker: 'OFFICER', text: 'In the future, remember: No bank employee will ever ask for your OTP. If someone does, hang up immediately and call us at 1930.', audio: '/Dia_audio/lvl1/L1_DIA_032.mp3' },
+        { speaker: 'SYSTEM', text: '⚠️ Complaint registered. Case ID: CYB-2024-4830' },
+        { speaker: 'SYSTEM', text: 'Level 1 complete. Learn from this experience — stay vigilant!' },
+    ];
+
+    useEffect(() => {
+        if (gameState === 'calling_1930' && callConversation[callStep] && callConversation[callStep].audio) {
+            playDialogueAudio(callConversation[callStep].audio);
+        }
+    }, [gameState, callStep, callConversation]);
+
+    // AUDIO PLAYBACK
+    const playDialogueAudio = (audioUrl) => {
+        if (!audioUrl) return;
+
+        let audio = dialogueAudioRef.current;
+        if (!audio) {
+            audio = new Audio();
+            dialogueAudioRef.current = audio;
+        }
+
+        audio.pause();
+        audio.src = audioUrl;
+        audio.load();
+
+        audio.onplay = () => setIsAudioPlaying(true);
+        audio.onended = () => setIsAudioPlaying(false);
+        audio.onerror = (e) => {
+            console.error("Audio playback error:", e);
+            setIsAudioPlaying(false);
+        };
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.error("Audio playback failed or was blocked:", error);
+                setIsAudioPlaying(false);
+            });
+        }
+    };
 
     const startTyping = (fullText) => {
         setTypingTarget(fullText);
@@ -462,6 +518,7 @@ const Level1 = () => {
             const fullText = firstLine.parts.map(p => p.text).join('');
             setChatHistory([{ type: 'scammer', parts: firstLine.parts, dialogueIdx: 0 }]);
             startTyping(fullText);
+            if (firstLine.audio) playDialogueAudio(firstLine.audio);
         }
     }, [gameState]);
 
@@ -537,6 +594,7 @@ const Level1 = () => {
             const fullText = nextLine.parts.map(p => p.text).join('');
             setChatHistory(prev => [...prev, { type: 'scammer', parts: nextLine.parts, dialogueIdx: nextIdx }]);
             startTyping(fullText);
+            if (nextLine.audio) playDialogueAudio(nextLine.audio);
             setShowingOptions(false);
             if (nextLine.triggerTimer) setIsTimerRunning(true);
             if (nextLine.triggerSms) setIsSmsVisible(true);
@@ -570,9 +628,26 @@ const Level1 = () => {
             setTimeout(() => setFeedbackMsg(null), 2500);
         }
         setChatHistory(prev => [...prev, { type: 'player', text: option.text }]);
-        if (option.scammerReply) {
+
+        if (option.playerAudio) {
+            playDialogueAudio(option.playerAudio);
+            // Wait for player audio to finish before playing scammer reply
+            const tempAudio = new Audio(option.playerAudio);
+            tempAudio.onloadedmetadata = () => {
+                setTimeout(() => {
+                    if (option.scammerReply) {
+                        setChatHistory(prev => [...prev, { type: 'reply', text: option.scammerReply }]);
+                        startTyping(option.scammerReply);
+                        if (option.audio) playDialogueAudio(option.audio);
+                    } else {
+                        advanceDialogue();
+                    }
+                }, tempAudio.duration * 1000 + 300); // duration + small buffer
+            };
+        } else if (option.scammerReply) {
             setChatHistory(prev => [...prev, { type: 'reply', text: option.scammerReply }]);
             startTyping(option.scammerReply);
+            if (option.audio) playDialogueAudio(option.audio);
         } else {
             advanceDialogue();
         }
@@ -600,6 +675,14 @@ const Level1 = () => {
 
     const handleAnswerPhone = () => {
         playSynthSound('acceptance_click');
+
+        // Prime the audio context on user interaction directly!
+        if (!dialogueAudioRef.current) {
+            dialogueAudioRef.current = new Audio();
+        }
+        dialogueAudioRef.current.play().catch(() => { }); // silent permission grant
+        dialogueAudioRef.current.pause();
+
         setShowCallNotification(false);
         setShowPhoneNoti(false);
         setGameState('cinematic_call_intro');
@@ -621,25 +704,6 @@ const Level1 = () => {
     };
 
     if (gameState === 'calling_1930') {
-        const callConversation = callOutcome === 'won' ? [
-            { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
-            { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?' },
-            { speaker: 'YOU', text: 'I just received a suspicious call from someone claiming to be from SBI Bank. They asked me for my OTP.' },
-            { speaker: 'OFFICER', text: 'Good that you called us. Did you share the OTP with them?' },
-            { speaker: 'YOU', text: 'No, I refused to share it. I identified multiple red flags in their conversation.' },
-            { speaker: 'OFFICER', text: 'Excellent awareness! You did the right thing. We will trace this number and add it to our database. Always remember — no bank will ever ask for your OTP over a phone call.' },
-            { speaker: 'SYSTEM', text: '✅ Complaint registered successfully. Case ID: CYB-2024-4829' },
-            { speaker: 'SYSTEM', text: '🎉 You have completed Level 1: The OTP Trap!' },
-        ] : [
-            { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
-            { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?' },
-            { speaker: 'YOU', text: 'I shared my OTP with someone who claimed to be from SBI. I think I\'ve been scammed.' },
-            { speaker: 'OFFICER', text: 'I understand this is stressful. We are registering your complaint immediately. Please contact your bank RIGHT NOW and request an emergency freeze on your account.' },
-            { speaker: 'OFFICER', text: 'In the future, remember: No bank employee will ever ask for your OTP. If someone does, hang up immediately and call us at 1930.' },
-            { speaker: 'SYSTEM', text: '⚠️ Complaint registered. Case ID: CYB-2024-4830' },
-            { speaker: 'SYSTEM', text: 'Level 1 complete. Learn from this experience — stay vigilant!' },
-        ];
-
         return (
             <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
                 <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
@@ -914,7 +978,16 @@ const Level1 = () => {
                                     const fullText = msg.parts.map(p => p.text).join('');
                                     return (
                                         <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700">
-                                            <span className="text-xs text-blue-400 font-bold mb-1 block">CALLER</span>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs text-blue-400 font-bold block uppercase tracking-wider">Caller</span>
+                                                {isLast && isAudioPlaying && (
+                                                    <div className="flex gap-1 h-3 items-center">
+                                                        {[...Array(3)].map((_, i) => (
+                                                            <div key={i} className="w-1 bg-blue-400 rounded-full animate-bounce" style={{ height: '100%', animationDelay: `${i * 0.1}s` }} />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                             {isLast && !isTypingDone ? (<span>{fullText.slice(0, typingProgress)}<span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" /></span>) : (
                                                 msg.parts.map((p, i) => (
                                                     p.isDraggable && isLast && isTypingDone ? (
@@ -947,7 +1020,21 @@ const Level1 = () => {
                                     );
                                 }
                                 if (msg.type === 'player') return <div key={idx} className="w-full flex justify-end"><div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">"{msg.text}"</div></div>;
-                                if (msg.type === 'reply') return <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700"><span className="text-xs text-blue-400 font-bold mb-1 block">CALLER</span>{isLast && !isTypingDone ? (<span>{msg.text.slice(0, typingProgress)}<span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" /></span>) : <span className="text-white">{msg.text}</span>}</div>;
+                                if (msg.type === 'reply') return (
+                                    <div key={idx} className="bg-zinc-800 text-white p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-zinc-700">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-xs text-blue-400 font-bold block uppercase tracking-wider">Caller</span>
+                                            {isLast && isAudioPlaying && (
+                                                <div className="flex gap-1 h-3 items-center">
+                                                    {[...Array(3)].map((_, i) => (
+                                                        <div key={i} className="w-1 bg-blue-400 rounded-full animate-bounce" style={{ height: '100%', animationDelay: `${i * 0.1}s` }} />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {isLast && !isTypingDone ? (<span>{msg.text.slice(0, typingProgress)}<span className="inline-block w-1 h-4 bg-white ml-0.5 animate-pulse" /></span>) : <span className="text-white">{msg.text}</span>}
+                                    </div>
+                                );
                                 return null;
                             })}
                             {showingOptions && dialogueSequence[dialogueIndex]?.speaker === 'PLAYER' && (

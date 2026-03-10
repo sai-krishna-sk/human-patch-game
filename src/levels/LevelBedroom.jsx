@@ -53,6 +53,9 @@ const LevelBedroom = () => {
     const [interactionActive, setInteractionActive] = useState(false);
 
     const keysPressed = useRef({});
+    const playerDOMRef = useRef(null);
+    const playerCompRef = useRef(null);
+    const playerPosRef = useRef({ x: 50, y: 80 });
 
     // Handle Keyboard
     useEffect(() => {
@@ -86,31 +89,45 @@ const LevelBedroom = () => {
             const dt = Math.min(0.1, (time - lastTime) / 1000);
             lastTime = time;
 
-            const speed = 35;
+            const speed = 65;
             let moveX = 0;
             let moveY = 0;
             const keys = keysPressed.current;
 
-            if (keys['w'] || keys['arrowup']) moveY -= speed * dt;
-            if (keys['s'] || keys['arrowdown']) moveY += speed * dt;
-            if (keys['a'] || keys['arrowleft']) moveX -= speed * dt;
-            if (keys['d'] || keys['arrowright']) moveX += speed * dt;
+            if (keys['w'] || keys['arrowup']) moveY -= 1;
+            if (keys['s'] || keys['arrowdown']) moveY += 1;
+            if (keys['a'] || keys['arrowleft']) moveX -= 1;
+            if (keys['d'] || keys['arrowright']) moveX += 1;
 
-            setPlayerPos(prev => {
-                const newX = Math.max(10, Math.min(90, prev.x + moveX));
-                const newY = Math.max(20, Math.min(90, prev.y + moveY));
+            if (moveX !== 0 || moveY !== 0) {
+                const prev = playerPosRef.current;
+                const newX = Math.max(10, Math.min(90, prev.x + moveX * speed * dt));
+                const newY = Math.max(20, Math.min(90, prev.y + moveY * speed * dt));
+                playerPosRef.current = { x: newX, y: newY };
 
-                // Proximity check (even if not moving, we need to know if we are near)
-                const distToBed = Math.sqrt(Math.pow(newX - 50, 2) + Math.pow(newY - 55, 2));
-                const near = distToBed < 15; // Increased range slightly
-                setInteractionActive(near);
-
-                if (near && keysPressed.current['e']) {
-                    setPhase('dialogue');
+                if (playerDOMRef.current) {
+                    playerDOMRef.current.style.left = `${newX}%`;
+                    playerDOMRef.current.style.top = `${newY}%`;
                 }
 
-                return { x: newX, y: newY };
-            });
+                if (playerCompRef.current) {
+                    playerCompRef.current.setMoving(true);
+                    if (moveX !== 0) playerCompRef.current.setFacing(moveX > 0 ? 'right' : 'left');
+                }
+            } else {
+                if (playerCompRef.current) playerCompRef.current.setMoving(false);
+            }
+
+            // Proximity check - Moved outside movement conditional
+            const nx = playerPosRef.current.x;
+            const ny = playerPosRef.current.y;
+            const distToBed = Math.sqrt(Math.pow(nx - 50, 2) + Math.pow(ny - 55, 2));
+            const near = distToBed < 15;
+            setInteractionActive(near);
+
+            if (near && keysPressed.current['e']) {
+                setPhase('dialogue');
+            }
 
             frameId = requestAnimationFrame(update);
         };
@@ -191,10 +208,11 @@ const LevelBedroom = () => {
             {/* Player Rendering */}
             {phase === 'walking' && (
                 <div
+                    ref={playerDOMRef}
                     className="absolute transition-all duration-75 ease-out z-20"
-                    style={{ left: `${playerPos.x}%`, top: `${playerPos.y}%`, transform: 'translate(-50%, -50%)' }}
+                    style={{ left: '50%', top: '80%', transform: 'translate(-50%, -50%)' }}
                 >
-                    <Player x={0} y={0} isFixed={true} />
+                    <Player ref={playerCompRef} x={0} y={0} isFixed={true} />
                 </div>
             )}
 
@@ -203,7 +221,7 @@ const LevelBedroom = () => {
                 <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30">
                     <div className="bg-white/10 backdrop-blur-md border border-white/20 px-6 py-3 rounded-full flex items-center gap-3 animate-bounce shadow-2xl">
                         <span className="w-6 h-6 bg-white text-black rounded flex items-center justify-center font-black text-xs">E</span>
-                        <span className="text-white text-xs font-black tracking-widest uppercase">Talk to Grandfather</span>
+                        <span className="text-white text-xs font-black tracking-widest uppercase text-shadow-glow">Talk to Grandfather</span>
                     </div>
                 </div>
             )}

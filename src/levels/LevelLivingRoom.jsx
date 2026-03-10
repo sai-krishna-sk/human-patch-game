@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
 
@@ -6,14 +6,17 @@ const LevelLivingRoom = () => {
     const { enterLevel } = useGameState();
 
     // ═══ STATE ═══
-    const [playerPos, setPlayerPos] = useState({ x: 750, y: 430 });
-    const [keys, setKeys] = useState({});
+    const [playerPos, setPlayerPos] = useState({ x: 800, y: 150 });
+    const keysRef = useRef({}); // Renamed to keysPressed in the instruction, but keeping keysRef as it's used consistently below
+    const playerDOMRef = useRef(null);
+    const playerCompRef = useRef(null);
+    const posRef = useRef({ x: 800, y: 150 });
     const [interactionActive, setInteractionActive] = useState(false);
 
     // ═══ MOVEMENT LOGIC ═══
     useEffect(() => {
-        const handleKeyDown = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
-        const handleKeyUp = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
+        const handleKeyDown = (e) => { keysRef.current[e.key.toLowerCase()] = true; };
+        const handleKeyUp = (e) => { keysRef.current[e.key.toLowerCase()] = false; };
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
         return () => {
@@ -24,40 +27,57 @@ const LevelLivingRoom = () => {
 
     useEffect(() => {
         let animationFrameId;
-        const speed = 7;
+        const speed = 12; // Matched exactly to Level 2
         const ROOM_WIDTH = 1600;
         const ROOM_HEIGHT = 1100;
 
         const gameLoop = () => {
-            setPlayerPos(prev => {
-                let newX = prev.x;
-                let newY = prev.y;
+            const keys = keysRef.current;
+            const prev = posRef.current;
+            let newX = prev.x;
+            let newY = prev.y;
 
-                if (keys['w'] || keys['arrowup']) newY -= speed;
-                if (keys['s'] || keys['arrowdown']) newY += speed;
-                if (keys['a'] || keys['arrowleft']) newX -= speed;
-                if (keys['d'] || keys['arrowright']) newX += speed;
+            if (keys['w'] || keys['arrowup']) newY -= speed;
+            if (keys['s'] || keys['arrowdown']) newY += speed;
+            if (keys['a'] || keys['arrowleft']) newX -= speed;
+            if (keys['d'] || keys['arrowright']) newX += speed;
 
-                // Simple boundaries matching the room walls
-                newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
-                newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
+            // Simple boundaries matching the room walls
+            newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
+            newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
 
-                // Bed Door Interaction (Bottom Door area)
-                // Center bottom is around X=800, Y=1100 (Walkable max Y is 980)
-                const nearBottomDoor = Math.abs(newX - 800) < 150 && newY > 940;
-                setInteractionActive(nearBottomDoor);
+            if (newX !== prev.x || newY !== prev.y) {
+                posRef.current = { x: newX, y: newY };
+                setPlayerPos({ x: newX, y: newY }); // Update state for camera
 
-                if (nearBottomDoor && keys['e']) {
-                    enterLevel('bedroom');
+                if (playerDOMRef.current) {
+                    playerDOMRef.current.style.left = `${newX}px`;
+                    playerDOMRef.current.style.top = `${newY}px`;
                 }
 
-                return { x: newX, y: newY };
-            });
+                if (playerCompRef.current) {
+                    playerCompRef.current.setMoving(true);
+                    if (newX !== prev.x) playerCompRef.current.setFacing(newX > prev.x ? 'right' : 'left');
+                }
+            } else {
+                if (playerCompRef.current) playerCompRef.current.setMoving(false);
+            }
+
+            // Bed Door Interaction (Bottom Door area) - Moved outside movement conditional
+            const currentX = posRef.current.x;
+            const currentY = posRef.current.y;
+            const nearBottomDoor = Math.abs(currentX - 800) < 150 && currentY > 940;
+            setInteractionActive(nearBottomDoor);
+
+            if (nearBottomDoor && keys['e']) {
+                enterLevel('bedroom');
+            }
+
             animationFrameId = requestAnimationFrame(gameLoop);
         };
         animationFrameId = requestAnimationFrame(gameLoop);
         return () => cancelAnimationFrame(animationFrameId);
-    }, [keys, enterLevel]);
+    }, [enterLevel]);
 
     // ═══ RENDER ═══
     const VIEWPORT_WIDTH = 1200;
@@ -110,7 +130,9 @@ const LevelLivingRoom = () => {
                             <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
                         </div>
                         {/* Interactive Sparkle for the door */}
-                        <div className="absolute inset-0 bg-cyan-400/20 animate-pulse pointer-events-none"></div>
+                        {interactionActive && (
+                            <div className="absolute inset-0 bg-cyan-400/20 animate-pulse pointer-events-none"></div>
+                        )}
                     </div>
 
                     {/* Right Single Door */}
@@ -176,8 +198,8 @@ const LevelLivingRoom = () => {
                     )}
 
                     {/* PLAYER */}
-                    <div className="absolute z-40" style={{ left: playerPos.x, top: playerPos.y, transform: 'translate(-50%, -50%)' }}>
-                        <Player x={0} y={0} isFixed={true} />
+                    <div ref={playerDOMRef} className="absolute z-40" style={{ left: 800, top: 150, transform: 'translate(-50%, -50%)' }}>
+                        <Player ref={playerCompRef} x={0} y={0} isFixed={true} />
                     </div>
                 </div>
             </div>

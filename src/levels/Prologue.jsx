@@ -32,7 +32,7 @@ const dialogues = [
 
 const Prologue = () => {
     const { enterLevel } = useGameState();
-    const [phase, setPhase] = useState('video'); // 'video' | 'office' | 'dialogue' | 'outside' | 'travel'
+    const [phase, setPhase] = useState('video'); // 'video' | 'office' | 'dialogue' | 'outside' | 'travel' | 'estate_exterior'
     const [dialogueIndex, setDialogueIndex] = useState(0);
     const [showInteractionPrompt, setShowInteractionPrompt] = useState(false);
     const [displayedText, setDisplayedText] = useState('');
@@ -44,15 +44,30 @@ const Prologue = () => {
     const [isEnteringCar, setIsEnteringCar] = useState(false);
     const [showMovementHint, setShowMovementHint] = useState(true);
 
+    // Estate Exterior State
+    const [isInsideCar, setIsInsideCar] = useState(true);
+    const [estatePlayerPos, setEstatePlayerPos] = useState({ x: 50, y: 70 }); // Starting near the car
+    const [isNearHouseDoor, setIsNearHouseDoor] = useState(false);
+
     const videoRef = useRef(null);
     const keysPressed = useRef({});
+    const playerOutsideRef = useRef(null);
+    const playerEstateRef = useRef(null);
+    const playerOutsideCompRef = useRef(null);
+    const playerEstateCompRef = useRef(null);
+    const playerPosRef = useRef({ x: 10, y: 82 });
+    const estatePosRef = useRef({ x: 50, y: 85 });
 
-    // Stable phase/isNearCar refs for use in event listeners without re-attaching
+    // Stable phase refs for use in event listeners
     const phaseRef = useRef(phase);
     const isNearCarRef = useRef(isNearCar);
+    const isInsideCarRef = useRef(isInsideCar);
+    const isNearHouseDoorRef = useRef(isNearHouseDoor);
 
     useEffect(() => { phaseRef.current = phase; }, [phase]);
     useEffect(() => { isNearCarRef.current = isNearCar; }, [isNearCar]);
+    useEffect(() => { isInsideCarRef.current = isInsideCar; }, [isInsideCar]);
+    useEffect(() => { isNearHouseDoorRef.current = isNearHouseDoor; }, [isNearHouseDoor]);
 
     // Handle Video Phase
     const handleVideoEnd = () => setPhase('office');
@@ -78,6 +93,13 @@ const Prologue = () => {
             if (phaseRef.current === 'outside' && key === 'e' && isNearCarRef.current) {
                 setIsEnteringCar(true);
                 setTimeout(() => setPhase('travel'), 1500);
+            }
+            if (phaseRef.current === 'estate_exterior' && key === 'e') {
+                if (isInsideCarRef.current) {
+                    setIsInsideCar(false);
+                } else if (isNearHouseDoorRef.current) {
+                    enterLevel('living-room');
+                }
             }
         };
         const handleKeyUp = (e) => { keysPressed.current[e.key.toLowerCase()] = false; };
@@ -106,19 +128,29 @@ const Prologue = () => {
             if (keys['a'] || keys['arrowleft']) moveX -= 1;
             if (keys['d'] || keys['arrowright']) moveX += 1;
 
+            const speed = 65;
             if (moveX !== 0) {
                 setShowMovementHint(false);
-                setPlayerPos(prev => {
-                    const newX = Math.max(5, Math.min(95, prev.x + moveX * 45 * dt));
+                const prev = playerPosRef.current;
+                const newX = Math.max(5, Math.min(95, prev.x + moveX * speed * dt));
+                playerPosRef.current = { ...prev, x: newX };
 
-                    // Check car proximity (car is at 80% X)
-                    const distToCar = Math.abs(newX - 80);
-                    const near = distToCar < 8;
-                    if (near !== isNearCarRef.current) setIsNearCar(near);
+                if (playerOutsideRef.current) {
+                    playerOutsideRef.current.style.left = `${newX}%`;
+                }
 
-                    return { ...prev, x: newX };
-                });
+                if (playerOutsideCompRef.current) {
+                    playerOutsideCompRef.current.setMoving(true);
+                    playerOutsideCompRef.current.setFacing(moveX > 0 ? 'right' : 'left');
+                }
+            } else {
+                if (playerOutsideCompRef.current) playerOutsideCompRef.current.setMoving(false);
             }
+
+            // Check car proximity (car is at 80% X) - Moved outside movement conditional
+            const distToCar = Math.abs(playerPosRef.current.x - 80);
+            const near = distToCar < 8;
+            if (near !== isNearCarRef.current) setIsNearCar(near);
 
             frameId = requestAnimationFrame(update);
         };
@@ -126,6 +158,58 @@ const Prologue = () => {
         frameId = requestAnimationFrame(update);
         return () => cancelAnimationFrame(frameId);
     }, [phase, isEnteringCar]);
+
+    // Estate Exterior Movement Loop
+    useEffect(() => {
+        if (phase !== 'estate_exterior' || isInsideCar) return;
+
+        let lastTime = performance.now();
+        let frameId;
+
+        const update = (time) => {
+            const dt = Math.min(0.1, (time - lastTime) / 1000);
+            lastTime = time;
+
+            const keys = keysPressed.current;
+            let moveX = 0;
+            let moveY = 0;
+            if (keys['a'] || keys['arrowleft']) moveX -= 1;
+            if (keys['d'] || keys['arrowright']) moveX += 1;
+            if (keys['w'] || keys['arrowup']) moveY -= 1;
+            if (keys['s'] || keys['arrowdown']) moveY += 1;
+
+            const speed = 65;
+            if (moveX !== 0 || moveY !== 0) {
+                const prev = estatePosRef.current;
+                const nx = Math.max(5, Math.min(95, prev.x + moveX * speed * dt));
+                const ny = Math.max(5, Math.min(95, prev.y + moveY * speed * dt)); // Extended to 5% to reach the top door
+                estatePosRef.current = { x: nx, y: ny };
+
+                if (playerEstateRef.current) {
+                    playerEstateRef.current.style.left = `${nx}%`;
+                    playerEstateRef.current.style.top = `${ny}%`;
+                }
+
+                if (playerEstateCompRef.current) {
+                    playerEstateCompRef.current.setMoving(true);
+                    if (moveX !== 0) playerEstateCompRef.current.setFacing(moveX > 0 ? 'right' : 'left');
+                }
+            } else {
+                if (playerEstateCompRef.current) playerEstateCompRef.current.setMoving(false);
+            }
+
+            // Near top center door - Moved outside movement conditional
+            const nx = estatePosRef.current.x;
+            const ny = estatePosRef.current.y;
+            const nearDoor = ny < 15 && Math.abs(nx - 50) < 10; // Relaxed Y check for interaction
+            if (nearDoor !== isNearHouseDoorRef.current) setIsNearHouseDoor(nearDoor);
+
+            frameId = requestAnimationFrame(update);
+        };
+
+        frameId = requestAnimationFrame(update);
+        return () => cancelAnimationFrame(frameId);
+    }, [phase, isInsideCar]);
 
     // Dialogue Typing Effect
     useEffect(() => {
@@ -166,13 +250,23 @@ const Prologue = () => {
         }
     };
 
-    // World Map Transition
+    // Estate Phase Transition
     useEffect(() => {
         if (phase === 'travel') {
-            const timer = setTimeout(() => enterLevel(0), 4000);
+            const timer = setTimeout(() => setPhase('estate_exterior'), 4000);
             return () => clearTimeout(timer);
         }
-    }, [phase, enterLevel]);
+    }, [phase]);
+
+    // Standardized Interaction Prompt
+    const InteractionPrompt = ({ text }) => (
+        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md whitespace-nowrap">
+                {text}
+            </div>
+        </div>
+    );
 
     // ═══ RENDER ═══
 
@@ -200,13 +294,7 @@ const Prologue = () => {
                     </div>
                 </div>
                 {showInteractionPrompt && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-subtle-fade-in z-20">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-slate-950/40 backdrop-blur-sm border border-white/10 rounded-full shadow-2xl">
-                            <span className="flex items-center justify-center w-6 h-6 bg-white/10 border border-white/20 rounded text-[10px] font-bold text-white shadow-inner">E</span>
-                            <span className="text-white/70 text-sm font-mono tracking-widest uppercase">Answer Incoming Call</span>
-                        </div>
-                        <div className="w-px h-8 bg-gradient-to-t from-indigo-500/50 to-transparent animate-pulse" />
-                    </div>
+                    <InteractionPrompt text="Answer Incoming Call" />
                 )}
             </div>
         );
@@ -249,7 +337,11 @@ const Prologue = () => {
                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/assets/Office_down.jpeg")' }} />
                 <div className={`absolute inset-0 bg-black transition-opacity duration-1000 z-50 pointer-events-none ${isEnteringCar ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-                {!isEnteringCar && <Player x={`${playerPos.x}%`} y={`${playerPos.y}%`} />}
+                {!isEnteringCar && (
+                    <div ref={playerOutsideRef} className="absolute z-30" style={{ left: '10%', top: '82%' }}>
+                        <Player ref={playerOutsideCompRef} x={0} y={0} />
+                    </div>
+                )}
                 {showMovementHint && (
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-4 bg-black/60 backdrop-blur-md p-8 rounded-3xl border border-white/10 animate-pulse">
                         <div className="flex gap-2">
@@ -259,13 +351,7 @@ const Prologue = () => {
                     </div>
                 )}
                 {isNearCar && !isEnteringCar && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-subtle-fade-in z-20">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-slate-950/40 backdrop-blur-sm border border-white/10 rounded-full shadow-2xl">
-                            <span className="flex items-center justify-center w-6 h-6 bg-white/10 border border-white/20 rounded text-[10px] font-bold text-white shadow-inner">E</span>
-                            <span className="text-white/70 text-sm font-mono tracking-widest uppercase">Get in Car</span>
-                        </div>
-                        <div className="w-px h-8 bg-gradient-to-t from-indigo-500/50 to-transparent animate-pulse" />
-                    </div>
+                    <InteractionPrompt text="Get in Car" />
                 )}
             </div>
         );
@@ -294,6 +380,30 @@ const Prologue = () => {
                     .animate-zoom-slow { animation: zoom-slow 10s ease-out forwards; }
                     .animate-tracking-in { animation: tracking-in 3s ease-out forwards; }
                 ` }} />
+            </div>
+        );
+    }
+
+    if (phase === 'estate_exterior') {
+        return (
+            <div className="w-screen h-screen bg-slate-950 relative overflow-hidden animate-fade-in">
+                <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/assets/garden_night.png")' }} />
+
+                {/* The Car is already in the background image, so we just manage the player and prompts */}
+
+                {!isInsideCar && (
+                    <div ref={playerEstateRef} className="absolute z-30" style={{ left: '50%', top: '85%', transform: 'translate(-50%, -50%)' }}>
+                        <Player ref={playerEstateCompRef} size={60} />
+                    </div>
+                )}
+
+                {isInsideCar && (
+                    <InteractionPrompt text="Press E to get down" />
+                )}
+
+                {isNearHouseDoor && (
+                    <InteractionPrompt text="Press E to enter Home" />
+                )}
             </div>
         );
     }
