@@ -1,962 +1,1603 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
 
-const ROOM_WIDTH = 1600;
-const ROOM_HEIGHT = 1100;
-const VIEWPORT_WIDTH = 1200;
-const VIEWPORT_HEIGHT = 800;
-const PLAYER_SIZE = 40;
-const SPEED = 15;
-
-const PHONE_DESK = { x: 600, y: 400, w: 400, h: 350 };
-const LAPTOP_AREA = { x: 650, y: 400, w: 150, h: 100 };
-
-const checkCollision = (px, py, rect) => (
-    px < rect.x + rect.w && px + PLAYER_SIZE > rect.x &&
-    py < rect.y + rect.h && py + PLAYER_SIZE > rect.y
-);
-
-const CLUE_INFO = {
-    'voice_glitch': {
-        title: "Robotic Artifact",
-        desc: "The voice has a strange metallic echo. Deepfakes often have such artifacts.",
-        hint: "Listen closely to the audio quality...",
-        icon: "🤖"
-    },
-    'nickname_fail': {
-        title: "Formal Distance",
-        desc: "He's using generic emotional bait instead of the specific personal bond you shared.",
-        hint: "Are they using your real name too formally?",
-        icon: "🏷️"
-    },
-    'forgetfulness': {
-        title: "Memory Gap",
-        desc: "The caller avoided a direct question about a recent shared personal event.",
-        hint: "Try asking about your plans for today.",
-        icon: "🧠"
-    },
-    'wrong_detail': {
-        title: "Identity Error",
-        desc: "Arjun knows you don't have a sister. The AI is hallucinating or using generic scripts.",
-        hint: "Ask about his family members.",
-        icon: "❌"
-    },
-    'real_call_confirmed': {
-        title: "The Truth",
-        desc: "Your real friend confirmed they never called you. This was a deepfake voice scam.",
-        hint: "Check your contacts for the real number.",
-        icon: "📞"
-    }
-};
+const ROOM_WIDTH = 1200;
+const ROOM_HEIGHT = 800;
+const SPEED = 8;
+const PLAYER_SIZE = 44;
 
 const Level11 = () => {
-    const { completeLevel, adjustAssets, assets, setSafetyScore, lives, adjustLives } = useGameState();
-    const [gameState, setGameState] = useState('room'); // room, phone, laptop, outcome
-    const [playerPos, setPlayerPos] = useState({ x: 780, y: 750 });
-    const keysRef = useRef({});
-    const [canInteractPhone, setCanInteractPhone] = useState(false);
-    const [canInteractLaptop, setCanInteractLaptop] = useState(false);
-    const [phoneApp, setPhoneApp] = useState('home'); // home, call, contacts, pay
-    const [cluesFound, setCluesFound] = useState([]);
-    const [feedbackMsg, setFeedbackMsg] = useState(null);
-    const [isDetectiveModeOpen, setIsDetectiveModeOpen] = useState(false);
-    const [dialogueIndex, setDialogueIndex] = useState(0);
-    const [chatHistory, setChatHistory] = useState([]);
-    const [typingProgress, setTypingProgress] = useState(0);
-    const [isTypingDone, setIsTypingDone] = useState(false);
-    const [showingOptions, setShowingOptions] = useState(false);
-    const [callStatus, setCallStatus] = useState('idle'); // idle, ringing, active, hangup
-    const [calledRealFriend, setCalledRealFriend] = useState(false);
-    const [friendCallStep, setFriendCallStep] = useState(-1); // -1 = not started
-    const [laptopStep, setLaptopStep] = useState('portal'); // portal, reporting, submitted
+  const { completeLevel, adjustAssets, adjustSafetyScore } = useGameState();
 
-    const FRIEND_CONVERSATION = [
-        { speaker: 'YOU', text: "Hey Arjun, it's me. I just got the weirdest call..." },
-        { speaker: 'ARJUN', text: "Heyyy what's up? I was just watching a movie. What call?" },
-        { speaker: 'YOU', text: "Someone called me sounding EXACTLY like you. Said you had a bad accident and needed ₹50,000 urgently." },
-        { speaker: 'ARJUN', text: "Bro WHAT?! That wasn't me! I'm sitting at home right now. I never called you!" },
-        { speaker: 'YOU', text: "I thought so... they mentioned my sister — I don't even have one. And the voice had this weird metallic tone." },
-        { speaker: 'ARJUN', text: "Dude that's creepy. Must be one of those AI deepfake scams. Good thing you didn't pay. You should warn your family too and report this!" },
-        { speaker: 'SYSTEM', text: "✅ Arjun confirmed he never called you. This was a deepfake voice scam. Drag this to the evidence board!", isDraggable: true, clueId: 'real_call_confirmed' }
+  // CORE STATE
+  const [gameState, setGameState] = useState('exploration'); // intro, exploration, phone, results, awareness, act3, profile_view
+  const [day, setDay] = useState(1);
+  const [points, setPoints] = useState(0);
+  const [playerPos, setPlayerPos] = useState({ x: 500, y: 550 });
+  const keysRef = useRef({});
+
+  // PHONE STATE
+  const [phoneApp, setPhoneApp] = useState('home');
+  const [savedContact, setSavedContact] = useState(false);
+  const [feedback, setFeedback] = useState(null);
+  const [transitionMsg, setTransitionMsg] = useState(null);
+  const [storyProgress, setStoryProgress] = useState(0);
+  const [addingContact, setAddingContact] = useState(false);
+  const [contactName, setContactName] = useState('');
+  const [waHistory, setWaHistory] = useState([]);
+  const [waUnknownHistory, setWaUnknownHistory] = useState([]);
+  const [showUnknownNotif, setShowUnknownNotif] = useState(false);
+
+  // FLAGS (Narrative Choices)
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [assets, setAssets] = useState(4200000);
+  const [firstMsgType, setFirstMsgType] = useState(null);
+  const [convoDay1Done, setConvoDay1Done] = useState(false);
+  const [profileBonusFound, setProfileBonusFound] = useState(false);
+
+  // KEYBOARD INPUT
+  useEffect(() => {
+    const dk = (e) => { keysRef.current[e.key.toLowerCase()] = true; };
+    const uk = (e) => { keysRef.current[e.key.toLowerCase()] = false; };
+    window.addEventListener('keydown', dk);
+    window.addEventListener('keyup', uk);
+    return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
+  }, []);
+
+  // E KEY TO TOGGLE PHONE
+  useEffect(() => {
+    const handleKey = (e) => {
+      // Don't toggle the phone if the user is typing in the Contacts app
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+
+      if (e.key.toLowerCase() === 'e') {
+        if (gameState === 'exploration') setGameState('phone');
+        else if (gameState === 'phone') setGameState('exploration');
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [gameState]);
+
+  // MOVEMENT LOOP
+  useEffect(() => {
+    if (gameState !== 'exploration') return;
+    let frameId;
+    const loop = () => {
+      setPlayerPos(p => {
+        let nx = p.x, ny = p.y;
+        const keys = keysRef.current;
+        if (keys['w'] || keys['arrowup']) ny -= SPEED;
+        if (keys['s'] || keys['arrowdown']) ny += SPEED;
+        if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+        if (keys['d'] || keys['arrowright']) nx += SPEED;
+        nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+        ny = Math.max(300, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+        return { x: nx, y: ny };
+      });
+      frameId = requestAnimationFrame(loop);
+    };
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, [gameState]);
+
+  const handleChoice = (option) => {
+    if (option.impact) option.impact();
+    setPoints(prev => prev + (option.points || 0));
+
+    if (option.feedback) {
+      setFeedback(option.feedback);
+      setTimeout(() => setFeedback(null), 3500);
+    }
+
+    if (option.transitionMsg) {
+      setTransitionMsg(option.transitionMsg);
+      setPhoneApp('dm_transition');
+      setTimeout(() => {
+        if (option.nextScene) setGameState(option.nextScene);
+        if (option.setDay !== undefined) setDay(option.setDay);
+        if (option.nextStep !== undefined) setStoryProgress(option.nextStep);
+        if (option.switchToWA) setPhoneApp('whatsapp');
+        else setPhoneApp('dm'); // return to DMs after transition
+      }, 2000);
+      return;
+    }
+
+    if (option.nextScene) {
+      setGameState(option.nextScene);
+    } else {
+      if (option.setDay !== undefined) setDay(option.setDay);
+      if (option.nextStep !== undefined) setStoryProgress(option.nextStep);
+      if (option.switchToWA) setPhoneApp('whatsapp');
+
+      // Fallback for any legacy calls
+      if (option.nextDay !== undefined) {
+        setDay(option.nextDay);
+        setStoryProgress(0);
+        setGameState('exploration');
+        setPhoneApp(option.nextDay >= 13 ? 'whatsapp' : 'instagram');
+      }
+    }
+  };
+
+  // --- COMPONENTS ---
+
+  const InstagramApp = () => {
+    const posts = [
+      { user: 'celebrity_quotes', img: '/assets/cartoon_girl.png', text: '“The sun will rise again. Believe in yourself.” ✨', comments: ['Stay strong!', 'Needed this today.'] },
+      { user: 'foodie_chennai', img: '/assets/market_bg.png', text: 'Best Biryani in Anna Nagar! 🍛', comments: ['Price?', 'Address please!'] },
+      { user: 'digital_safety', img: '/assets/phone_noti.png', text: 'Never share your OTP with anyone. Stay safe!', comments: ['Thanks for the tip.', 'Important!'] },
     ];
 
-    const showFeedback = (msg) => {
-        setFeedbackMsg(msg);
-        setTimeout(() => setFeedbackMsg(null), 3000);
-    };
-
-    const discoverClue = (id) => {
-        if (!cluesFound.includes(id)) {
-            setCluesFound(prev => [...prev, id]);
-            showFeedback("🔍 EVIDENCE PINNED TO BOARD");
-        }
-    };
-
-    const handleClueDrop = (e) => {
-        e.preventDefault();
-        const cid = e.dataTransfer.getData('clueId');
-        if (cid) {
-            discoverClue(cid);
-        }
-    };
-
-    // Dialogue sequence - Coherent and logical
-    const dialogueSequence = [
-        {
-            speaker: 'SCAMMER', parts: [
-                { text: "Bro, thank god you picked up! I'm in a total mess. I " },
-                { text: "just had a bad accident", isHighlighted: true },
-                { text: " near the highway. I'm at the hospital now." }
-            ]
-        },
-        {
-            speaker: 'PLAYER', options: [
-                {
-                    text: "Arjun? Is that you? You sound... different.",
-                    isCorrect: true,
-                    scammerReply: "It's the hospital network, man! My phone was crushed, I'm using a nurse's phone. Everything is chaotic here."
-                },
-                {
-                    text: "Oh no! Are you okay? Which hospital?",
-                    isCorrect: true,
-                    scammerReply: "I'm okay, just some cuts. But the other guy is threatening to call the police unless I pay for his repairs right now. ₹50,000."
-                }
-            ]
-        },
-        {
-            speaker: 'SCAMMER', parts: [
-                { text: "Listen, I need around ₹50,000 " },
-                { text: "for immediate clearance", isHighlighted: true },
-                { text: ". My " },
-                { text: "voice might sound a bit off", isDraggable: true, clueId: 'voice_glitch' },
-                { text: " because I'm in shock. Please, you're the only one I can call." }
-            ]
-        },
-        {
-            speaker: 'PLAYER', options: [
-                {
-                    text: "Wait, we were supposed to meet at the cafe today. Why are you on the highway?",
-                    isCorrect: true,
-                    scammerReply: "The cafe? Oh... right. I had to run an errand for my mom last minute. That's when it happened."
-                },
-                {
-                    text: "Arjun, call me by the nickname you gave me in college.",
-                    isCorrect: true,
-                    scammerReply: "Nickname? Bro, I'm literally bleeding here and you're asking about nicknames? Just help me out!"
-                }
-            ]
-        },
-        {
-            speaker: 'SCAMMER', parts: [
-                { text: "Look, " },
-                { text: "I thought we were like brothers", isDraggable: true, clueId: 'nickname_fail' },
-                { text: ". Even " },
-                { text: "your sister", isDraggable: true, clueId: 'wrong_detail' },
-                { text: " would be more helpful than this!" }
-            ]
-        },
-        {
-            speaker: 'PLAYER', options: [
-                {
-                    text: "Wait... did you just say my sister? I don't have a sister.",
-                    isCorrect: true,
-                    scammerReply: "I... I meant MY sister! She's crying in the corner. I'm losing my mind here, man. Just open the Pay app and send it!"
-                },
-                {
-                    text: "Arjun, you're forgetting our meeting today. Something is definitely wrong.",
-                    isCorrect: true,
-                    scammerReply: "I'm not forgetting our meeting! I just have a concussion! Are you going to help or what?",
-                    replyParts: [
-                        { text: "I'm not forgetting " },
-                        { text: "our meeting", isDraggable: true, clueId: 'forgetfulness' },
-                        { text: "! I just have a concussion! Are you going to help or what?" }
-                    ]
-                }
-            ]
-        }
-    ];
-
-    // Typing animation
-    useEffect(() => {
-        const currentMsg = chatHistory[chatHistory.length - 1];
-        if (!currentMsg || (currentMsg.type !== 'scammer' && currentMsg.type !== 'friend') || isTypingDone) return;
-
-        const fullText = currentMsg.parts.map(p => p.text).join('');
-        const interval = setInterval(() => {
-            setTypingProgress(prev => {
-                if (prev >= fullText.length) {
-                    clearInterval(interval);
-                    setIsTypingDone(true);
-                    return prev;
-                }
-                return prev + 1;
-            });
-        }, 20);
-        return () => clearInterval(interval);
-    }, [chatHistory, isTypingDone]);
-
-    // FIXED MOVEMENT LOGIC
-    useEffect(() => {
-        const handleKD = (e) => { keysRef.current[e.key.toLowerCase()] = true; };
-        const handleKU = (e) => { keysRef.current[e.key.toLowerCase()] = false; };
-        window.addEventListener('keydown', handleKD);
-        window.addEventListener('keyup', handleKU);
-
-        let rafId;
-        const loop = () => {
-            if (gameState === 'room') {
-                const keys = keysRef.current;
-                setPlayerPos(p => {
-                    let nx = p.x, ny = p.y;
-                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
-                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
-                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
-                    if (keys['d'] || keys['arrowright']) nx += SPEED;
-
-                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
-                    ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
-
-                    // Interaction collision checks
-                    setCanInteractPhone(checkCollision(nx, ny, { ...PHONE_DESK, w: 100, x: PHONE_DESK.x + 50 }));
-                    setCanInteractLaptop(checkCollision(nx, ny, LAPTOP_AREA));
-
-                    return { x: nx, y: ny };
-                });
-            }
-            rafId = requestAnimationFrame(loop);
-        };
-        rafId = requestAnimationFrame(loop);
-
-        return () => {
-            window.removeEventListener('keydown', handleKD);
-            window.removeEventListener('keyup', handleKU);
-            cancelAnimationFrame(rafId);
-        };
-    }, [gameState]); // Only depends on gameState
-
-    useEffect(() => {
-        // Shared interaction listener
-        const handleInteractions = (e) => {
-            if (e.key.toLowerCase() === 'e') {
-                if (canInteractPhone && gameState === 'room') {
-                    setGameState('phone');
-                    setIsDetectiveModeOpen(true);
-                    if (callStatus === 'idle') setCallStatus('ringing');
-                }
-                if (canInteractLaptop && gameState === 'room' && calledRealFriend) setGameState('laptop');
-            }
-        };
-        window.addEventListener('keydown', handleInteractions);
-        return () => window.removeEventListener('keydown', handleInteractions);
-    }, [canInteractPhone, canInteractLaptop, gameState, calledRealFriend, callStatus]);
-
-    const handleOptionClick = (opt) => {
-        setShowingOptions(false);
-        setChatHistory(prev => [...prev, { type: 'player', text: opt.text }]);
-
-        setTimeout(() => {
-            const parts = opt.replyParts || [{ text: opt.scammerReply }];
-            setChatHistory(prev => [...prev, { type: 'scammer', parts }]);
-            setTypingProgress(0);
-            setIsTypingDone(false);
-        }, 500);
-    };
-
-    const advanceDialogue = () => {
-        const nextIdx = dialogueIndex + 1;
-        if (nextIdx >= dialogueSequence.length) {
-            setCallStatus('hangup');
-            return;
-        }
-        setDialogueIndex(nextIdx);
-        const next = dialogueSequence[nextIdx];
-        if (next.speaker === 'SCAMMER') {
-            setChatHistory(prev => [...prev, { type: 'scammer', parts: next.parts }]);
-            setTypingProgress(0);
-            setIsTypingDone(false);
-        } else {
-            setShowingOptions(true);
-        }
-    };
-
-    const startCall = () => {
-        setCallStatus('active');
-        setChatHistory([{ type: 'scammer', parts: dialogueSequence[0].parts }]);
-        setTypingProgress(0);
-        setIsTypingDone(false);
-    };
-
-    const callRealFriend = () => {
-        setFriendCallStep(0);
-        setPhoneApp('friendcall');
-    };
-
-    const advanceFriendCall = () => {
-        const nextStep = friendCallStep + 1;
-        if (nextStep >= FRIEND_CONVERSATION.length) {
-            setCalledRealFriend(true);
-            showFeedback("⚠️ Arjun confirmed: He never called you!");
-            return;
-        }
-        setFriendCallStep(nextStep);
-    };
-
-    // -------------------------------------------------------------------------
-    // RENDER HELPERS (FROM LEVEL 1)
-    // -------------------------------------------------------------------------
-    const renderPlant = (x, y) => (
-        <div className="absolute z-20" style={{ left: x, top: y }}>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60px] h-[60px] bg-[#c05a3c] rounded-full border-[8px] border-[#9c452e] shadow-xl"></div>
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] pointer-events-none">
-                {[0, 45, 90, 135].map(deg => (
-                    <div key={deg} className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[30px] bg-[#3e8549] rounded-full flex items-center`} style={{ transform: `translate(-50%, -50%) rotate(${deg}deg)`, boxShadow: '0 5px 15px rgba(0,0,0,0.4)', zIndex: deg }}>
-                        <div className="w-full h-[2px] bg-[#2d6335]"></div>
-                    </div>
-                ))}
-            </div>
+    return (
+      <div className="flex-1 flex flex-col bg-zinc-950 overflow-y-auto custom-scrollbar pt-8">
+        <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-950 z-20">
+          <span className="font-serif italic text-xl font-bold">Instagram</span>
+          <div className="flex gap-4">
+            <span onClick={() => { if (day > 1 || convoDay1Done) setPhoneApp('dm'); }} className="cursor-pointer relative">
+              ✉️ {(convoDay1Done || day > 1) && <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />}
+            </span>
+          </div>
         </div>
-    );
 
-    const renderBookshelf = (x, y) => (
-        <div className="absolute z-10 bg-[#e08e50] border-[12px] border-[#b86b35] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col justify-evenly p-2" style={{ left: x, top: y, width: 140, height: 450 }}>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1">
-                <div className="w-4 h-10 bg-red-600 shadow-sm border-l border-white/20"></div><div className="w-5 h-12 bg-blue-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-14 bg-yellow-500 ml-2 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1 justify-end">
-                <div className="w-6 h-12 bg-emerald-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-9 bg-purple-600 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-            <div className="flex items-end h-[60px] px-2 gap-1">
-                <div className="w-5 h-14 bg-cyan-600 shadow-sm border-l border-white/20"></div><div className="w-4 h-12 bg-red-500 shadow-sm border-l border-white/20"></div><div className="w-6 h-10 bg-slate-600 ml-4 shadow-sm border-l border-white/20"></div>
-            </div>
-            <div className="w-full h-[10px] bg-[#9c5525] shadow-sm"></div>
-        </div>
-    );
-
-    const renderWindow = (x, y) => (
-        <div className="absolute z-5 bg-[#1e293b] border-x-[16px] border-t-[16px] border-[#8da5b2] shadow-[inset_0_0_50px_rgba(0,0,0,0.8),0_10px_30px_rgba(0,0,0,0.6)] overflow-hidden" style={{ left: x, top: y, width: 450, height: 180 }}>
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a] to-[#1e3a8a]"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-[80px] flex items-end gap-[1px]">
-                {[40, 60, 30, 80, 50, 45, 70, 35, 90, 40, 65, 55].map((h, i) => (
-                    <div key={i} className={`flex-1 bg-[#090e1a] flex flex-wrap gap-1 p-1 items-start justify-center`} style={{ height: h }}>
-                        {i % 3 === 0 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
-                        {i % 4 === 0 && <div className="w-2 h-2 bg-yellow-100/80 rounded-sm shadow-[0_0_5px_rgba(254,240,138,0.8)]"></div>}
-                    </div>
-                ))}
-            </div>
-            <div className="absolute top-0 bottom-0 left-1/2 w-[16px] bg-[#8da5b2] -translate-x-1/2 shadow-xl"></div>
-        </div>
-    );
-
-    if (gameState === 'room') {
-        const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
-        const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
-
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
-                    <div className="absolute inset-0 transition-transform duration-100 ease-out" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT, transform: `translate(${-cameraX}px, ${-cameraY}px)` }}>
-                        <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                            {/* Room Background Image */}
-                            <div
-                                className="absolute inset-0 z-0"
-                                style={{
-                                    backgroundImage: "url('/assets/study.png')",
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'south'
-                                }}
-                            />
-
-
-
-                            <Player x={playerPos.x} y={playerPos.y} />
-                        </div>
-                    </div>
-
-                    {/* Interaction Prompts */}
-                    {canInteractPhone && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)] z-[400] flex items-center gap-3 animate-bounce">
-                            <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
-                            <span>ANSWER PHONE</span>
-                        </div>
-                    )}
-                    {canInteractLaptop && calledRealFriend && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] z-[400] flex items-center gap-3 animate-bounce">
-                            <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
-                            <span>REPORT CYBER CRIME</span>
-                        </div>
-                    )}
-
-                    {/* Instruction HUD */}
-                    <div className="absolute top-4 left-4 text-emerald-500 font-mono text-xs z-[400] bg-black/60 p-2 rounded">
-                        Objective: Investigate the suspicious call.<br />Controls: W A S D to move.
-                    </div>
-
-                    {/* Detective Board Button */}
-                    <div className="fixed bottom-10 left-12 z-[500] flex gap-4">
-                        <button onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)} className="w-14 h-14 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.6)] border-2 border-amber-300 text-2xl">
-                            🔍
-                            {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-6 h-6 rounded-full flex justify-center items-center">{cluesFound.length}</span>}
-                        </button>
-                    </div>
-
-                    {isDetectiveModeOpen && (
-                        <div
-                            onDrop={handleClueDrop}
-                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('ring-4', 'ring-red-500/50'); }}
-                            onDragLeave={(e) => { e.currentTarget.classList.remove('ring-4', 'ring-red-500/50'); }}
-                            className="fixed inset-y-8 right-8 w-[600px] z-[600] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col rounded-xl overflow-hidden"
-                            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.08\'/%3E%3C/svg%3E")', backgroundColor: '#c4956b' }}
-                        >
-                            {/* Board Header */}
-                            <div className="bg-[#2a1810] p-5 flex justify-between items-center border-b-4 border-[#1a0e08] shadow-lg">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-red-700 rounded-full flex items-center justify-center text-sm shadow-inner border-2 border-red-900">🕵️</div>
-                                    <div>
-                                        <h3 className="text-amber-200 font-black text-sm uppercase tracking-[0.2em]">Investigation Board</h3>
-                                        <p className="text-amber-400/60 text-[8px] font-mono tracking-widest">CASE #VOICE-1010 — AI VOICE SCAM</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsDetectiveModeOpen(false)} className="w-8 h-8 bg-red-900/60 hover:bg-red-800 text-white rounded-full flex items-center justify-center text-xs font-bold transition-colors">✕</button>
-                            </div>
-
-                            {/* Drop zone indicator */}
-                            <div className="mx-5 mt-4 p-3 border-2 border-dashed border-red-800/40 rounded-lg bg-red-900/10 text-center">
-                                <span className="text-[9px] text-red-900/70 font-bold uppercase tracking-widest">📌 Drag suspicious clues here to pin them</span>
-                            </div>
-
-                            {/* Clue Cards */}
-                            <div className="flex-1 grid grid-cols-2 gap-5 p-5 overflow-y-auto custom-scrollbar">
-                                {Object.keys(CLUE_INFO).map((cid, idx) => {
-                                    const isFound = cluesFound.includes(cid);
-                                    const rotations = [-2, 1.5, -1, 2, -1.5];
-                                    return (
-                                        <div key={cid} className={`relative transition-all duration-700 ${isFound ? 'scale-100 opacity-100' : 'scale-95 opacity-50'}`} style={{ transform: `rotate(${rotations[idx]}deg)` }}>
-                                            {/* Red pushpin */}
-                                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-                                                <div className={`w-5 h-5 rounded-full shadow-lg ${isFound ? 'bg-red-600 border-2 border-red-800' : 'bg-zinc-500 border-2 border-zinc-600'}`}>
-                                                    <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-white/40 rounded-full"></div>
-                                                </div>
-                                                <div className={`w-0.5 h-3 mx-auto -mt-0.5 ${isFound ? 'bg-zinc-600' : 'bg-zinc-500'}`}></div>
-                                            </div>
-                                            {/* Card */}
-                                            <div className={`mt-3 p-4 rounded shadow-[2px_4px_12px_rgba(0,0,0,0.3)] border transition-all duration-500 ${isFound ? 'bg-[#fffef5] border-amber-300/60' : 'bg-stone-200/80 border-stone-300'}`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-2xl">{isFound ? CLUE_INFO[cid].icon : '❓'}</span>
-                                                    {isFound && (
-                                                        <span className="px-2 py-0.5 bg-red-600 text-white text-[7px] font-black rounded uppercase tracking-wider">Found</span>
-                                                    )}
-                                                </div>
-                                                <div className={`text-[10px] font-black uppercase tracking-wider mb-1 ${isFound ? 'text-stone-800' : 'text-stone-500'}`}>
-                                                    {isFound ? CLUE_INFO[cid].title : 'CLASSIFIED'}
-                                                </div>
-                                                <div className="w-8 h-0.5 bg-red-500/40 mb-2"></div>
-                                                <p className={`text-[9px] leading-relaxed ${isFound ? 'text-stone-700 font-medium' : 'text-stone-400 italic'}`}>
-                                                    {isFound ? CLUE_INFO[cid].desc : `💡 ${CLUE_INFO[cid].hint}`}
-                                                </p>
-                                                {isFound && (
-                                                    <div className="mt-2 flex items-center gap-1">
-                                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                                        <span className="text-[7px] text-green-700 font-bold uppercase tracking-widest">Verified Evidence</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Progress bar */}
-                            <div className="bg-[#2a1810] p-4 border-t-4 border-[#1a0e08]">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[9px] text-amber-300 font-black uppercase tracking-widest">Evidence Collected</span>
-                                    <span className="text-[11px] text-amber-200 font-black">{cluesFound.length} / {Object.keys(CLUE_INFO).length}</span>
-                                </div>
-                                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-red-600 to-amber-500 rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(239,68,68,0.6)]" style={{ width: `${(cluesFound.length / Object.keys(CLUE_INFO).length) * 100}%` }}></div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {feedbackMsg && (
-                        <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-4 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.8)] z-[500] font-bold text-center animate-bounce border-2 border-red-300">
-                            {feedbackMsg}
-                        </div>
-                    )}
-
-                    <style dangerouslySetInnerHTML={{
-                        __html: `
-                        @keyframes wiggle {
-                            0%, 100% { transform: rotate(-5deg); }
-                            50% { transform: rotate(5deg); }
-                        }
-                    ` }} />
-                </div>
-            </div>
-        );
-    }
-
-    if (gameState === 'phone') {
-        const renderHomeScreen = () => (
-            <div className="flex-1 flex flex-col p-8 bg-gradient-to-br from-indigo-950 via-slate-900 to-zinc-950 ring-inset ring-8 ring-black/20">
-                <div className="flex justify-between items-center mb-12 backdrop-blur-md bg-white/10 p-2 rounded-full px-4">
-                    <span className="text-[10px] font-black text-white tracking-widest">{String(new Date().getHours()).padStart(2, '0')}:{String(new Date().getMinutes()).padStart(2, '0')}</span>
-                    <div className="flex gap-1 items-center">
-                        <div className="w-3 h-2 bg-white/20 rounded-sm relative overflow-hidden">
-                            <div className="absolute inset-0 bg-green-500 w-3/4"></div>
-                        </div>
-                    </div>
-                </div>
-                <div className="grid grid-cols-3 gap-8">
-                    <button onClick={() => setPhoneApp('call')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-green-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg ring-4 ring-green-500/20 group-hover:scale-110 transition-transform">📞</div>
-                        <span className="text-[9px] font-black text-white uppercase tracking-tighter drop-shadow-md">Phone</span>
-                    </button>
-                    <button onClick={() => setPhoneApp('contacts')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg ring-4 ring-blue-500/20 group-hover:scale-110 transition-transform">👤</div>
-                        <span className="text-[9px] font-black text-white uppercase tracking-tighter drop-shadow-md">Contacts</span>
-                    </button>
-                    <button onClick={() => setPhoneApp('pay')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg ring-4 ring-indigo-600/20 group-hover:scale-110 transition-transform">💸</div>
-                        <span className="text-[9px] font-black text-white uppercase tracking-tighter drop-shadow-md">PayUp</span>
-                    </button>
-                </div>
-                {callStatus === 'active' && (
-                    <div onClick={() => setPhoneApp('call')} className="mt-auto bg-green-600/40 border border-green-400 p-4 rounded-3xl flex items-center justify-between cursor-pointer animate-pulse mb-10 backdrop-blur-md shadow-xl">
-                        <div className="flex items-center gap-3">
-                            <div className="text-xl">📞</div>
-                            <div className="flex flex-col">
-                                <span className="text-[8px] font-black text-white uppercase tracking-widest">Ongoing Call</span>
-                                <span className="text-[10px] text-white font-mono">+91-88-23...</span>
-                            </div>
-                        </div>
-                    </div>
+        <div className="flex flex-col gap-8 pb-20">
+          {posts.map((post, i) => (
+            <div key={i} className="flex flex-col border-b border-white/5 pb-4">
+              <div className="flex items-center gap-2 p-3">
+                <div className="w-8 h-8 rounded-full bg-zinc-800" />
+                <span className="text-xs font-bold">{post.user}</span>
+              </div>
+              <div className="aspect-square bg-zinc-900 overflow-hidden">
+                <img src={post.img} className="w-full h-full object-cover" alt="post" />
+              </div>
+              <div className="p-3">
+                <div className="flex gap-4 mb-2">❤️ 💬 🚀</div>
+                <div className="text-xs mb-1"><span className="font-bold">{post.user}</span> {post.text}</div>
+                {(day === 1 || storyProgress === 0) && i === 0 && (
+                  <div className="bg-indigo-500/20 p-2 mt-2 rounded border border-indigo-500/30 animate-pulse cursor-pointer"
+                    onClick={() => setPhoneApp('insta_profile')}>
+                    <p className="text-[11px]"><span className="font-bold underline">_priya.sunshine_:</span> dm for frndz chat... im so loneoly 😔 just need smone to tlk to...</p>
+                  </div>
                 )}
+              </div>
             </div>
-        );
+          ))}
+        </div>
+      </div>
+    );
+  };
 
-        const renderContactsApp = () => (
-            <div className="flex-1 flex flex-col bg-zinc-950">
-                <div className="p-6 bg-zinc-900 border-b border-white/5 flex items-center justify-between">
-                    <button onClick={() => setPhoneApp('home')} className="text-blue-400 text-xs font-bold">← Back</button>
-                    <span className="text-xs font-black text-white uppercase tracking-widest">Contacts</span>
-                    <div className="w-8"></div>
-                </div>
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="p-4 bg-zinc-900 rounded-2xl border border-white/5 flex items-center justify-between group hover:bg-zinc-800 transition-colors">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center font-black">A</div>
-                            <div className="flex flex-col">
-                                <span className="text-sm font-bold text-white">Arjun</span>
-                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest">Mobile</span>
-                            </div>
-                        </div>
-                        <button
-                            onClick={callRealFriend}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${calledRealFriend ? 'bg-zinc-800 text-zinc-600' : 'bg-green-600 text-white hover:scale-105 shadow-lg shadow-green-500/20'}`}
-                            disabled={calledRealFriend}
-                        >
-                            {calledRealFriend ? 'VERIFIED ✓' : 'CALL'}
-                        </button>
-                    </div>
-                    {['Mom', 'Work (Boss)', 'Sneha'].map(name => (
-                        <div key={name} className="p-4 bg-zinc-900/40 rounded-2xl border border-white/5 flex items-center opacity-40 grayscale gap-4">
-                            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center font-black text-zinc-600">{name[0]}</div>
-                            <span className="text-sm font-bold text-zinc-500">{name}</span>
-                        </div>
-                    ))}
-                </div>
+  const InstaProfileApp = () => {
+    const [showMenu, setShowMenu] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(false);
+
+    const handleCheckAbout = () => {
+      if (!profileBonusFound) {
+        setProfileBonusFound(true);
+        setPoints(prev => prev + 15);
+        setFeedback("Hidden Clue Found: This account is a fake! (+15 pts)");
+      }
+    };
+
+    return (
+      <div className="flex-1 flex flex-col bg-zinc-950 overflow-y-auto custom-scrollbar pt-8 text-white relative">
+        <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-950 z-20">
+          <span className="font-bold text-lg cursor-pointer flex items-center gap-2" onClick={() => setPhoneApp('instagram')}>
+            <span className="text-xl">←</span> <span>@_priya.sunshine_</span>
+          </span>
+          <span className="text-xl cursor-pointer" onClick={() => setShowMenu(true)}>⋮</span>
+        </div>
+
+        {/* Profile Header */}
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="w-20 h-20 rounded-full border border-indigo-500 overflow-hidden bg-zinc-800 shrink-0">
+              <img src="/assets/cartoon_girl.png" className="w-full h-full object-cover" alt="Profile" />
             </div>
-        );
-
-        const renderFriendCallApp = () => (
-            <div className="flex-1 flex flex-col bg-zinc-950">
-                <div className="bg-emerald-900 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-emerald-700">
-                    <button onClick={() => setPhoneApp('contacts')} className="absolute left-6 top-10 text-emerald-300 font-bold text-xs hover:text-emerald-200 transition-colors">← Contacts</button>
-                    <div className="w-14 h-14 bg-emerald-600 rounded-full flex items-center justify-center text-2xl mb-2 shadow-lg">A</div>
-                    <h2 className="text-lg font-bold text-emerald-300 tracking-widest">Arjun</h2>
-                    <p className="text-emerald-400 font-mono text-[10px]">+91 98765 XXXXX</p>
-                    <span className="text-[8px] text-emerald-200/60 uppercase tracking-widest mt-1">Verified Contact</span>
-                </div>
-                <div className="flex-1 w-full flex flex-col justify-start p-4 pb-20 gap-3 overflow-y-auto custom-scrollbar">
-                    {FRIEND_CONVERSATION.map((msg, idx) => {
-                        if (idx > friendCallStep) return null;
-                        if (msg.speaker === 'SYSTEM') {
-                            return (
-                                <div key={idx}
-                                    draggable={!!msg.clueId}
-                                    onDragStart={(e) => { if (msg.clueId) e.dataTransfer.setData('clueId', msg.clueId); }}
-                                    className={`bg-amber-900/30 text-center text-amber-200 p-4 rounded-xl text-[11px] border border-amber-500/30 font-bold ${msg.clueId ? 'cursor-grab border-red-500 bg-red-900/20 text-red-200 animate-pulse border-2' : ''}`}
-                                >
-                                    {msg.text}
-                                </div>
-                            );
-                        }
-                        if (msg.speaker === 'ARJUN') {
-                            return (
-                                <div key={idx} className="bg-emerald-900/40 text-emerald-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-emerald-700/50">
-                                    <span className="text-[9px] text-emerald-400 font-bold mb-1 block">ARJUN ✓</span>
-                                    <span className="text-[11px]">{msg.text}</span>
-                                </div>
-                            );
-                        }
-                        return (
-                            <div key={idx} className="w-full flex justify-end">
-                                <div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-[11px]">
-                                    {msg.text}
-                                </div>
-                            </div>
-                        );
-                    })}
-                    {friendCallStep < FRIEND_CONVERSATION.length - 1 ? (
-                        <button
-                            onClick={advanceFriendCall}
-                            className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-2 shadow-xl transition-colors"
-                        >
-                            [ Continue... ]
-                        </button>
-                    ) : (
-                        <button
-                            onClick={() => { setCalledRealFriend(true); setGameState('room'); showFeedback('💻 I should report this scam on my computer!'); }}
-                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-bold text-sm rounded-lg mt-2 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-colors"
-                        >
-                            [ End Call ]
-                        </button>
-                    )}
-                    {<div ref={(el) => { el?.scrollIntoView({ behavior: 'smooth' }) }} />}
-                </div>
+            <div className="flex gap-4 text-center">
+              <div><div className="font-bold text-lg">12</div><div className="text-[10px] text-zinc-400">Posts</div></div>
+              <div><div className="font-bold text-lg">{isFollowing ? "1,241" : "1,240"}</div><div className="text-[10px] text-zinc-400">Followers</div></div>
+              <div><div className="font-bold text-lg">4,521</div><div className="text-[10px] text-zinc-400">Following</div></div>
             </div>
-        );
+          </div>
 
-        const renderPayApp = () => (
-            <div className="flex-1 flex flex-col bg-slate-950">
-                <div className="p-6 border-b border-blue-500/20 flex items-center justify-between bg-blue-600/5">
-                    <button onClick={() => setPhoneApp('home')} className="text-blue-400 text-xs font-bold">← Home</button>
-                    <span className="text-xs font-black text-white uppercase tracking-widest">PayUp Beta</span>
-                    <div className="w-8"></div>
-                </div>
-                <div className="flex-1 p-8 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in duration-700">
-                    <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-4xl shadow-2xl ring-8 ring-blue-600/10">💸</div>
-                    <div className="space-y-2">
-                        <h2 className="text-white font-black text-xl uppercase tracking-tighter leading-none">Confirm Payment</h2>
-                        <p className="text-blue-300/40 text-[9px] font-black uppercase tracking-widest">Security ID: PK-88210-9X</p>
-                    </div>
-                    <div className="w-full bg-slate-900 p-8 rounded-[2rem] border border-white/5 space-y-6 shadow-2xl">
-                        <div className="flex flex-col gap-1 items-start text-left">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Receiver</span>
-                            <span className="text-white font-bold text-sm">Arjun_Med_Clearance</span>
-                        </div>
-                        <div className="flex justify-between items-baseline border-t border-white/5 pt-4">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Total</span>
-                            <span className="text-white font-black text-xl tracking-tighter">₹50,000</span>
-                        </div>
-                        <button
-                            onClick={() => {
-                                setGameState('scammed');
-                            }}
-                            className="w-full py-5 bg-blue-600 text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-blue-500 transition-all active:scale-95"
-                        >
-                            Pay Now
-                        </button>
-                    </div>
-                </div>
+          <div className="mb-4">
+            <h2 className="font-bold text-sm">Priya</h2>
+            <p className="text-xs text-zinc-400 mb-1">CHENNAI | MUSIC + CHAI LOVER ☕</p>
+            <p className="text-[10px] italic pr-4">"dm for frndz chat... im so loneoly 😔 just need smone to tlk to..."</p>
+          </div>
+
+          <div className="flex gap-2">
+            <button className="flex-1 bg-indigo-600 font-bold py-1.5 rounded-lg text-sm transition-colors active:bg-indigo-700 leading-none" onClick={() => { setProfileChecked(true); setPhoneApp('dm'); }}>Message</button>
+            <button className={`flex-1 font-bold py-1.5 rounded-lg text-sm transition-colors leading-none ${isFollowing ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-black hover:bg-zinc-300'}`} onClick={() => setIsFollowing(!isFollowing)}>{isFollowing ? "Following" : "Follow"}</button>
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="grid grid-cols-3 gap-[2px] mt-2 pb-12">
+          {Array(12).fill(null).map((_, i) => (
+            <div key={i} className="aspect-square bg-zinc-800 overflow-hidden relative border border-zinc-900 border-opacity-50">
+              {i === 4 && <img src="/assets/cartoon_girl.png" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" alt="Post" />}
             </div>
-        );
+          ))}
+        </div>
 
-        return (
-            <div className="fixed inset-0 z-[1000] bg-black/95 flex items-center justify-center backdrop-blur-2xl">
-                {/* Close phone button */}
-                <button onClick={() => setGameState('room')} className="absolute top-8 right-8 z-[1100] px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white text-xs font-black rounded-full border border-white/10 transition-all backdrop-blur-md">✕ Close Phone</button>
-
-                {/* Feedback toast */}
-                {feedbackMsg && (
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-[1100] bg-indigo-600 text-white px-8 py-3 rounded-full font-black uppercase tracking-widest shadow-2xl text-xs animate-in fade-in duration-300">
-                        {feedbackMsg}
-                    </div>
+        {/* 3-Dot Menu Modal */}
+        {showMenu && (
+          <div className="absolute inset-0 z-50 flex items-end">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
+            <div className="w-full bg-zinc-900 rounded-t-2xl p-4 relative z-10 animate-fadeIn min-h-[50%] flex flex-col justify-end shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+              <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto mb-6 opacity-30" />
+              <button
+                onClick={() => handleCheckAbout()}
+                className="w-full text-left p-4 hover:bg-zinc-800 rounded-xl flex flex-col gap-2 active:bg-zinc-800 transition-colors mb-2 group"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-2xl group-hover:scale-110 transition-transform">ℹ️</span>
+                  <div className="font-bold text-sm tracking-wide">About this account</div>
+                </div>
+                {profileBonusFound && (
+                  <div className="text-xs text-zinc-400 mt-2 pb-2 animate-fadeIn pl-3 ml-12 py-2 pr-2 leading-relaxed">
+                    Date joined: May 2024<br />Former usernames: 3
+                  </div>
                 )}
-
-                <div className="absolute left-10 inset-y-14 w-[500px] pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-300">
-                    <div
-                        onDrop={handleClueDrop}
-                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.boxShadow = '0 0 30px rgba(239,68,68,0.4)'; }}
-                        onDragLeave={(e) => { e.currentTarget.style.boxShadow = ''; }}
-                        className="w-full h-full flex flex-col rounded-xl overflow-hidden pointer-events-auto"
-                        style={{ backgroundColor: '#c4956b' }}
-                    >
-                        <div className="bg-[#2a1810] p-4 flex items-center gap-3 border-b-4 border-[#1a0e08]">
-                            <div className="w-6 h-6 bg-red-700 rounded-full flex items-center justify-center text-[10px] border-2 border-red-900">🕵️</div>
-                            <div>
-                                <h3 className="text-amber-200 font-black text-[10px] uppercase tracking-[0.15em]">Evidence Board</h3>
-                                <p className="text-amber-400/50 text-[7px] font-mono">CASE #VOICE-1010</p>
-                            </div>
-                        </div>
-                        <div className="mx-3 mt-3 p-2 border border-dashed border-red-800/30 rounded bg-red-900/10 text-center">
-                            <span className="text-[7px] text-red-900/60 font-bold uppercase tracking-wider">📌 Drop clues here</span>
-                        </div>
-                        <div className="flex-1 grid grid-cols-2 gap-3 p-3 overflow-y-auto custom-scrollbar">
-                            {Object.keys(CLUE_INFO).map((cid, idx) => {
-                                const isFound = cluesFound.includes(cid);
-                                const rotations = [-1.5, 1, -0.5, 1.5, -1];
-                                return (
-                                    <div key={cid} className="relative" style={{ transform: `rotate(${rotations[idx]}deg)` }}>
-                                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10">
-                                            <div className={`w-3.5 h-3.5 rounded-full shadow ${isFound ? 'bg-red-600 border border-red-800' : 'bg-zinc-500 border border-zinc-600'}`}></div>
-                                        </div>
-                                        <div className={`mt-2 p-3 rounded shadow-md border transition-all ${isFound ? 'bg-[#fffef5] border-amber-300/50' : 'bg-stone-200/60 border-stone-300 opacity-50'}`}>
-                                            <div className="flex justify-between items-start mb-1">
-                                                <span className="text-lg">{isFound ? CLUE_INFO[cid].icon : '❓'}</span>
-                                                {isFound && <span className="px-1.5 py-0.5 bg-red-600 text-white text-[6px] font-black rounded">✓</span>}
-                                            </div>
-                                            <div className={`text-[8px] font-black uppercase tracking-wider mb-1 ${isFound ? 'text-stone-800' : 'text-stone-500'}`}>
-                                                {isFound ? CLUE_INFO[cid].title : 'CLASSIFIED'}
-                                            </div>
-                                            <p className={`text-[7px] leading-tight ${isFound ? 'text-stone-600' : 'text-stone-400 italic'}`}>
-                                                {isFound ? CLUE_INFO[cid].desc : `💡 ${CLUE_INFO[cid].hint}`}
-                                            </p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <div className="bg-[#2a1810] p-3 border-t-4 border-[#1a0e08]">
-                            <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-red-600 to-amber-500 rounded-full transition-all duration-700" style={{ width: `${(cluesFound.length / Object.keys(CLUE_INFO).length) * 100}%` }}></div>
-                            </div>
-                            <div className="flex justify-between mt-1">
-                                <span className="text-[7px] text-amber-300/70 font-bold">{cluesFound.length}/{Object.keys(CLUE_INFO).length} EVIDENCE</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="w-[380px] h-[750px] bg-zinc-950 border-[16px] border-zinc-900 rounded-[4.5rem] shadow-[0_0_120px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col animate-in zoom-in-95 duration-500">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-zinc-900 rounded-b-[2rem] z-[100] flex items-center justify-center gap-4 px-2">
-                        <div className="w-12 h-1 bg-zinc-800 rounded-full"></div>
-                        <div className="w-3 h-3 bg-zinc-800 rounded-full border border-white/5"></div>
-                    </div>
-
-                    <div className="flex-1 flex flex-col relative z-10">
-                        {phoneApp === 'home' ? renderHomeScreen() :
-                            phoneApp === 'contacts' ? renderContactsApp() :
-                                phoneApp === 'friendcall' ? renderFriendCallApp() :
-                                    phoneApp === 'pay' ? renderPayApp() :
-                                        (
-                                            callStatus === 'ringing' ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center p-10 text-center bg-zinc-900/50">
-                                                    <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_80px_rgba(239,68,68,0.1)]">
-                                                        <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-3xl shadow-xl transform hover:scale-110 transition-transform">📞</div>
-                                                    </div>
-                                                    <h2 className="text-2xl font-black text-white mb-2 tracking-[0.2em] uppercase italic">UNKNOWN</h2>
-                                                    <p className="text-zinc-500 font-mono mb-20 text-[10px] tracking-widest opacity-60">+91 88234 XXXXX</p>
-                                                    <div className="flex gap-10">
-                                                        <button onClick={() => setGameState('room')} className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-red-500 transition-colors">✕</button>
-                                                        <button onClick={startCall} className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white animate-bounce shadow-2xl hover:bg-green-400 transition-colors">✓</button>
-                                                    </div>
-                                                </div>
-                                            ) : callStatus === 'active' ? (
-                                                <div className="flex-1 flex flex-col">
-                                                    <div className="bg-zinc-900 p-10 flex flex-col items-center border-b border-white/5 relative">
-                                                        <button onClick={() => setPhoneApp('home')} className="absolute left-6 top-10 text-blue-400 font-bold text-xs hover:text-blue-300 transition-colors">← App</button>
-                                                        <span className="text-[9px] text-green-400 font-black mb-2 tracking-[0.3em] uppercase animate-pulse">INCALL_ACTIVE</span>
-                                                        <div className="flex gap-1.5 h-10 items-center mt-2 group">
-                                                            {[35, 60, 25, 80, 45, 55, 70, 30, 90, 50, 40, 65, 20, 75, 45].map((h, i) => (
-                                                                <div
-                                                                    key={i}
-                                                                    className="w-1 bg-blue-500 rounded-full animate-pulse shadow-[0_0_15px_rgba(59,130,246,0.6)]"
-                                                                    style={{
-                                                                        height: `${h}%`,
-                                                                        animationDelay: `${i * 0.08}s`,
-                                                                    }}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 p-6 overflow-y-auto space-y-5 custom-scrollbar bg-zinc-950/40">
-                                                        {chatHistory.map((msg, i) => (
-                                                            <div key={i} className={`flex ${msg.type === 'player' ? 'justify-end' : 'justify-start'}`}>
-                                                                <div className={`max-w-[90%] p-5 rounded-[2.5rem] text-[11px] font-medium leading-relaxed shadow-2xl ${msg.type === 'player'
-                                                                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                                                                    : msg.type === 'friend'
-                                                                        ? 'bg-emerald-700/60 text-emerald-100 rounded-tl-none border border-emerald-400/20 backdrop-blur-md'
-                                                                        : 'bg-zinc-800/60 text-zinc-100 rounded-tl-none border border-white/5 backdrop-blur-md'
-                                                                    }`}>
-                                                                    {msg.type === 'friend' && <div className="text-[8px] font-black text-emerald-300 uppercase tracking-widest mb-2">✓ Arjun (Verified Contact)</div>}
-                                                                    {(msg.type === 'scammer' || msg.type === 'friend') && i === chatHistory.length - 1 && !isTypingDone ? (
-                                                                        <span className="opacity-90">{msg.parts.map(p => p.text).join('').slice(0, typingProgress)}<span className="animate-pulse bg-blue-400 w-1.5 h-4 inline-block ml-1 align-middle"></span></span>
-                                                                    ) : (
-                                                                        (msg.type === 'scammer' || msg.type === 'friend') ? (
-                                                                            msg.parts.map((p, pi) => (
-                                                                                <span
-                                                                                    key={pi}
-                                                                                    draggable={!!p.clueId}
-                                                                                    onDragStart={(e) => {
-                                                                                        if (p.clueId) e.dataTransfer.setData('clueId', p.clueId);
-                                                                                    }}
-                                                                                    className={p.clueId ? 'border-b-4 border-red-500 bg-red-400/20 cursor-grab px-1 select-none font-black animate-pulse' : p.isHighlighted ? 'text-yellow-400 font-black' : ''}
-                                                                                >{p.text}</span>
-                                                                            ))
-                                                                        ) : msg.text
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                        <div ref={el => el?.scrollIntoView({ behavior: 'smooth' })} />
-                                                    </div>
-                                                    <div className="p-8 bg-black/60 border-t border-white/5 backdrop-blur-xl">
-                                                        {showingOptions && (
-                                                            <div className="space-y-3">
-                                                                {dialogueSequence[dialogueIndex].options.map((opt, i) => (
-                                                                    <button key={i} onClick={() => handleOptionClick(opt)} className="w-full text-left p-4 bg-zinc-800/60 hover:bg-indigo-600/40 rounded-3xl text-[10px] font-black text-white border border-white/5 transition-all shadow-xl group flex items-center justify-between">
-                                                                        <span>"{opt.text}"</span>
-                                                                        <span className="text-white/20 group-hover:text-white transition-colors">▶</span>
-                                                                    </button>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                        {isTypingDone && !showingOptions && (
-                                                            <button onClick={advanceDialogue} className="w-full py-5 bg-indigo-600/10 text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em] rounded-3xl border border-indigo-500/20 hover:bg-indigo-600 hover:text-white transition-all shadow-lg active:scale-95">Next Segment</button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex-1 flex flex-col p-12 items-center justify-center text-center space-y-12">
-                                                    <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center text-5xl shadow-inner border border-white/5 grayscale opacity-20">☎️</div>
-                                                    <div className="space-y-4">
-                                                        <h2 className="text-white font-black text-3xl italic tracking-tighter opacity-80">SESSION TERMINATED</h2>
-                                                        <p className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase">Encryption Tunnel Closed</p>
-                                                    </div>
-                                                    <button onClick={() => setPhoneApp('home')} className="w-full py-5 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[0.3em] rounded-3xl border border-white/5 transition-all text-[9px]">Home Interface</button>
-                                                </div>
-                                            )
-                                        )}
-
-                        {/* Home Bar */}
-                        <div onClick={() => setPhoneApp('home')} className="absolute bottom-3 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full cursor-pointer hover:bg-white/30 transition-all active:scale-x-90"></div>
-                    </div>
-                </div>
+              </button>
+              <button className="w-full text-left p-4 hover:bg-zinc-800/80 rounded-xl text-red-500 font-bold mb-2 text-sm flex items-center gap-4 transition-colors"><span className="text-xl">🚩</span> Report</button>
+              <button className="w-full text-left p-4 hover:bg-zinc-800/80 rounded-xl text-red-500 font-bold mb-6 text-sm flex items-center gap-4 transition-colors" onClick={() => setShowMenu(false)}><span className="text-xl">🚫</span> Block</button>
             </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const DMApp = () => {
+    const renderPlayerMsg = (text) => (
+      <div className="flex justify-end mb-4">
+        <div className="max-w-[80%] bg-indigo-600 p-3 rounded-2xl rounded-tr-sm text-xs leading-relaxed animate-fadeIn">
+          {text}
+        </div>
+      </div>
+    );
+
+    const renderPriyaMsg = (text) => (
+      <div className="flex justify-start mb-4">
+        <div className="max-w-[80%] bg-zinc-800 p-3 rounded-2xl rounded-tl-sm text-xs leading-relaxed animate-fadeIn">
+          {text}
+        </div>
+      </div>
+    );
+
+    const renderSystemMsg = (text) => (
+      <div className="text-center text-[9px] text-zinc-600 uppercase py-2">
+        {text}
+      </div>
+    );
+
+    const renderChoices = (opts) => (
+      <div className="flex flex-col gap-1 p-4 pb-12 bg-zinc-900 border-t border-white/10">
+        <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center mb-1">Select Option</p>
+        {opts.map((opt, i) => (
+          <button key={i} onClick={() => handleChoice(opt)} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold rounded-lg border border-white/5 transition-all active:scale-95 leading-tight">
+            {opt.text}
+          </button>
+        ))}
+      </div>
+    );
+
+    if (storyProgress === 0) {
+      if (!firstMsgType) {
+        return (
+          <div className="flex-1 flex flex-col bg-zinc-950">
+            <div className="flex-1 p-4 overflow-y-auto pt-10">
+              {renderSystemMsg("Day 1, 9:47 PM")}
+              <div className="text-center p-4 bg-zinc-900/50 rounded-xl mb-4 border border-white/5">
+                <div className="w-16 h-16 rounded-full bg-indigo-600 mx-auto mb-2" />
+                <p className="font-bold text-sm">@_priya.sunshine_</p>
+                <p className="text-[9px] text-zinc-400">Chennai | music + chai lover ✨</p>
+              </div>
+            </div>
+            {renderChoices([
+              { text: "A) 'Hey, saw your comment. Hope you're okay. Just saying hi.'", points: 15, impact: () => setFirstMsgType('cautious') },
+              { text: "B) 'Hey! I also feel lonely sometimes. Wanna talk?'", points: 15, impact: () => setFirstMsgType('friendly') },
+              { text: "C) 'Hi, my grandfather just passed away and I'm really struggling. Wanna talk?'", points: 0, feedback: "DANGER: Options A or B are better. Never share personal grief with strangers.", impact: () => setFirstMsgType('oversharing') }
+            ])}
+          </div>
         );
+      }
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPlayerMsg(firstMsgType === 'cautious' ? "Hey, saw your comment. Hope you're okay. Just saying hi." : firstMsgType === 'friendly' ? "Hey! I also feel lonely sometimes. Wanna talk?" : "Hi, my grandfather just passed away and I'm really struggling. Wanna talk?")}
+            {renderPriyaMsg("omg hi!! haha ya just one of those days u know... everything feels so ehh. thanks for actually saying something tho 🥺")}
+            {renderPlayerMsg("Yeah I get that. Sometimes social media feels empty but the loneliness is still real.")}
+            {renderPriyaMsg("exactly!!! like you scroll and scroll and still feel hollow inside. where are you from btw?")}
+          </div>
+          {renderChoices([
+            { text: "Tell her: Chennai.", nextStep: 1, setDay: 2, impact: () => setConvoDay1Done(true) }
+          ])}
+        </div>
+      );
     }
 
-    if (gameState === 'laptop') {
-        return (
-            <div className="fixed inset-0 z-[1000] bg-black/95 flex items-center justify-center p-10 overflow-hidden">
-                <div className="w-full max-w-5xl h-[700px] bg-slate-900 border-[12px] border-slate-800 rounded-xl shadow-2xl flex flex-col overflow-hidden relative font-sans">
-                    <div className="bg-slate-950 p-6 border-b border-blue-500/20 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white">⚖️</div>
-                            <div>
-                                <h1 className="text-white font-black italic tracking-tighter text-xl leading-none uppercase">National Cyber Crime Reporting Portal</h1>
-                                <p className="text-blue-400 text-[9px] font-mono mt-1 opacity-70 italic tracking-widest">GOVERNMENT OF INDIA • CIVILIAN PORTAL</p>
-                            </div>
-                        </div>
-                        <button onClick={() => setGameState('room')} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black rounded italic transition-all">CLOSE PORTAL</button>
-                    </div>
-
-                    <div className="flex-1 p-12 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-slate-900 to-slate-900">
-                        {laptopStep === 'portal' ? (
-                            <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in duration-500">
-                                <div className="space-y-4">
-                                    <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Protect yourself and others.</h2>
-                                    <p className="text-slate-400 text-lg leading-relaxed">Reporting a cyber crime helps authorities track and neutralize scammers using advanced AI tools to clone voices and steal identities.</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="p-8 bg-slate-950/50 border border-white/5 rounded-3xl hover:border-blue-500/40 transition-all group">
-                                        <h3 className="text-white font-black uppercase text-xs mb-3 flex items-center gap-2"><span>🛡️</span> Identify the Threat</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">Deepfake voice cloning uses less than 30 seconds of sample audio to mimic anyone's speech patterns.</p>
-                                    </div>
-                                    <div className="p-8 bg-slate-950/50 border border-white/5 rounded-3xl hover:border-blue-500/40 transition-all group">
-                                        <h3 className="text-white font-black uppercase text-xs mb-3 flex items-center gap-2"><span>🔍</span> Document Clues</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">Submission of artifacts like robotic voice echoes and failed personal authentication is critical.</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setLaptopStep('reporting')} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white font-black italic uppercase tracking-[0.2em] rounded-2xl shadow-2xl transition-all animate-pulse">File New Complaint</button>
-                            </div>
-                        ) : (
-                            <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom duration-500">
-                                <h3 className="text-white font-black text-xs uppercase tracking-widest bg-blue-600/20 px-4 py-2 rounded-full inline-block">Section: AI Fraud Details</h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Type of Incident</label>
-                                        <select className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none">
-                                            <option>AI Voice Cloning / Deepfake Fraud</option>
-                                            <option>Identity Impersonation</option>
-                                        </select>
-                                    </div>
-                                    <div className="bg-slate-950 border border-white/10 rounded-2xl p-6">
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase mb-4 ml-2">Evidence Detected ({cluesFound.length}/5)</h4>
-                                        <div className="space-y-3">
-                                            {cluesFound.map(c => (
-                                                <div key={c} className="flex items-center gap-3 text-emerald-400 font-bold text-xs bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
-                                                    <span>✓</span> {CLUE_INFO[c].title}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <button onClick={() => { setGameState('outcome'); }} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black italic uppercase tracking-[0.2em] rounded-2xl shadow-2xl transition-all">Submit Final Report</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
+    if (storyProgress === 1) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPlayerMsg("Chennai. You?")}
+            {renderPriyaMsg("oh wow same! i'm in Anna Nagar. small world 🤭 what do you do?")}
+            {renderPlayerMsg("Engineering student. Final year. You?")}
+            {renderPriyaMsg("i work in a small design studio. freelance mostly. life is complicated rn. my family is... not supportive 😔")}
+            {renderPlayerMsg("Sorry to hear that. Families can be complicated.")}
+            {renderPriyaMsg("thanks for not judging ❤️ honestly feels good to just talk to someone normal. most guys who dm me are just weird lol")}
+          </div>
+          {renderChoices([
+            { text: "A) Just laugh it off and keep chatting normally.", points: 0, nextStep: 2, setDay: 5, transitionMsg: "5 DAYS LATER..." },
+            { text: "B) Promise: 'I'm different, I'm not like them.'", points: 0, nextStep: 2, setDay: 5, transitionMsg: "5 DAYS LATER..." },
+            { text: "C) Ask what she means by weird.", points: 0, nextStep: 2, setDay: 5, transitionMsg: "5 DAYS LATER..." }
+          ])}
+        </div>
+      );
     }
 
-    if (gameState === 'outcome') {
-        return (
-            <div className="fixed inset-0 z-[2000] bg-black flex items-center justify-center p-12 overflow-hidden text-center text-white">
-                <div className="max-w-4xl space-y-12 animate-in zoom-in-95 duration-1000">
-                    <div className="space-y-4">
-                        <h1 className="text-[100px] font-black uppercase tracking-tighter italic leading-none">THE_VOICE_IS_GEN</h1>
-                        <p className="text-emerald-400 font-mono text-xl tracking-[0.3em] uppercase">Level 11: The Voice That Wasn't Cleared</p>
-                    </div>
-                    <div className="bg-white/5 border border-white/10 p-10 rounded-[40px] text-left relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-8 text-6xl opacity-20 group-hover:scale-110 transition-transform">🤖</div>
-                        <h3 className="text-amber-400 font-black italic uppercase text-2xl mb-4 tracking-widest">CYBER_TIP: AI VOICE CLONING</h3>
-                        <p className="text-zinc-300 text-lg leading-relaxed font-medium max-w-2xl">
-                            Scammers use AI to clone voices of loved ones to create high-pressure emergency scams.
-                            Always verify by <span className="text-white font-black underline">asking personal questions</span> or hanging up and <span className="text-white font-black underline">calling from your contacts</span>.
-                            Report all such attempts to <span className="text-blue-400 font-black">cybercrime.gov.in</span> or call <span className="text-blue-400 font-black">1930</span>.
-                        </p>
-                    </div>
-                    <button onClick={() => completeLevel(true, 1000, 500)} className="bg-blue-600 hover:bg-blue-500 px-24 py-10 rounded-[60px] text-2xl font-black italic uppercase transition-all shadow-[0_20px_50px_rgba(37,99,235,0.4)]">CONTINUE_TO_END</button>
-                </div>
-            </div>
-        );
+    if (storyProgress === 2) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPriyaMsg("good morning!! did u sleep okay? ✨")}
+            {renderPlayerMsg("Yeah. Better than usual actually. Talking to you helps.")}
+            {renderPriyaMsg("awww that makes me so happy 💞 i was thinking about what u said yesterday about missing someone... who do u miss?")}
+          </div>
+          {renderChoices([
+            { text: "A) Keep it general: 'Someone close. I'd rather not say yet.'", points: 15, nextStep: 3, setDay: 8, transitionMsg: "A FEW DAYS LATER..." },
+            { text: "B) Tell her about Grandfather (No money details).", points: 5, nextStep: 3, setDay: 8, transitionMsg: "A FEW DAYS LATER..." },
+            { text: "C) Tell her everything (Inheritance, ₹42 Lakhs).", points: 0, feedback: "CRITICAL: Scammers look for exactly this information.", nextStep: 3, setDay: 8, transitionMsg: "A FEW DAYS LATER..." }
+          ])}
+        </div>
+      );
     }
 
-    if (gameState === 'scammed') {
-        return (
-            <div className="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center text-center p-12">
-                <div className="max-w-3xl space-y-12 animate-in fade-in zoom-in duration-1000">
-                    <div className="w-32 h-32 bg-red-600 rounded-full flex items-center justify-center text-6xl mx-auto shadow-[0_0_100px_rgba(239,68,68,0.5)] animate-pulse">💸</div>
-                    <div className="space-y-6">
-                        <h1 className="text-8xl font-black text-white italic tracking-tighter leading-none">SCAMMED</h1>
-                        <p className="text-red-500 font-mono text-xl tracking-[0.2em] uppercase">Level Failed: Victim of AI Voice Fraud</p>
-                    </div>
-                    <div className="bg-white/5 border border-red-500/20 p-10 rounded-[3rem] text-left">
-                        <p className="text-zinc-300 text-lg leading-relaxed font-medium">
-                            You transferred <span className="text-white font-black">₹50,000</span> to a scammer using an AI clone of your friend's voice.
-                            In the real world, these funds are often unrecoverable within minutes.
-                            <br /><br />
-                            <span className="text-white font-black uppercase tracking-widest block mb-2 underline decoration-red-500">How to avoid this next time:</span>
-                            1. Verify the identity by calling the person <span className="text-red-400">from your contacts</span> directly.<br />
-                            2. Ask personal questions that an AI or stranger wouldn't know.<br />
-                            3. Never let "emergency" pressure force you into an immediate payment.
-                        </p>
-                    </div>
-                    <button onClick={() => window.location.reload()} className="bg-white text-black px-16 py-6 rounded-full text-xl font-black italic uppercase transition-all hover:scale-105 shadow-2xl">Restart Level</button>
-                </div>
+    if (storyProgress === 3) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPriyaMsg("do you have any savings? like for your future? i'm asking because i'm trying to sort out my own financial life after my dad...")}
+          </div>
+          {renderChoices([
+            { text: "A) Deflect: 'I'm still a student, not really. Why?'", points: 20, nextStep: 4, setDay: 11, transitionMsg: "2 DAYS LATER..." },
+            { text: "B) 'I have some family money but I don't manage it.'", points: 10, nextStep: 4, setDay: 11, transitionMsg: "2 DAYS LATER..." },
+            { text: "C) Mention the ₹42 lakh inheritance.", points: 0, nextStep: 4, setDay: 11, transitionMsg: "2 DAYS LATER..." }
+          ])}
+        </div>
+      );
+    }
+
+    if (storyProgress === 4) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPriyaMsg("Krish I think i'm starting to... idk. like you? more than just a friend? ❤️")}
+          </div>
+          {renderChoices([
+            { text: "A) Respond warmly but carefully: 'Let's not rush.'", points: 25, nextStep: 5, setDay: 13, transitionMsg: "THE NEXT DAY..." },
+            { text: "B) 'I feel the same way! I love you too.'", points: 0, nextStep: 5, setDay: 13, transitionMsg: "THE NEXT DAY..." },
+            { text: "C) Ask to verify: 'Can we do a quick video call sometime?'", points: 25, nextStep: 5, setDay: 13, transitionMsg: "THE NEXT DAY..." }
+          ])}
+        </div>
+      );
+    }
+
+    if (storyProgress === 5) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPriyaMsg("hey... can i have your whatsapp? instagram is kinda glitchy. 📱")}
+          </div>
+          {renderChoices([
+            { text: "A) Agree immediately and send number.", points: 0, nextStep: 6 },
+            { text: "B) Suggest sticking to Instagram DMs longer.", points: 20, nextStep: 5.8 },
+            { text: "C) 'You can share yours first - I'll message you.'", points: 15, nextStep: 5.5 }
+          ])}
+        </div>
+      );
+    }
+
+    if (storyProgress === 5.5 || storyProgress === 5.8 || storyProgress === 6) {
+      const isAuto = storyProgress === 6;
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {isAuto ? (
+              <>
+                {renderPlayerMsg("Sure! My number is +91 94440 56789.")}
+                {renderPriyaMsg("okay cool! Messaging you on WhatsApp now! ❤️")}
+              </>
+            ) : (
+              <>
+                {renderPlayerMsg(storyProgress === 5.5 ? "You can share yours first - I'll message you." : "Let's just stick to Instagram for now. No rush.")}
+                {renderPriyaMsg(storyProgress === 5.5 ? "okay cool! my number is +91 94440 12345. save it and let's talk there! ❤️" : "wow okay... u still don't trust me? 🥺 fine. here is my number: +91 94440 12345. save it and come to whatsapp so u can verify it's really me. i’m waiting. 📱")}
+              </>
+            )}
+          </div>
+          <div className="p-6 bg-zinc-900 border-t border-white/10 text-center flex flex-col items-center pb-12">
+            <div className="text-[10px] text-zinc-500 mb-4 tracking-tight uppercase font-bold px-4">
+              {isAuto ? "She's messaging you now... Open WhatsApp to continue" : "To continue, you'll need her number. Go to Home Screen > Contacts and save it."}
             </div>
-        );
+            {isAuto ? (
+              <button
+                onClick={() => setPhoneApp('whatsapp')}
+                className="w-full py-3 bg-[#25d366] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-opacity-80 transition-all animate-bounce"
+              >
+                Open WhatsApp
+              </button>
+            ) : (
+              <button
+                onClick={() => setPhoneApp('home')}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all"
+              >
+                Go To Home Screen
+              </button>
+            )}
+          </div>
+        </div>
+      );
     }
 
     return null;
+  };
+
+  // --- SHARED WHATSAPP HELPERS ---
+  const renderWARPlayerMsg = (text) => (
+    <div className="flex justify-end mb-4 relative z-0">
+      <div className="max-w-[85%] bg-[#dcf8c6] text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tr-none text-[12px] leading-snug shadow-sm relative animate-fadeIn before:content-[''] before:absolute before:top-0 before:-right-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-[#dcf8c6] before:border-l-[#dcf8c6]">
+        {text}
+        <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5 flex items-center gap-1">
+          10:32 PM
+          <svg viewBox="0 0 16 15" width="12" height="12" className="text-[#53bdeb]"><path fill="currentColor" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>
+        </span>
+      </div>
+    </div>
+  );
+
+  const renderWARPriyaMsg = (text) => (
+    <div className="flex justify-start mb-4 relative z-0">
+      <div className="max-w-[85%] bg-white text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tl-none text-[12px] leading-snug shadow-sm relative animate-fadeIn before:content-[''] before:absolute before:top-0 before:-left-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-white before:border-r-white">
+        {text}
+        <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5">10:31 PM</span>
+      </div>
+    </div>
+  );
+
+  const renderWARSystemMsg = (text) => (
+    <div className="text-center text-[10px] text-zinc-500 bg-[#e1f5fe]/80 rounded-lg px-3 py-1 mx-auto my-3 w-fit font-semibold shadow-sm">
+      {text}
+    </div>
+  );
+
+  const renderWARChoices = (opts) => (
+    <div className="flex flex-col gap-1 p-4 bg-[#f0f0f0] border-t border-black/10">
+      <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center mb-1">Select Option</p>
+      {opts.map((opt, i) => (
+        <button key={i} onClick={() => handleChoice(opt)} className="w-full py-2.5 bg-[#075e54] hover:bg-[#128c7e] text-white text-[10px] font-bold rounded-lg border border-black/5 transition-all active:scale-95 leading-tight shadow-sm">
+          {opt.text}
+        </button>
+      ))}
+    </div>
+  );
+
+  const WAHeader = ({ title, subtitle, isCall, showBack }) => (
+    <div className="bg-[#075e54] p-4 pt-10 flex items-center gap-3 text-white sticky top-0 z-20 shadow-md">
+      {showBack && (
+        <div className="cursor-pointer font-bold text-xl mr-1 hover:text-white/80 active:scale-95 transition-transform" onClick={() => setPhoneApp('whatsapp_list')}>←</div>
+      )}
+      <div className="w-10 h-10 rounded-full bg-zinc-300 overflow-hidden flex items-center justify-center">
+        <div className="w-full h-full bg-indigo-600 border border-white/20" />
+      </div>
+      <div className="flex-1">
+        <p className="font-bold text-sm leading-tight">{title}</p>
+        {subtitle && <p className="text-[10px] opacity-80">{subtitle}</p>}
+      </div>
+      <div className="flex gap-4 opacity-80">
+        {!isCall && <><span>📹</span><span>📞</span><span>⋮</span></>}
+      </div>
+    </div>
+  );
+
+  const GPayApp = ({ amount }) => {
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setAssets(prev => prev - amount);
+        if (amount === 45000) {
+          setPhoneApp('whatsapp');
+          setStoryProgress(9);
+        } else {
+          setGameState('act3');
+        }
+      }, 2500);
+      return () => clearTimeout(timer);
+    }, [amount]);
+
+    return (
+      <div className="flex-1 flex flex-col bg-white items-center justify-center text-black relative pt-10 px-8">
+        <div className="absolute top-0 inset-x-0 h-48 bg-blue-600 rounded-b-[3rem] -z-10" />
+        <div className="w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center mb-6 text-4xl font-black text-blue-600">
+          <span className="italic">G</span>
+        </div>
+        <p className="text-sm font-bold text-zinc-500 mb-2 uppercase tracking-widest">Paying</p>
+        <p className="text-2xl font-black mb-8 text-black">{amount === 45000 ? "Priya" : "+91 98941 23094 (Unknown)"}</p>
+        <div className="bg-zinc-50 rounded-3xl p-8 w-full shadow-inner border border-zinc-100 flex flex-col items-center">
+          <span className="text-5xl font-black text-zinc-800 mb-2">₹{amount.toLocaleString('en-IN')}</span>
+          <span className="text-xs text-zinc-400 font-mono mb-6">Banking Name: RAMESH V</span>
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-sm font-bold text-blue-600 animate-pulse">Processing Payment...</p>
+        </div>
+      </div>
+    );
+  };
+
+  const HomeScreen = () => (
+    <div className="flex-1 flex flex-col relative overflow-hidden bg-zinc-800">
+      <div className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm pointer-events-none" style={{ backgroundImage: 'url("/assets/study.png")' }} />
+      <div className="grid grid-cols-4 gap-4 p-6 z-10 pt-16">
+        <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setPhoneApp('instagram')}>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 flex items-center justify-center text-white text-2xl shadow-lg">📸</div>
+          <span className="text-[10px] text-white drop-shadow-md font-bold">Insta</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => {
+          if (storyProgress >= 7 && savedContact) setPhoneApp('whatsapp_list');
+          else setFeedback("No new messages yet.");
+        }}>
+          <div className="w-12 h-12 rounded-2xl bg-[#25d366] flex items-center justify-center text-white text-2xl shadow-lg relative">
+            💬
+            {storyProgress >= 7 && savedContact && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white border border-transparent animate-pulse">1</div>}
+          </div>
+          <span className="text-[10px] text-white drop-shadow-md font-bold">WhatsApp</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => setPhoneApp('contacts')}>
+          <div className="w-12 h-12 rounded-2xl bg-zinc-700 flex items-center justify-center text-white text-2xl shadow-lg border border-white/10">👤</div>
+          <span className="text-[10px] text-white drop-shadow-md font-bold">Contacts</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderContactsApp = () => {
+    if (addingContact) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-50 text-black pt-10">
+          <div className="p-4 bg-zinc-100 border-b border-zinc-300 flex items-center justify-between">
+            <span className="text-zinc-500 cursor-pointer text-sm" onClick={() => setAddingContact(false)}>Cancel</span>
+            <span className="font-bold text-sm">New Contact</span>
+            <span className="text-blue-500 font-bold cursor-pointer text-sm" onClick={() => {
+              if (contactName.trim() !== '') {
+                if (contactName.toLowerCase().includes('priya') && (storyProgress === 6 || storyProgress === 5.5 || storyProgress === 5.8)) {
+                  setSavedContact(true);
+                  setPhoneApp('whatsapp');
+                  setDay(13);
+                  setStoryProgress(6.5);
+                } else {
+                  setAddingContact(false);
+                }
+              }
+            }}>Done</span>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="w-24 h-24 rounded-full bg-zinc-300 mx-auto flex items-center justify-center text-4xl text-white shadow-inner">👤</div>
+            <input type="text" placeholder="First Name" value={contactName} onChange={e => setContactName(e.target.value)} className="w-full p-3 border-b border-zinc-300 bg-transparent outline-none text-sm placeholder-zinc-400 font-bold" autoFocus />
+            <input type="text" placeholder="Phone" defaultValue="+91 94440 12345" className="w-full p-3 border-b border-zinc-300 bg-transparent outline-none text-sm font-mono text-zinc-500" />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 flex flex-col bg-white text-black pt-10">
+        <div className="p-4 flex justify-between items-center border-b border-zinc-200">
+          <span className="font-bold text-lg">Contacts</span>
+          <span className="text-blue-500 text-2xl cursor-pointer leading-none" onClick={() => setAddingContact(true)}>+</span>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-5">
+          <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400">👤</div><span className="font-bold text-sm">Amma</span></div>
+          <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400">👤</div><span className="font-bold text-sm">Appa</span></div>
+          {savedContact && <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex justify-center items-center font-black">P</div><span className="font-bold text-sm">Priya</span></div>}
+          <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400">👤</div><span className="font-bold text-sm">Rahul (College)</span></div>
+        </div>
+      </div>
+    );
+  };
+
+  const WAAudioCall = () => {
+    const [isRinging, setIsRinging] = useState(true);
+    const [callDuration, setCallDuration] = useState(0);
+    const audioRef = useRef(null);
+    const timerRef = useRef(null);
+    const safetyTimeoutRef = useRef(null);
+
+    useEffect(() => {
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.onended = null;
+          audioRef.current.onerror = null;
+        }
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
+      };
+    }, []);
+
+    const handleAnswer = () => {
+      console.log("Answering WhatsApp call...");
+
+      // 1. PRIME/UNLOCK AUDIO IMMEDIATELY (Pattern from Level1.jsx)
+      // This ensures the browser respects the user interaction synchronously for media playback
+      const audio = new Audio();
+      audio.play().catch(() => { }); // silent permission grant
+      audio.pause();
+
+      setIsRinging(false);
+
+      // 2. SET SOURCE AND PLAY (Using capital Dia_audio for consistency with Level1.jsx)
+      audio.src = '/Dia_audio/lvl1/lvlpriya.mpeg.mp3';
+      audioRef.current = audio;
+      audio.volume = 1.0;
+
+      const endCall = () => {
+        console.log("Ending call and transitioning to next chat...");
+        if (timerRef.current) clearInterval(timerRef.current);
+        if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
+
+        // Transition to next chat state
+        setStoryProgress(8);
+        setPhoneApp('whatsapp');
+      };
+
+      audio.onended = () => {
+        console.log("Audio finished naturally.");
+        endCall();
+      };
+
+      audio.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        // Fallback to end call if audio fails
+        setTimeout(endCall, 1500);
+      };
+
+      audio.onplay = () => {
+        console.log("Audio started playing successfully.");
+      };
+
+      // Safety fallback: Ensure transition even if events fail to fire (30s)
+      safetyTimeoutRef.current = setTimeout(() => {
+        console.warn("Safety timeout reached in WAAudioCall.");
+        endCall();
+      }, 30000);
+
+      // Attempt to play
+      audio.load();
+      audio.play().catch(err => {
+        console.error("Audio play failed (interaction or path?):", err);
+        // If play completely fails, transition anyway after a brief delay
+        setTimeout(endCall, 1000);
+      });
+
+      // Start duration timer for UI feedback
+      timerRef.current = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    };
+
+    const formatTime = (secs) => {
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    return (
+      <div className="flex-1 flex flex-col bg-[#075e54] relative text-white pt-10">
+        <div className="flex-1 p-4 flex flex-col items-center justify-center relative border-b border-[#25d366]/20">
+          <p className="z-10 text-lg text-white/80 mb-8 font-mono">
+            {isRinging ? "Incoming Voice Call" : formatTime(callDuration)}
+          </p>
+          <div className="z-10 w-32 h-32 rounded-full bg-zinc-300 mb-6 flex items-center justify-center text-4xl shadow-xl border-4 border-[#25d366]/50 mb-4 overflow-hidden relative">
+            <div className={`w-full h-full bg-indigo-600 ${isRinging ? 'animate-pulse' : ''}`} />
+            <div className="absolute font-black text-6xl text-white/50">P</div>
+          </div>
+          <p className="z-10 text-3xl font-bold mb-2">Priya</p>
+          <p className="z-10 text-sm opacity-80 mb-2 font-mono">+91 94440 12345</p>
+        </div>
+        <div className="h-48 flex justify-around items-center px-8 pb-10 bg-[#075e54]">
+          <div onClick={() => {
+            if (audioRef.current) audioRef.current.pause();
+            setPhoneApp('whatsapp');
+            setFeedback("You hung up. She texted.");
+            setStoryProgress(8);
+          }} className="flex flex-col items-center gap-2 cursor-pointer">
+            <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-3xl shadow-lg hover:scale-105 transition-transform"><span className="rotate-[135deg]">📞</span></div>
+            <span className="text-white/80 text-sm">{isRinging ? "Decline" : "End Call"}</span>
+          </div>
+          {isRinging && (
+            <div onClick={handleAnswer} className="flex flex-col items-center gap-2 cursor-pointer animate-bounce hover:scale-105 transition-transform">
+              <div className="w-16 h-16 rounded-full bg-[#25d366] flex items-center justify-center text-3xl shadow-lg">📞</div>
+              <span className="text-white/80 text-sm font-bold">Answer</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const WAVideoCall = () => {
+    const [isAccepted, setIsAccepted] = useState(false);
+    const videoRef = useRef(null);
+    const playerVideoRef = useRef(null);
+
+    // Removed camera access logic to respect user privacy
+    useEffect(() => {
+      // Logic for camera access removed per user request
+    }, []);
+
+    const handleEndCall = useCallback(() => {
+      console.log("Video call ended. Transitioning...");
+      setPhoneApp('whatsapp_transition_2h');
+      setFeedback("Call ended. Screen went black.");
+      setTimeout(() => {
+        setStoryProgress(8.5);
+        setDay(16);
+        setPhoneApp('whatsapp');
+      }, 2500);
+    }, []);
+
+    if (isAccepted) {
+      return (
+        <div className="flex-1 flex flex-col bg-black relative pt-10 overflow-hidden">
+          {/* Scammer Video (Main View) */}
+          <video
+            ref={videoRef}
+            src="/Dia_audio/lvl1/priyavideo.mp4"
+            autoPlay
+            playsInline
+            onEnded={handleEndCall}
+            className="w-full h-full object-cover"
+          />
+
+          {/* Player PIP (Picture-in-Picture) */}
+          <div className="absolute top-24 right-4 w-28 h-40 bg-zinc-800 rounded-lg border-2 border-white/20 z-20 shadow-xl overflow-hidden">
+            <img
+              src="/assets/protagonist.png"
+              alt="Player"
+              className="object-cover w-full h-full scale-x-[-1]"
+            />
+          </div>
+
+          {/* Call Controls Overlay */}
+          <div className="absolute inset-x-0 bottom-12 flex justify-center z-30">
+            <div
+              onClick={handleEndCall}
+              className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-2xl shadow-xl border-2 border-white/20 cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+            >
+              <span className="rotate-[135deg] text-white">📞</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 flex flex-col bg-zinc-900 relative pt-10 overflow-hidden">
+        <WAHeader title="Priya" subtitle="WhatsApp Video" isCall={true} />
+
+        {/* Background (Blurred Character Image) */}
+        <div className="absolute inset-0 bg-zinc-900 z-0 overflow-hidden">
+          <img src="protagonist.png" alt="Protagonist" className="object-cover w-full h-full scale-x-[-1] opacity-40 blur-sm" />
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
+
+        <div className="flex-1 p-4 text-center flex flex-col items-center justify-center z-20">
+          <div className="w-32 h-32 rounded-full border-4 border-[#25d366] border-t-transparent animate-spin mb-4" />
+          <div className="w-24 h-24 rounded-full bg-indigo-600 absolute flex items-center justify-center text-4xl font-black text-white/50 shadow-[0_0_30px_rgba(79,70,229,0.5)]">P</div>
+          <p className="font-bold text-white text-xl mt-8 drop-shadow-md">Incoming Video Call</p>
+          <p className="text-[#25d366] text-sm mt-2 font-mono uppercase tracking-widest animate-pulse">Priya is calling...</p>
+        </div>
+
+        <div className="z-20 bg-black/60 backdrop-blur-md pb-12 pt-6 shrink-0 relative">
+          <div className="flex justify-around items-center px-12">
+            <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => {
+              setPhoneApp('whatsapp_transition_2h');
+              setFeedback("Call declined. You went on with your day.");
+              setTimeout(() => {
+                setStoryProgress(8.5);
+                setDay(16);
+                setPhoneApp('whatsapp');
+              }, 2500);
+            }}>
+              <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-2xl shadow-lg transition-transform hover:scale-110 active:scale-95 text-white">📞</div>
+              <span className="text-white/60 text-[10px] font-bold uppercase tracking-tighter">Decline</span>
+            </div>
+
+            <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => setIsAccepted(true)}>
+              <div className="w-16 h-16 rounded-full bg-[#25d366] flex items-center justify-center text-2xl shadow-lg transition-transform hover:scale-110 active:scale-95 text-white animate-bounce">📹</div>
+              <span className="text-white/60 text-[10px] font-bold uppercase tracking-tighter">Answer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  const WhatsAppApp = () => {
+    // Determine which chat to show based on phoneApp override, otherwise default to Priya
+    const isUnknown = phoneApp === 'whatsapp_unknown';
+    const currentHistory = isUnknown ? waUnknownHistory : waHistory;
+
+    // Helper to auto-scroll to bottom of chat
+    const chatEndRef = useRef(null);
+    useEffect(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [waHistory, waUnknownHistory, phoneApp]);
+
+    useEffect(() => {
+      if (storyProgress === 6) {
+        setWaHistory(prev => {
+          if (prev.length > 0) return prev;
+          return [
+            { type: 'system', text: 'TODAY' },
+            { type: 'priya', text: "Hey! It's Priya from Insta. Save my number? ❤️" }
+          ];
+        });
+      }
+      if (storyProgress === 6.5) {
+        setWaHistory(prev => {
+          if (prev.some(m => m.text.includes('exactly like I imagined'))) return prev;
+          return prev;
+        });
+      }
+      if (storyProgress === 8) {
+        setWaHistory(prev => {
+          if (prev.some(m => m.text.includes('exactly like I imagined'))) return prev;
+          return [
+            ...prev,
+            { type: 'priya', text: "Hiii! You sound exactly like I imagined! Did your grandfather leave anything for you? I hope you're taken care of." }
+          ];
+        });
+      }
+      if (storyProgress === 8.5) {
+        setWaHistory(prev => {
+          if (prev.some(m => m.text.includes('₹45,000 BY 6 PM'))) return prev;
+          return [
+            ...prev,
+            { type: 'system', text: '2 HOURS LATER' },
+            { type: 'priya', text: "Krish... I need ₹45,000 BY 6 PM or I'm out of my house. Please... 😭" }
+          ];
+        });
+      }
+      if (storyProgress === 9) {
+        setWaHistory(prev => {
+          if (prev.some(m => m.text.includes('80,000 ASAP'))) return prev;
+          setTimeout(() => setShowUnknownNotif(true), 1500);
+          return [
+            ...prev,
+            { type: 'priya', text: "Krish where are you?? ₹80,000 ASAP!!" }
+          ];
+        });
+      }
+      if (storyProgress === 9.5) {
+        setWaHistory(prev => {
+          if (prev.some(m => m.text.includes('i had to tell them'))) return prev;
+          return [
+            ...prev,
+            { type: 'priya', text: "i'm sorry Krish... i had to tell them. just pay and it goes away. 😭" }
+          ];
+        });
+      }
+    }, [storyProgress]);
+
+    const addToWA = (msg) => setWaHistory(prev => [...prev, msg]);
+    const addToUnknown = (msg) => setWaUnknownHistory(prev => [...prev, msg]);
+
+    const renderChatStream = (history) => (
+      <div className="flex-1 p-4 flex flex-col pt-6 pb-6 overflow-y-auto custom-scrollbar relative z-10 w-full">
+        {history.map((msg, idx) => {
+          if (msg.type === 'system') return <React.Fragment key={idx}>{renderWARSystemMsg(msg.text)}</React.Fragment>;
+          if (msg.type === 'priya') return <React.Fragment key={idx}>{renderWARPriyaMsg(msg.text)}</React.Fragment>;
+          if (msg.type === 'unknown') return (
+            <div key={idx} className="p-3 bg-red-100 border border-red-300 rounded-lg text-black text-[10px] my-4 leading-tight font-bold shadow-sm animate-fadeIn">
+              <span className="text-red-700 block mb-1">Unknown Number:</span>
+              {msg.text}
+            </div>
+          );
+          return <React.Fragment key={idx}>{renderWARPlayerMsg(msg.text)}</React.Fragment>;
+        })}
+        <div ref={chatEndRef} />
+      </div>
+    );
+
+    if (isUnknown) {
+      return (
+        <div className="flex-1 flex flex-col bg-[#ece5dd] relative w-full h-full">
+          <div className="absolute inset-0 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] bg-cover opacity-10 pointer-events-none" />
+          <WAHeader title="+91 98941 23094" subtitle="online" showBack={true} />
+          {renderChatStream(waUnknownHistory)}
+          <div className="z-20 pb-10 pt-2 shrink-0 w-full bg-[#f0f0f0] shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col">
+            {renderWARChoices([
+              {
+                text: "Return to Priya's Chat", points: 0, nextStep: 9.5, impact: () => {
+                  setPhoneApp('whatsapp');
+                  setStoryProgress(9.5);
+                }
+              }
+            ])}
+          </div>
+        </div>
+      );
+    }
+
+    // Default: Priya Chat
+    return (
+      <div className="flex-1 flex flex-col bg-[#ece5dd] relative w-full h-full">
+        <div className="absolute inset-0 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] bg-cover opacity-10 pointer-events-none" />
+        <WAHeader title={savedContact ? "Priya" : "+91 94440 12345"} subtitle={savedContact ? (storyProgress === 6.5 ? "online" : "typing...") : "Unknown"} showBack={true} />
+
+        {!savedContact && (
+          <div className="bg-white/90 backdrop-blur p-4 border-b border-zinc-200 flex flex-col gap-3 relative z-20 animate-fadeIn">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest text-center">This sender is not in your contacts</span>
+            <div className="flex gap-2">
+              <button onClick={() => {
+                setSavedContact(true);
+                setFeedback("Contact Saved: Priya");
+                setStoryProgress(6.5);
+              }} className="flex-1 bg-[#25d366] text-white py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#128c7e] shadow-sm transition-colors">Add to Contacts</button>
+              <button className="flex-1 bg-zinc-200 text-zinc-600 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-zinc-300 transition-colors">Block</button>
+            </div>
+          </div>
+        )}
+
+        {showUnknownNotif && (
+          <div className="absolute top-20 left-4 right-4 bg-zinc-800 text-white p-4 rounded-xl shadow-2xl border border-white/20 z-50 flex items-start gap-4 cursor-pointer hover:bg-zinc-700 transition animate-bounce"
+            onClick={() => {
+              setShowUnknownNotif(false);
+              setPhoneApp('whatsapp_unknown');
+              setWaUnknownHistory([{ type: 'system', text: 'TODAY' }, { type: 'unknown', text: 'Pay ₹1,20,000 NOW or we release your video call screenshots. We know about the ₹42 lakhs.' }]);
+            }}>
+            <div className="w-10 h-10 bg-[#25d366] rounded-full flex items-center justify-center text-xl">💬</div>
+            <div className="flex-1">
+              <p className="font-bold text-xs">Message from +91 98941 23094</p>
+              <p className="text-[10px] opacity-80 mt-1 line-clamp-2">Pay ₹1,20,000 NOW or we release your video call screenshots...</p>
+            </div>
+          </div>
+        )}
+
+        {renderChatStream(waHistory)}
+
+        <div className="z-20 pb-10 pt-2 shrink-0 w-full bg-[#f0f0f0] shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col">
+          {storyProgress === 6.5 && renderWARChoices([
+            {
+              text: "Send: 'Hey, this is Krish from Insta.'", points: 0, impact: () => {
+                addToWA({ type: 'player', text: "Hey, this is Krish from Insta." });
+                setStoryProgress(6.6);
+                setTimeout(() => {
+                  addToWA({ type: 'priya', text: "Hiiii! Let's talk!" });
+                  setTimeout(() => {
+                    setPhoneApp('whatsapp_audio_call');
+                    setStoryProgress(7);
+                  }, 2000);
+                }, 1500);
+              }
+            }
+          ])}
+
+          {storyProgress === 8 && renderWARChoices([
+            {
+              text: "A) Change subject: 'I'd rather not talk finances.'", points: 20, setDay: 14, impact: () => {
+                addToWA({ type: 'player', text: "I'd rather not talk finances." });
+                setStoryProgress(8.1); // intermediary state to remove options and wait
+                setTimeout(() => {
+                  setPhoneApp('whatsapp_video_call');
+                  setDay(15);
+                }, 1500);
+              }
+            },
+            {
+              text: "B) 'A little. Enough to be okay.'", points: 10, setDay: 14, impact: () => {
+                addToWA({ type: 'player', text: "A little. Enough to be okay." });
+                setStoryProgress(8.1);
+                setTimeout(() => {
+                  setPhoneApp('whatsapp_video_call');
+                  setDay(15);
+                }, 1500);
+              }
+            },
+            {
+              text: "C) Tell her about the ₹42 lakh specifically.", points: 0, setDay: 14, impact: () => {
+                addToWA({ type: 'player', text: "I have some inheritance, about 42 lakhs." });
+                setStoryProgress(8.1);
+                setTimeout(() => {
+                  setPhoneApp('whatsapp_video_call');
+                  setDay(15);
+                }, 1500);
+              }
+            }
+          ])}
+
+          {storyProgress === 8.5 && renderWARChoices([
+            {
+              text: "A) Send ₹45,000 via UPI immediately.", points: 0, setDay: 16, impact: () => {
+                addToWA({ type: 'player', text: "Okay, sending it now." });
+                setStoryProgress(9);
+                setPhoneApp('gpay_45k');
+              }
+            },
+            {
+              text: "B) 'Give me your landlord's number to verify.'", points: 20, setDay: 16, impact: () => {
+                addToWA({ type: 'player', text: "Give me your landlord's number to verify." });
+                setStoryProgress(9);
+              }
+            },
+            {
+              text: "C) 'I cannot send money to anyone online.'", points: 25, setDay: 16, impact: () => {
+                addToWA({ type: 'player', text: "I cannot send money to anyone online." });
+                setStoryProgress(9);
+              }
+            }
+          ])}
+
+          {storyProgress === 9.5 && renderWARChoices([
+            {
+              text: "A) Pay scammers ₹1,20,000 immediately.", points: 0, impact: () => setPhoneApp('gpay_120k')
+            },
+            {
+              text: "B) Send partial amount (₹50,000).", points: 0, impact: () => setPhoneApp('gpay_50k')
+            },
+            {
+              text: "C) Screenshot, Block, and Dial 1930 / cybercrime.gov.in.", points: 45, impact: () => { }, feedback: "CORRECT: Never pay blackmailers. Report immediately.", nextScene: 'act3'
+            }
+          ])}
+        </div>
+      </div>
+    );
+  };
+
+  // --- MAIN RENDERS ---
+
+  const renderIntro = () => (
+    <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-center p-12">
+      <h1 className="text-7xl font-black mb-6 tracking-tighter italic">I'M SO LONELY</h1>
+      <div className="bg-red-600 px-6 py-2 text-sm font-black uppercase tracking-widest mb-10 skew-x-[-10deg]">Advanced Romance Fraud Mystery</div>
+      <p className="max-w-xl text-zinc-400 text-lg leading-relaxed mb-12">
+        Explore the study. Press <span className="text-white font-bold">E</span> for your phone.
+      </p>
+      <button onClick={() => setGameState('exploration')} className="px-16 py-5 bg-white text-black font-black uppercase tracking-widest">
+        Enter The Study
+      </button>
+    </div>
+  );
+
+  const renderExploration = () => {
+    const getBackground = () => {
+      if (day === 1) return '/assets/study.png';
+      if (day >= 2 && day <= 7) return '/assets/bedplain.png';
+      if (day >= 8 && day <= 13) return '/assets/garden_night.png';
+      if (day === 14) return '/assets/morning_bed.png';
+      if (day === 15) return '/assets/office_inside.png';
+      if (day >= 16) return '/assets/study.png';
+      return '/assets/study.png';
+    };
+
+    const getLocationTitle = () => {
+      if (day === 1) return "Thatha's Study";
+      if (day >= 2 && day <= 7) return "Bedroom";
+      if (day >= 8 && day <= 13) return "Garden Terrace";
+      if (day === 14) return "Bedroom";
+      if (day === 15) return "Office";
+      if (day >= 16) return "Thatha's Study";
+      return "Thatha's Study";
+    };
+
+    const getLocationDesc = () => {
+      if (day === 1) return "The House of Grief. Listening to the silence.";
+      if (day >= 2 && day <= 7) return "The glow of the phone is the only light.";
+      if (day >= 8 && day <= 13) return "Warm evening breeze.";
+      if (day === 14) return "Morning sun streams in.";
+      if (day === 15) return "The harsh light of a new day.";
+      if (day >= 16) return "The room feels cold again.";
+      return "The room feels cold again.";
+    };
+
+    return (
+      <div className="w-full h-full relative bg-zinc-900 overflow-hidden text-white">
+        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("${getBackground()}")` }} />
+        {/* Removed Day HUD overlay per user request */}
+        <Player x={playerPos.x} y={playerPos.y} />
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-20">
+          <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white font-bold mb-2 shadow-[0_0_15px_rgba(255,255,255,0.3)]">E</div>
+          <div className="text-[10px] uppercase font-mono tracking-widest bg-black/70 px-3 py-1 rounded backdrop-blur border border-white/20">Check Phone</div>
+        </div>
+        {feedback && (
+          <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-[100] bg-indigo-600 px-12 py-4 rounded-full text-center shadow-2xl animate-fadeIn border border-indigo-400">
+            <p className="text-white font-black italic">{feedback}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+
+
+  const renderPhone = () => {
+    let AppToRender = <HomeScreen />;
+    if (phoneApp === 'instagram') AppToRender = <InstagramApp />;
+    else if (phoneApp === 'insta_profile') AppToRender = <InstaProfileApp />;
+    else if (phoneApp === 'dm') AppToRender = <DMApp />;
+    else if (phoneApp === 'contacts') AppToRender = renderContactsApp();
+    else if (phoneApp === 'whatsapp') AppToRender = <WhatsAppApp />;
+    else if (phoneApp === 'whatsapp_unknown') AppToRender = <WhatsAppApp />;
+    else if (phoneApp === 'dm_transition') AppToRender = (
+      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
+        <p className="font-mono text-xl tracking-widest text-zinc-400 z-10 animate-pulse">{transitionMsg}</p>
+      </div>
+    );
+    else if (phoneApp === 'whatsapp_list') AppToRender = (
+      <div className="flex-1 flex flex-col bg-white text-black pt-10">
+        <div className="bg-[#075e54] p-4 flex justify-between items-center text-white shadow-md z-10 w-full">
+          <span className="font-bold text-lg">WhatsApp</span>
+          <span className="text-xl">🔍 ⋮</span>
+        </div>
+        <div className="flex-1 overflow-y-auto cursor-pointer">
+          <div className="flex items-center gap-4 p-4 border-b border-zinc-100 hover:bg-zinc-50" onClick={() => setPhoneApp('whatsapp')}>
+            <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex justify-center items-center font-black text-xl overflow-hidden shadow-inner shrink-0">
+              <div className="w-full h-full bg-indigo-600 border border-white/20" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-baseline mb-1">
+                <span className="font-bold text-sm truncate">{savedContact ? "Priya" : "+91 94440 12345"}</span>
+                {(storyProgress === 6.5 || storyProgress === 6) ? <span className="text-[10px] text-[#25d366] font-bold">10:31 PM</span> : <span className="text-[10px] text-zinc-400">10:31 PM</span>}
+              </div>
+              <p className="text-xs text-zinc-500 truncate">{waHistory.length > 0 ? waHistory[waHistory.length - 1]?.text : "Waiting for messages..."}</p>
+            </div>
+            {(storyProgress === 6.5 || storyProgress === 8 || storyProgress === 9.5) && <div className="w-5 h-5 bg-[#25d366] rounded-full flex items-center justify-center text-[10px] text-white font-bold ml-2 shrink-0">1</div>}
+          </div>
+
+          {waUnknownHistory.length > 0 && (
+            <div className="flex items-center gap-4 p-4 border-b border-zinc-100 bg-red-50 hover:bg-red-100 transition-colors" onClick={() => {
+              setPhoneApp('whatsapp_unknown');
+              if (storyProgress === 9) {
+                // Read the blackmail msg, next time we are in Priya's chat it triggers the apology
+                setStoryProgress(9.5);
+              }
+            }}>
+              <div className="w-12 h-12 rounded-full bg-zinc-300 text-zinc-600 flex justify-center items-center font-black text-xl shrink-0">👤</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-baseline mb-1">
+                  <span className="font-bold text-sm truncate text-red-600">+91 98941 23094</span>
+                  <span className="text-[10px] text-[#25d366] font-bold">Just Now</span>
+                </div>
+                <p className="text-xs text-zinc-600 truncate font-semibold italic">{waUnknownHistory[waUnknownHistory.length - 1]?.text}</p>
+              </div>
+              {storyProgress === 9 && <div className="w-5 h-5 bg-[#25d366] rounded-full flex items-center justify-center text-[10px] text-white font-bold ml-2 shrink-0">1</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+    else if (phoneApp === 'whatsapp_audio_call') AppToRender = <WAAudioCall />;
+    else if (phoneApp === 'whatsapp_video_call') AppToRender = <WAVideoCall />;
+    else if (phoneApp.startsWith('gpay_')) {
+      const amount = phoneApp === 'gpay_45k' ? 45000 : phoneApp === 'gpay_120k' ? 120000 : 50000;
+      AppToRender = <GPayApp amount={amount} />;
+    }
+    else if (phoneApp === 'whatsapp_transition_2h') AppToRender = (
+      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/assets/study.png')] bg-cover opacity-10 bg-center"></div>
+        <div className="w-16 h-16 border-t-2 border-indigo-500 border-r-2 border-transparent rounded-full animate-spin mb-8 z-10"></div>
+        <p className="font-mono text-xl tracking-widest text-zinc-400 z-10">2 HOURS LATER</p>
+      </div>
+    );
+
+    return (
+      <div className="w-full h-full bg-black/40 flex items-center justify-center animate-in zoom-in duration-300 backdrop-blur-sm z-[200] absolute inset-0 py-8">
+        <div className="w-[360px] h-full max-h-[760px] shrink-0 bg-zinc-900 rounded-[3rem] border-[10px] border-zinc-950 shadow-[0_0_100px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col ring-1 ring-zinc-800">
+          <div className="h-8 flex justify-between px-8 items-center text-[10px] text-white font-mono absolute top-0 left-0 right-0 z-[100] mix-blend-difference pointer-events-none">
+            <span>10:31 PM</span>
+            <div className="flex gap-1 items-center"><span>📱 🛜 🔋</span></div>
+          </div>
+          {AppToRender}
+          {phoneApp !== 'home' && (
+            <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-black/80 to-transparent pointer-events-none flex justify-center items-end pb-3 z-[150]">
+              <div className="w-24 h-1.5 bg-white/50 hover:bg-white rounded-full transition-colors pointer-events-auto cursor-pointer" onClick={() => setPhoneApp('home')} title="Return to Home Screen" />
+            </div>
+          )}
+          <div className="absolute top-1/2 -right-4 translate-x-full -translate-y-1/2">
+            <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase pointer-events-none bg-black/80 px-4 py-2 rounded-xl backdrop-blur-md whitespace-nowrap hidden lg:block">Press E to hide phone</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderResults = () => {
+    const rank = points >= 230 ? "Cyber Detective Elite" : points >= 150 ? "Vigilant Defender" : points >= 80 ? "Awareness Student" : "Compromised";
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-12 bg-zinc-950">
+        <h1 className="text-9xl font-black mb-2 italic tracking-tighter">{points} / 230</h1>
+        <p className="text-3xl font-black text-indigo-400 mb-12 uppercase">{rank}</p>
+        <div className="max-w-2xl text-zinc-400 italic mb-12 text-lg">
+          "You kept your promise, beta. You protected the assets. I am proud of you." <span className="text-white block mt-2">— Grandfather Rajan</span>
+        </div>
+        <button onClick={() => { adjustSafetyScore(points); completeLevel(points >= 150, points); }} className="px-16 py-6 bg-white text-black font-black text-xl italic uppercase">
+          Finish Chapter 11
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div className="w-full h-full bg-black text-white font-sans overflow-hidden">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+            `}} />
+      {gameState === 'intro' && renderIntro()}
+      {gameState === 'exploration' && renderExploration()}
+      {gameState === 'phone' && renderPhone()}
+      {gameState === 'act3' && renderAct3()}
+      {gameState === 'awareness' && renderAwareness()}
+      {gameState === 'report' && renderReport()}
+      {gameState === 'results' && renderResults()}
+
+      {gameState === 'exploration' && (
+        <div className="fixed top-4 right-4 z-[200] flex flex-col gap-2 items-end pointer-events-none">
+          <div className="bg-black/80 px-4 py-2 border border-indigo-500/50 text-xs font-mono text-indigo-400 font-bold uppercase tracking-widest shadow-xl rounded backdrop-blur-sm">Score: {points}</div>
+          <div className="bg-black/80 px-4 py-2 border border-emerald-500/50 text-xs font-mono text-emerald-400 font-bold uppercase tracking-widest shadow-xl rounded backdrop-blur-sm shadow-[0_0_20px_rgba(16,185,129,0.1)]">Assets: ₹{assets.toLocaleString('en-IN')}</div>
+        </div>
+      )}
+    </div>
+  );
+
+  function renderAct3() {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full bg-zinc-950 p-6 md:p-12 overflow-y-auto relative">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-indigo-600/10 blur-[120px] rounded-full animate-pulse delay-1000" />
+        </div>
+
+        <div className="max-w-4xl w-full z-10 animate-fadeIn">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+            <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.3)]">THE UNMASKING</h1>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+          </div>
+
+          <div className="bg-zinc-900/40 backdrop-blur-xl border border-white/10 p-8 md:p-12 rounded-3xl shadow-2xl space-y-8 flex flex-col items-center text-center">
+            <p className="text-zinc-300 text-lg md:text-xl leading-relaxed max-w-2xl font-medium">
+              The operator was <span className="text-white font-black underline decoration-red-500/50 underline-offset-4">Ramesh</span>, running 12 'Priya' accounts from a rented room.
+              <br />He targeted you using your grief about <span className="text-white font-bold italic">Grandfather Rajan</span>.
+            </p>
+
+            <div className="relative group w-full max-w-2xl">
+              <div className="absolute -inset-1 bg-gradient-to-r from-red-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative bg-black/60 border border-red-500/30 p-6 md:p-8 rounded-2xl italic text-red-200 text-lg leading-relaxed shadow-inner">
+                "The video call used a real-time deepfake. You were recorded without consent for blackmail."
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center mt-12">
+            <button
+              onClick={() => setGameState('awareness')}
+              className="group relative px-12 py-5 bg-white font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-[0_20px_50px_rgba(255,255,255,0.1)] overflow-hidden"
+            >
+              <div className="absolute inset-0 w-0 bg-red-600 transition-all duration-300 group-hover:w-full group-hover:left-0 z-0" style={{ left: '100%' }}></div>
+              <span className="relative z-10 text-black transition-colors group-hover:text-white flex items-center gap-3">
+                Next: Red Flags <span className="translate-x-0 group-hover:translate-x-2 transition-transform">→</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderAwareness() {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-full bg-zinc-950 p-6 md:p-12 overflow-y-auto relative">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] bg-indigo-600/5 blur-[150px] rounded-full animate-pulse" />
+          <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-emerald-600/5 blur-[150px] rounded-full animate-pulse delay-700" />
+        </div>
+
+        <div className="max-w-6xl w-full z-10 animate-fadeIn">
+          <div className="text-center mb-16">
+            <h1 className="text-4xl md:text-6xl font-black italic tracking-tight text-white mb-4">ROMANCE FRAUD RED FLAGS</h1>
+            <div className="h-1.5 w-32 bg-indigo-600 mx-auto rounded-full" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+            {[
+              {
+                title: "Catfishing",
+                desc: "Fake online identities created to deceive for emotional or financial gain. They use stolen photos and elaborate backstories to build trust rapidly.",
+                icon: "🎭",
+                color: "indigo"
+              },
+              {
+                title: "Urgent Money",
+                desc: "Sudden rental emergencies, medical needs, or travel issues intended to bypass your logical thinking and exploit your empathy.",
+                icon: "💰",
+                color: "emerald"
+              }
+            ].map((flag, i) => (
+              <div key={i} className="group relative p-8 md:p-12 bg-zinc-900/50 backdrop-blur-xl border border-white/5 rounded-[2rem] hover:bg-zinc-900/80 transition-all duration-500 hover:-translate-y-2 overflow-hidden">
+                <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-${flag.color}-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity`} />
+                <div className="text-5xl mb-6">{flag.icon}</div>
+                <h3 className="font-black text-2xl md:text-3xl mb-4 text-white uppercase tracking-tight">{flag.title}</h3>
+                <p className="text-lg text-zinc-400 leading-relaxed font-medium">
+                  {flag.desc}
+                </p>
+
+                {/* Micro-interaction element */}
+                <div className="mt-8 flex items-center gap-2 text-zinc-500 font-bold text-xs uppercase tracking-widest group-hover:text-white transition-colors">
+                  <span>Knowledge Found</span>
+                  <div className={`h-px flex-1 bg-${flag.color}-500/20 group-hover:bg-${flag.color}-500/50 transition-colors`} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-center mt-20">
+            <button
+              onClick={() => setGameState('report')}
+              className="group relative px-16 py-6 bg-emerald-600 text-white font-black uppercase tracking-[0.2em] shadow-[0_20px_50px_rgba(16,185,129,0.2)] hover:shadow-[0_25px_60px_rgba(16,185,129,0.4)] transition-all hover:-translate-y-1 active:translate-y-0 rounded-2xl"
+            >
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
+              <span className="relative z-10 flex items-center gap-4 text-xl">
+                Read Police Report <span className="text-2xl group-hover:rotate-12 transition-transform">📄</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderReport() {
+    return (
+      <div className="flex flex-col h-full bg-[#e5e7eb] text-black p-4 md:p-8 overflow-y-auto font-serif relative">
+        <div className="max-w-4xl mx-auto bg-white p-8 md:p-12 shadow-2xl border border-zinc-300 relative w-full mb-12">
+          {/* Watermark */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none overflow-hidden">
+            <span className="text-[200px] font-black uppercase tracking-tighter rotate-[-45deg] whitespace-nowrap">CLASSIFIED</span>
+          </div>
+
+          <div className="text-center border-b-2 border-zinc-800 pb-6 mb-8 relative z-10">
+            <h1 className="text-2xl font-black uppercase tracking-widest text-zinc-900 mb-1">CYBERCRIME INVESTIGATION DIVISION</h1>
+            <h2 className="text-lg font-bold text-zinc-700 uppercase tracking-wider mb-6">Government of India — National Cyber Crime Reporting Portal</h2>
+            <div className="bg-zinc-100 border border-zinc-300 p-4 flex flex-col items-center">
+              <span className="font-black text-lg uppercase tracking-widest">Official Cybercrime Investigation Report</span>
+              <span className="font-bold text-zinc-600 mt-1">Case: Romance Fraud + Catfishing + Deepfake Blackmail</span>
+              <span className="font-bold text-red-700 mt-2">Complaint No: CYB/2024/CHN/00847</span>
+            </div>
+          </div>
+
+          <div className="relative z-10 text-sm leading-relaxed space-y-8">
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-4 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 group-hover:bg-zinc-100 transition-colors">SECTION 1 — CASE DETAILS</h3>
+              <table className="w-full text-left border-collapse border border-zinc-300 mb-4">
+                <tbody>
+                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50 w-1/3">Report Date</th><td className="p-2">Filed via cybercrime.gov.in | Helpline: 1930</td></tr>
+                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50">Investigating Unit</th><td className="p-2">Cyber Crime Cell, Chennai — Economic Offences Wing</td></tr>
+                  <tr className="border-b border-zinc-300">
+                    <th className="p-2 border-r border-zinc-300 bg-zinc-50 align-top">VICTIM PROFILE</th>
+                    <td className="p-2"><b>Name:</b> [Player — You]<br /><b>Age:</b> 24 years<br /><b>Occupation:</b> IT Professional<br /><b>City:</b> Chennai, Tamil Nadu<br /><b>Status:</b> Recently bereaved (grandfather's passing)</td>
+                  </tr>
+                  <tr className="border-b border-zinc-300">
+                    <th className="p-2 border-r border-zinc-300 bg-zinc-50 align-top">SUSPECT PROFILE</th>
+                    <td className="p-2"><b>Alias Used:</b> 'Priya' / @_priya.sunshine_<br /><b>Actual Gender:</b> Male<br /><b>Age (claimed):</b> 23 years old female<br /><b>Actual Location:</b> Rajasthan (traced via IP)<br /><b>Operation Type:</b> Organised Syndicate</td>
+                  </tr>
+                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50">Duration of Operation</th><td className="p-2">16 days — Day 1 (Instagram DM) to Day 16 (Blackmail received)</td></tr>
+                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50">Fraud Type</th><td className="p-2">Catfishing + Romance Fraud + Deepfake Video Call + Multi-Account Blackmail</td></tr>
+                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50 text-red-800">Amount Demanded</th><td className="p-2 font-bold text-red-700">₹1,20,000 (initial) | Escalation potential: Full ₹42,00,000 inheritance</td></tr>
+                  <tr><th className="p-2 border-r border-zinc-300 bg-zinc-50 text-green-800">Amount Lost</th><td className="p-2 font-bold text-green-700">₹{4200000 - assets} — Victim {4200000 - assets > 0 ? "transferred funds under pressure." : "did not transfer any funds. Case reported promptly."}</td></tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-4 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800">SECTION 2 — INVESTIGATION SUMMARY</h3>
+              <p className="mb-4">On Day 1 of this operation, the victim — a 24-year-old IT professional based in Chennai — was in a state of emotional vulnerability following the death of his paternal grandfather. He was scrolling Instagram when he encountered a comment posted by the account <b>@_priya.sunshine_</b> under a popular actress's post. The comment read: <i>"dm for frndz chat... im so loneoly 😔 just need smone to tlk to..."</i></p>
+              <p className="mb-4">The victim, who had recently experienced the loss of a close family member, felt an emotional resonance with this comment and sent a direct message to the account. This initiated a 16-day calculated deception by a male fraudster operating from Rajasthan, who was posing as a 23-year-old woman named 'Priya.'</p>
+              <p className="mb-4">Investigation revealed that the suspect — identified as <b>Ramesh (age 31)</b> — was running this account as part of an organised fraud syndicate operating 8 to 12 similar fake identities simultaneously. The profile photographs were stolen from a real woman's Instagram account based in Bengaluru, who was unaware of the impersonation.</p>
+              <p className="mb-4">The suspect used a combination of scripted emotional manipulation, pre-recorded female voice clips, and a real-time AI-powered deepfake application during a WhatsApp video call on Day 14. The victim's face and voice were recorded without consent during this call and were prepared as blackmail material.</p>
+              <p className="mb-4">The blackmail was executed on Day 16, with demands arriving simultaneously from multiple fake Instagram accounts and the original 'Priya' number. The victim did not comply with the financial demands, documented all evidence, and filed a complaint — which led to the successful identification and arrest of the primary operator.</p>
+            </section>
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 3 — MISTAKES COMMITTED: A CHRONOLOGICAL ANALYSIS</h3>
+              <p className="mb-6 italic text-zinc-600">The following section documents each critical error made by the victim during the 16-day interaction. These are presented not to assign blame — the victim's emotional state was deliberately exploited — but as a clear, factual record for awareness and learning. Every entry below is a lesson that can protect you and others from future harm.</p>
+
+              <div className="space-y-6">
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #1 — Responding to a Stranger's Comment on Social Media</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> You saw a comment posted by an unknown account under a celebrity's Instagram post and sent a direct message without prior knowledge of who the person was.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> This is the primary entry point of almost every romance fraud. Scammers deliberately post emotionally resonant comments — loneliness, grief, sadness — on high-traffic posts specifically to attract vulnerable individuals. A comment is not an introduction. It is anonymous, unverifiable bait. Your grandfather had just passed away. Your emotional guard was naturally lowered, which is exactly when you are most vulnerable to this kind of targeting. The suspect's data showed he had identified you as a target two days earlier — your condolence post about your grandfather had appeared in public feeds, and he positioned the 'Priya' comment to appear when you were most likely to be online.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Avoid responding to strangers' public social media comments, especially during periods of grief, stress, or loneliness. If you feel the need to connect with someone, reach out to known friends, family, or verified mental health communities. Never treat a stranger's social media comment as an invitation to develop a personal relationship.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #2 — Failing to Properly Verify the Profile Before Engaging</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> You briefly checked her profile — photos, follower count, post history — but did not conduct a reverse image search or deeper verification before investing emotionally in the conversation.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> A fraudulent profile can be constructed in under two hours. Stolen photos from a real person's account, a believable bio, a modest follower count, and a few months of posts are all achievable quickly. The account <b>@_priya.sunshine_</b> had been active for only 4 months. A reverse image search of her profile photo on Google Images or TinEye would have immediately returned results showing the same photo on a real woman's account in Bengaluru — proof that the profile was fake. You did not run this check.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Before engaging with any stranger you meet through social media, run a reverse image search on their profile photo. Check how old the account is and whether the posting history feels genuine or thin. A real person's account typically has years of history, tagged friends, event photos, and mutual connections. When these are absent, it is a red flag. Use tools like Google Reverse Image Search or TinEye — they are free and take 30 seconds.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #3 — Sharing Your Grandfather's Death and Personal Grief Within Days</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> Within 3 to 4 days of first contact, you disclosed that your grandfather had recently passed away and that you were struggling emotionally.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> Personal grief is highly sensitive information in the hands of a manipulator. The suspect used this disclosure to build a false emotional mirror — he claimed he had also 'lost his father two years ago,' which was entirely fabricated to create a sense of shared trauma and accelerate emotional bonding. He also used this information to calculate your vulnerability level and your potential access to inherited money. Every detail of personal loss you shared was logged and weaponised. The disclosure of your grandfather's death directly enabled him to later ask about your financial situation — knowing there would likely be an inheritance.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> In any online relationship — romantic, platonic, or professional — you should not share serious personal losses, mental health struggles, or family tragedies within the first two to three weeks of contact. Wait until identity is verified in person. Grief is a human vulnerability, and predators are specifically trained to identify and exploit it.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #4 — Mentioning the ₹42 Lakh Inheritance to a Stranger</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> During the 16-day interaction, you disclosed that your grandfather had left behind a significant financial inheritance. Even if you did not state the exact amount directly, your responses confirmed the existence of substantial inherited assets.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> This was the most operationally significant mistake of the entire interaction. The suspect's primary objective from Day 1 was to determine whether you had money worth targeting. Once you confirmed the existence of an inheritance — even vaguely — the operation shifted from 'assessment' to 'extraction.' The blackmail amount of ₹1,20,000 was not random. It was calibrated based on what the suspect believed you could pay quickly without raising family suspicion. The final escalation target was your full inherited amount. Financial information shared with unverified online contacts is a loaded weapon aimed at yourself.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Never disclose inheritance details, savings amounts, property ownership, or any significant financial information to anyone you have not met in person and verified through multiple trusted channels. This rule applies regardless of how long you have been talking online, how close you feel, or how genuine the person appears. An emotional connection built online is not proof of a person's identity or intentions.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #5 — Sharing Your Personal WhatsApp Phone Number</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> On approximately Day 11, you shared your personal WhatsApp number with the suspect, moving the conversation from Instagram's relatively monitored platform to a private messaging application.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> Your phone number is a primary identity anchor. It is linked to your UPI accounts, your bank's two-factor authentication, your Aadhaar-linked services, and your entire contact network. By sharing it with an unverified stranger, you handed a potential attacker direct access to the most sensitive communication channel you own. On WhatsApp, messages are end-to-end encrypted — meaning there is no platform moderation, no fraud detection, and no ability to report or trace easily. The suspect was now operating in a space where he had far greater control.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Never share your personal phone number with someone you have only met online, regardless of how long you have been talking. If you wish to communicate outside of a social media platform, use the platform's own voice and video call features — which offer more accountability and reporting mechanisms — until you have met the person in person and verified their identity.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #6 — Allowing the Stranger to Follow Your Instagram Account</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> You allowed the suspect's account to follow your personal Instagram, giving them access to your posts, your tagged photos, your friends' profiles, and your location check-ins.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> Your Instagram account is a map of your life. Your tagged locations revealed your daily patterns. Your friends and family became identifiable targets. Your posts — including your public condolence post about your grandfather — gave the suspect advance intelligence about your financial situation and emotional state. Following back an unverified stranger is not a small social gesture. It is opening your door and showing them around your home.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Keep your personal social media accounts private. Do not allow unknown individuals to follow you until you have verified their identity in person. Even after verification, be selective about what personal information is publicly visible on your profile. Audit your privacy settings regularly.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #7 — Accepting a WhatsApp Video Call from an Unverified Stranger</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> On Day 14, you accepted a WhatsApp video call from the suspect. During this 23-minute call, your face, voice, expressions, and surroundings were recorded without your knowledge or consent.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> This was the act that provided the blackmail material. The 'Priya' visible on your screen was not a real person — it was a man's face processed in real time through an AI deepfake application, overlaid with a stolen female face model. While you were laughing and speaking openly, software was capturing your biometric data: your face at multiple angles, your voice pattern, your emotional expressions. This footage was then edited by the syndicate to create fabricated compromising content used in the blackmail on Day 16. You gave consent for none of this. But by accepting the call, you made it possible.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Refuse video calls with people you have not verified in person. If a video call is requested by an online contact you have never met, this is a serious warning sign — not a step toward closeness. If you do proceed, use official video platforms (Google Meet, Zoom) rather than WhatsApp, as these offer better reporting mechanisms. Meeting someone in person in a public place before conducting video calls is the safest standard.</p>
+                </div>
+
+                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
+                  <h4 className="font-black text-md mb-2">MISTAKE #8 — Not Escalating Suspicion When the First Money Request Arrived</h4>
+                  <p className="mb-2"><span className="font-bold">What You Did:</span> On Day 15, when 'Priya' sent a message asking for ₹45,000 for a landlord emergency, you hesitated but engaged with the request rather than immediately recognising it as a classic fraud signal and terminating contact.</p>
+                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> A financial request from an online contact you have never met in person is a universally recognised fraud signal. It does not matter how long you have been talking. It does not matter how real the emergency sounds. It does not matter how emotional the message is. This is the moment every romance fraud operation is built toward. Every day of warmth, every shared secret, every late-night voice note — all of it was infrastructure for this single moment. The suspect expected you to feel guilty saying no because of the emotional investment he had manufactured. When a stranger asks for money online, the correct response is always zero engagement and immediate reporting.</p>
+                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> The moment any online contact — regardless of how close you feel — requests financial assistance, terminate contact and report the account immediately to the platform and to the National Cyber Crime Helpline (1930). Do not send any amount — even a small one. A partial payment confirms to the suspect that you can be pressured, and the demands will escalate. Paying does not end the blackmail. It begins it.</p>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 4 — TACTICS USED AGAINST YOU: HOW IT WORKED</h3>
+              <div className="space-y-4">
+                <p><b>4.1 — The Targeting Strategy:</b> You were not selected randomly. The suspect monitored public Instagram posts with grief-related content. Your post memorialising your grandfather appeared two days before 'Priya's' comment was planted. You were chosen because: you were emotionally vulnerable, you were young and likely to have access to money, your public profile confirmed a recent bereavement (likely linked to financial inheritance), and you had no prior public association with cybersecurity awareness.</p>
+                <p><b>4.2 — Emotional Mirroring:</b> Every emotional detail you shared was reflected back to you. You mentioned loneliness — she claimed loneliness. You mentioned grief — she fabricated a dead father. You mentioned comfort food — she matched it. You mentioned feeling empty — she said exactly the same words. This technique is called emotional mirroring and is a core manipulation tactic used in both romance fraud and cult recruitment. It creates an artificial sense of deep compatibility designed to accelerate trust beyond what 16 days of normal friendship would produce.</p>
+                <p><b>4.3 — The Voice and the Deepfake:</b> The voice you heard on WhatsApp calls was a pre-recorded audio clip of a female voice — the suspect used his cousin's audio recordings played through a soundboard application. The video call on Day 14 used a real-time deepfake application that superimposed a stolen female face model over the suspect's actual face. This technology, once available only to film studios, is now accessible as a consumer application. The output — at standard video call quality — is indistinguishable from a real person to the untrained eye.</p>
+                <p><b>4.4 — The Multi-Account Blackmail Structure:</b> When blackmail was deployed on Day 16, it did not come from 'Priya' alone. Multiple unknown Instagram accounts messaged simultaneously — this is a deliberate pressure tactic designed to make the victim feel surrounded, exposed, and helpless. The goal is to overwhelm rational thinking and force payment before the victim can consult anyone. The fabricated screenshot used as blackmail material was created from footage recorded during your Day 14 video call.</p>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 5 — CYBER AWARENESS: PROTECTING YOURSELF</h3>
+
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-6">
+                <h4 className="font-bold text-orange-800 mb-2">The 8 Warning Signs of Romance Fraud — Know Them Before You Need Them</h4>
+                <ol className="list-decimal pl-5 space-y-1 text-orange-900">
+                  <li>You were found through a public comment, not through mutual friends or verified platforms.</li>
+                  <li>The emotional bond escalated unusually fast — feelings of deep connection within days.</li>
+                  <li>The person always had a reason to avoid meeting in person.</li>
+                  <li>They remembered every personal detail you shared — building a manipulation profile.</li>
+                  <li>They asked about your finances early, framing it as concern or personal sharing.</li>
+                  <li>A financial emergency arrived after weeks of emotional investment.</li>
+                  <li>A video call was used — but you were never able to verify identity independently.</li>
+                  <li>Multiple accounts appeared simultaneously when you refused to pay.</li>
+                </ol>
+              </div>
+
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                <h4 className="font-bold text-blue-800 mb-2">What is Deepfake Technology and Why It Matters</h4>
+                <p className="text-blue-900 mb-2">A deepfake is a video or audio output generated by artificial intelligence that replaces a real person's face or voice with someone else's. Deepfake technology is now available as consumer software and can run in real time on a standard laptop.</p>
+                <p className="text-blue-900 font-bold">During a video call with a deepfake operator:</p>
+                <ul className="list-disc pl-5 space-y-1 text-blue-900 mb-2">
+                  <li>The face you see is not the person speaking to you.</li>
+                  <li>Your reactions, your face, and your voice are being recorded.</li>
+                  <li>The recorded footage can be edited to fabricate scenes that never happened.</li>
+                  <li>This fabricated content is then used for blackmail, defamation, or account fraud.</li>
+                </ul>
+                <p className="text-blue-900 font-bold italic">The only way to verify identity is to meet someone in person, in a public place, with a witness, before developing any emotional or financial trust with them.</p>
+              </div>
+
+              <div className="bg-green-50 border-l-4 border-green-600 p-4">
+                <h4 className="font-bold text-green-900 mb-2">The Golden Rules for Online Relationships</h4>
+                <ol className="list-decimal pl-5 space-y-1 text-green-900 font-medium">
+                  <li>Never share grief, trauma, or emotional vulnerability with unverified strangers online.</li>
+                  <li>Never share your phone number, address, workplace, or daily routine with someone you have not met in person.</li>
+                  <li>Never accept video calls from unverified strangers — your face and voice are biometric data.</li>
+                  <li>Never share financial information — inheritance, savings, account details — with any online contact.</li>
+                  <li>A request for money from an online contact, regardless of the reason or amount, is always a fraud signal.</li>
+                  <li>Run a reverse image search on any new contact's profile photo before trusting them.</li>
+                  <li>If you receive blackmail threats: do not pay, do not engage, screenshot everything, and report immediately.</li>
+                  <li>Report to: cybercrime.gov.in or call 1930 (National Cyber Crime Helpline, India)</li>
+                </ol>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 6 — INVESTIGATION OUTCOME</h3>
+              <p className="mb-6">Following the victim's prompt report on Day 16, the Cyber Crime Cell, Chennai initiated a digital trace operation. IP analysis of the multiple Instagram accounts used in the blackmail converged on a single rented room in Rajasthan. The suspect — <b>Ramesh, 31</b> — was operating under multiple aliases with a known network of 6 associates.</p>
+              <p className="mb-6">At the time of arrest, 23 active fraud operations were found on his devices — all targeting young men between the ages of 22 and 35 who had recently experienced bereavement or financial windfalls. The 'Priya' profile was one of 8 active identities. All victims were in various stages of emotional grooming.</p>
+
+              <div className="flex gap-4 mb-6">
+                <div className="flex-1 bg-green-50 border border-green-200 p-4">
+                  <h4 className="font-black text-green-800 mb-2">WHAT SAVED YOU</h4>
+                  <ul className="text-green-900 text-sm space-y-1">
+                    <li>✓ You did not pay any amount</li>
+                    <li>✓ You did not transfer UPI money under pressure</li>
+                    <li>✓ You documented all evidence before blocking</li>
+                    <li>✓ You reported immediately via 1930</li>
+                    <li>✓ You did not share OTPs or banking passwords</li>
+                  </ul>
+                </div>
+                <div className="flex-1 bg-red-50 border border-red-200 p-4">
+                  <h4 className="font-black text-red-800 mb-2">WHAT PUT YOU AT RISK</h4>
+                  <ul className="text-red-900 text-sm space-y-1">
+                    <li>✗ Responding to a stranger's public comment</li>
+                    <li>✗ Sharing your grief and financial situation</li>
+                    <li>✗ Giving your WhatsApp number</li>
+                    <li>✗ Accepting the video call</li>
+                    <li>✗ Not recognising the money request as fraud instantly</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 7 — INVESTIGATOR'S CLOSING NOTE</h3>
+              <p className="mb-4"><b>To the Victim:</b></p>
+              <p className="mb-4">You were targeted during one of the most painful moments of your life — the loss of someone you loved. That was not a coincidence. It was calculated. The people behind this operation look for grief, look for loneliness, and look for the exact vulnerability you were experiencing. You are not naive. You are not foolish. You were hunted by professionals.</p>
+              <p className="mb-4">The mistakes documented in this report are not character flaws. They are simply the gaps these fraudsters are trained to find. Every one of those gaps can be closed — not by becoming cold or untrusting, but by knowing what the warning signs look like before they appear.</p>
+              <p className="mb-4">You did the most important thing: you did not pay. And you reported it. Because of that decision, 23 other potential victims were protected.</p>
+              <p className="mb-6 italic text-zinc-700 font-bold border-l-4 border-zinc-300 pl-4 py-2">Remember the promise you made to your grandfather: Think before you click. Verify before you trust. Protect before you react.</p>
+              <p className="font-bold">You kept it when it mattered most.</p>
+              <p className="mt-8 text-right font-black italic border-t border-zinc-300 pt-4">— Cyber Crime Cell, Chennai | Case Closed: RESOLVED</p>
+            </section>
+          </div>
+
+          <div className="mt-12 text-center text-xs text-zinc-400 font-sans font-bold flex flex-col md:flex-row justify-between uppercase border-t-2 border-zinc-800 pt-4">
+            <span>cybercrime.gov.in | Helpline: 1930</span>
+            <span>Team: Human Patch — Amrita Vishwa Vidyapeetham</span>
+          </div>
+
+          <div className="mt-16 text-center font-sans">
+            <button onClick={() => setGameState('results')} className="px-16 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest hover:bg-zinc-800 shadow-xl border border-zinc-700 rounded transition-transform active:scale-95 text-lg">
+              Sign Case File & View Final Results
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default Level11;
