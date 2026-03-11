@@ -70,10 +70,17 @@ const Level5 = () => {
     const [inspectedZones, setInspectedZones] = useState([]);
     const [scamReported, setScamReported] = useState(false);
     const [complaintSubmitted, setComplaintSubmitted] = useState(false);
+    const [thankYouShown, setThankYouShown] = useState(false);
+    const [browserClosing, setBrowserClosing] = useState(false);
+    const [windowsDesktopShown, setWindowsDesktopShown] = useState(false);
+    const [updatePopupShown, setUpdatePopupShown] = useState(false);
+    const [pcRestarting, setPcRestarting] = useState(false);
     const [peelProgress, setPeelProgress] = useState(0);
     const [isDraggingPeel, setIsDraggingPeel] = useState(false);
     const [evidence, setEvidence] = useState([]);
     const [isBinderOpen, setIsBinderOpen] = useState(false);
+    const [outroStep, setOutroStep] = useState(0);
+    const [outroSuccess, setOutroSuccess] = useState(true);
 
     // Garden state
     const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 600, y: 150 });
@@ -190,6 +197,18 @@ const Level5 = () => {
         window.addEventListener('keydown', dk);
         window.addEventListener('keyup', uk);
         return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
+    }, []);
+
+    // TEST BYPASS KEY
+    useEffect(() => {
+        const handleKey = (e) => {
+            if (e.key === 'H') {
+                setGameState('incident_report');
+                setScamReported(true);
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
     }, []);
 
     // E key logic
@@ -526,6 +545,42 @@ const Level5 = () => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [gameState, livingRoomPlayerPos]);
+
+    // Windows Desktop Security Update Delay
+    useEffect(() => {
+        if (gameState === 'windows_desktop' && !updatePopupShown) {
+            const timer = setTimeout(() => {
+                setUpdatePopupShown(true);
+            }, 600);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState, updatePopupShown]);
+
+    // Level 5 Cinematic Outro Sequences
+    useEffect(() => {
+        if (gameState === 'pc_shutdown_scene') {
+            const timer = setTimeout(() => {
+                if (outroStep === 1) setOutroStep(2);
+                else if (outroStep === 2) {
+                    setOutroStep(2.5); // Start fade out
+                    setTimeout(() => {
+                        setGameState('end_card');
+                        setOutroStep(3);
+                    }, 1000);
+                }
+            }, 2500);
+            return () => clearTimeout(timer);
+        }
+        if (gameState === 'end_card') {
+            const timer = setTimeout(() => {
+                if (outroStep === 3) setOutroStep(4);
+                else if (outroStep === 4) {
+                    completeLevel(true, 50 + (stickerPeeled ? 15 : 0), 0);
+                }
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState, outroStep]);
 
     const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
 
@@ -1990,7 +2045,7 @@ const Level5 = () => {
                 <FeedbackToast />
 
                 {/* Laptop Screen */}
-                <div className="z-10 w-full max-w-5xl bg-slate-100 rounded-t-[2rem] rounded-b-xl p-4 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[16px] border-slate-900 flex flex-col mb-[-100px] animate-in slide-in-from-bottom duration-700 h-[80vh]">
+                <div className={`z-10 w-full max-w-5xl bg-slate-100 rounded-t-[2rem] rounded-b-xl p-4 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[16px] border-slate-900 flex flex-col mb-[-100px] h-[80vh] transition-all duration-1000 ${browserClosing ? 'scale-0 opacity-0 translate-y-full' : 'animate-in slide-in-from-bottom duration-700'}`}>
 
                     {/* Browser UI Header */}
                     <div className="bg-slate-300 w-full rounded-t-xl p-3 flex items-center gap-4 mb-2 shadow-sm border-b border-slate-400">
@@ -2005,7 +2060,7 @@ const Level5 = () => {
                     </div>
 
                     {/* Cybercrime Portal Body */}
-                    <div className="flex-1 bg-white rounded-b-xl border border-slate-200 overflow-y-auto flex flex-col">
+                    <div className={`flex-1 bg-white rounded-b-xl border border-slate-200 overflow-y-auto flex flex-col transition-opacity duration-500 ${thankYouShown ? 'opacity-0' : 'opacity-100'}`}>
                         <div className="bg-blue-900 px-8 py-6 text-white border-b-4 border-amber-500 flex justify-between items-center">
                             <div>
                                 <h2 className="font-black text-3xl tracking-wide">National Cyber Crime Reporting Portal</h2>
@@ -2126,7 +2181,13 @@ const Level5 = () => {
 
                                         <button
                                             className="mt-6 w-full py-4 px-6 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-black text-xl shadow-[0_10px_30px_rgba(30,58,138,0.4)] transition-all active:scale-95 animate-pulse flex items-center justify-center gap-3 mb-8"
-                                            onClick={() => setComplaintSubmitted(true)}
+                                            onClick={() => {
+                                                setComplaintSubmitted(true);
+                                                // Show thank you, then auto-transition to Windows desktop
+                                                setTimeout(() => setThankYouShown(true), 50);
+                                                setTimeout(() => setBrowserClosing(true), 1000);
+                                                setTimeout(() => setGameState('windows_desktop'), 1800);
+                                            }}
                                         >
                                             🛡️ SUBMIT REPORT
                                         </button>
@@ -2134,56 +2195,295 @@ const Level5 = () => {
                                 </>
                             ) : (
                                 <>
-                                    {/* Complaint Submitted Success Screen */}
+                                    {/* Thank You Screen after submission */}
                                     <div className="w-full max-w-2xl text-center animate-in zoom-in duration-500 py-8">
-                                        <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-inner">
+                                        <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center text-5xl mx-auto mb-6 shadow-inner animate-bounce">
                                             ✅
                                         </div>
-                                        <h3 className="text-emerald-700 font-black text-3xl mb-2">Complaint Submitted Successfully!</h3>
-                                        <p className="text-slate-500 text-sm mb-8">Your complaint has been registered with the National Cyber Crime Reporting Portal.</p>
-
-                                        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 mb-6 text-left space-y-3">
-                                            <div className="flex justify-between items-center border-b border-blue-200 pb-3">
-                                                <span className="text-blue-400 font-bold text-xs uppercase tracking-wider">Complaint Reference ID</span>
-                                                <span className="text-blue-900 font-black text-lg font-mono">NCRP/2024/FIN/{Math.floor(100000 + Math.random() * 900000)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                                <span className="text-slate-400 font-bold text-xs uppercase">Status</span>
-                                                <span className="bg-amber-100 text-amber-800 font-bold text-xs px-3 py-1 rounded-full">UNDER INVESTIGATION</span>
-                                            </div>
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                                <span className="text-slate-400 font-bold text-xs uppercase">Category</span>
-                                                <span className="text-slate-700 font-semibold text-sm">Financial Fraud — QR Code Tampering</span>
-                                            </div>
-                                            <div className="flex justify-between items-center border-b border-blue-100 pb-2">
-                                                <span className="text-slate-400 font-bold text-xs uppercase">Location</span>
-                                                <span className="text-slate-700 font-semibold text-sm">Main Market Road, Local Bazaar</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-400 font-bold text-xs uppercase">Evidence</span>
-                                                <span className="text-emerald-700 font-semibold text-sm">✅ 1 file attached</span>
-                                            </div>
+                                        <h3 className="text-emerald-700 font-black text-3xl mb-2">Thank You for Reporting!</h3>
+                                        <p className="text-slate-500 text-sm mb-4">Your complaint has been registered with the National Cyber Crime Reporting Portal.</p>
+                                        <p className="text-slate-400 text-xs italic">Reference ID: NCRP/2024/FIN/{Math.floor(100000 + Math.random() * 900000)}</p>
+                                        <div className="mt-6 flex justify-center">
+                                            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                                         </div>
-
-                                        <p className="text-slate-400 text-xs mb-6 italic">You will receive updates on this complaint via SMS and email. For follow-up, call the Cyber Crime Helpline: 1930</p>
-
-                                        <button
-                                            className="w-full py-4 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] transition-all active:scale-95 flex items-center justify-center gap-3"
-                                            onClick={() => {
-                                                showFeedback("🎉 Level 5 Complete! You are a Cyber Guardian!");
-                                                setTimeout(() => {
-                                                    completeLevel(true, 50 + (stickerPeeled ? 15 : 0), 0);
-                                                }, 2000);
-                                            }}
-                                        >
-                                            🌟 FINISH LEVEL 5
-                                        </button>
+                                        <p className="text-slate-400 text-xs mt-3">Closing portal...</p>
                                     </div>
                                 </>
                             )}
                         </div>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
+    // WINDOWS DESKTOP UI + SECURITY UPDATE POPUP
+    // ═══════════════════════════════════════════
+    if (gameState === 'windows_desktop') {
+        const currentTime = new Date();
+        const timeStr = currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const dateStr = currentTime.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        return (
+            <div className={`w-full h-full relative overflow-hidden font-sans select-none transition-all duration-1000 ${pcRestarting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}
+                style={{ fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" }}>
+
+                {/* Windows Wallpaper */}
+                <div className="absolute inset-0" style={{
+                    background: 'linear-gradient(135deg, #1a1a4e 0%, #0c2f6b 25%, #1565c0 50%, #42a5f5 70%, #90caf9 85%, #e3f2fd 100%)'
+                }}>
+                    {/* Mountain silhouette */}
+                    <svg className="absolute bottom-12 left-0 w-full" viewBox="0 0 1600 400" preserveAspectRatio="none">
+                        <path d="M0,400 L0,300 Q200,200 400,280 Q500,180 650,250 Q750,120 900,200 Q1000,100 1100,180 Q1200,80 1350,220 Q1450,160 1600,250 L1600,400 Z" fill="rgba(0,0,0,0.3)" />
+                        <path d="M0,400 L0,340 Q300,280 500,320 Q700,250 900,310 Q1100,240 1300,300 Q1450,260 1600,310 L1600,400 Z" fill="rgba(0,0,0,0.2)" />
+                    </svg>
+                    {/* Sun glow */}
+                    <div className="absolute top-[15%] right-[20%] w-40 h-40 rounded-full" style={{
+                        background: 'radial-gradient(circle, rgba(255,235,59,0.4) 0%, rgba(255,193,7,0.2) 40%, transparent 70%)'
+                    }}></div>
+                </div>
+
+                {/* Desktop Icons */}
+                <div className="absolute top-6 left-6 flex flex-col gap-6 z-10">
+                    {[
+                        { icon: '🗑️', label: 'Recycle Bin' },
+                        { icon: '💻', label: 'This PC' },
+                        { icon: '🌐', label: 'Microsoft Edge' },
+                        { icon: '📁', label: 'File Explorer' },
+                        { icon: '📄', label: 'Documents' },
+                        { icon: '🛡️', label: 'Windows Security' },
+                    ].map((item, i) => (
+                        <div key={i} className="flex flex-col items-center w-20 group cursor-default">
+                            <div className="w-12 h-12 flex items-center justify-center text-3xl group-hover:bg-white/20 rounded-lg transition-colors">
+                                {item.icon}
+                            </div>
+                            <span className="text-white text-[11px] text-center mt-1 font-medium drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] leading-tight">
+                                {item.label}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Windows Taskbar */}
+                <div className="absolute bottom-0 left-0 right-0 h-12 z-20 flex items-center justify-between px-1" style={{
+                    background: 'linear-gradient(180deg, rgba(30,30,30,0.95) 0%, rgba(20,20,20,0.98) 100%)',
+                    backdropFilter: 'blur(20px)',
+                    borderTop: '1px solid rgba(255,255,255,0.08)'
+                }}>
+                    {/* Start Button & Search */}
+                    <div className="flex items-center gap-1">
+                        <button className="w-12 h-12 flex items-center justify-center hover:bg-white/10 transition-colors">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
+                                <rect x="1" y="1" width="8.5" height="8.5" rx="1" />
+                                <rect x="10.5" y="1" width="8.5" height="8.5" rx="1" />
+                                <rect x="1" y="10.5" width="8.5" height="8.5" rx="1" />
+                                <rect x="10.5" y="10.5" width="8.5" height="8.5" rx="1" />
+                            </svg>
+                        </button>
+                        <div className="flex items-center bg-white/5 hover:bg-white/10 rounded-full px-4 h-8 gap-2 transition-colors cursor-text min-w-[200px]">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2">
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="M21 21l-4.35-4.35" />
+                            </svg>
+                            <span className="text-white/40 text-xs">Type here to search</span>
+                        </div>
+                    </div>
+
+                    {/* Taskbar Center Icons */}
+                    <div className="flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
+                        {['📁', '🌐', '📧', '🎵', '📷'].map((icon, i) => (
+                            <button key={i} className="w-11 h-11 flex items-center justify-center hover:bg-white/10 rounded-md transition-colors text-xl">
+                                {icon}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* System Tray */}
+                    <div className="flex items-center gap-2">
+                        <button className="hover:bg-white/10 px-1.5 py-1 rounded transition-colors">
+                            <span className="text-white/60 text-[10px]">▲</span>
+                        </button>
+                        <div className="flex items-center gap-2 px-2">
+                            <span className="text-white/70 text-sm">🔊</span>
+                            <span className="text-white/70 text-sm">📶</span>
+                            <span className="text-white/70 text-sm">🔋</span>
+                        </div>
+                        <div className="flex flex-col items-end px-2 hover:bg-white/10 rounded py-1 transition-colors cursor-default">
+                            <span className="text-white/90 text-[11px] font-medium leading-none">{timeStr}</span>
+                            <span className="text-white/60 text-[10px] leading-none mt-0.5">{dateStr}</span>
+                        </div>
+                        {/* Notification indicator */}
+                        <div className="relative w-10 h-12 flex items-center justify-center hover:bg-white/10 transition-colors">
+                            <span className="text-white/70 text-sm">💬</span>
+                            <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Security Update Popup */}
+                {updatePopupShown && !pcRestarting && (
+                    <div className="absolute inset-0 z-30 flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.3)' }}>
+                        <div className="bg-[#f3f3f3] rounded-lg shadow-[0_25px_80px_rgba(0,0,0,0.5)] w-[480px] overflow-hidden animate-in zoom-in duration-300 border border-gray-300">
+                            {/* Windows Update Header */}
+                            <div className="bg-[#0078d4] px-6 py-4 flex items-center gap-3">
+                                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                                        <path d="M3 3h8.5v8.5H3V3zm9.5 0H21v8.5h-8.5V3zM3 12.5h8.5V21H3v-8.5zm9.5 0H21V21h-8.5v-8.5z" />
+                                    </svg>
+                                </div>
+                                <span className="text-white font-semibold text-sm">Windows Update</span>
+                            </div>
+
+                            {/* Popup Content */}
+                            <div className="p-8 text-center">
+                                <div className="w-16 h-16 mx-auto mb-5 bg-[#0078d4] rounded-full flex items-center justify-center">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
+                                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-4h2v2h-2v-2zm0-10h2v8h-2V6z" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-[#1a1a1a] font-bold text-lg mb-2">Your PC has new security updates</h3>
+                                <p className="text-[#666] text-sm mb-1">Critical security patches are available.</p>
+                                <p className="text-[#666] text-sm mb-6">Restart immediately to protect your device.</p>
+
+                                <div className="bg-[#fff8e1] border border-[#ffcc02] rounded-md px-4 py-3 mb-6 flex items-center gap-3">
+                                    <span className="text-xl">⚠️</span>
+                                    <p className="text-[#5d4037] text-xs text-left font-medium">Unsaved work may be lost. Please save your files before restarting.</p>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <button
+                                        className="w-full py-3 px-6 bg-[#0078d4] hover:bg-[#106ebe] text-white font-semibold text-sm rounded-md transition-colors shadow-sm active:scale-[0.98]"
+                                        onClick={() => {
+                                            setPcRestarting(true);
+                                            setTimeout(() => {
+                                                setGameState('pc_shutdown_scene');
+                                                setPcRestarting(false);
+                                                setOutroStep(1);
+                                            }, 1500);
+                                        }}
+                                    >
+                                        🔄 Restart Immediately
+                                    </button>
+                                    <button className="w-full py-2.5 px-6 bg-transparent hover:bg-gray-200 text-[#666] font-medium text-xs rounded-md transition-colors" style={{ pointerEvents: 'none', opacity: 0.4 }}>
+                                        Remind me later
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Windows branding */}
+                            <div className="px-6 py-3 bg-[#e8e8e8] border-t border-gray-300 flex items-center justify-between">
+                                <span className="text-[#999] text-[10px]">Windows Update KB5034441</span>
+                                <span className="text-[#999] text-[10px]">Size: 1.2 GB</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* PC Restarting Overlay */}
+                {pcRestarting && (
+                    <div className="absolute inset-0 z-50 bg-[#0078d4] flex flex-col items-center justify-center" style={{ animation: 'fadeIn 0.5s ease-in' }}>
+                        <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin mb-6"></div>
+                        <p className="text-white text-lg font-medium">Restarting...</p>
+                        <p className="text-white/60 text-sm mt-2">Your PC will restart in a moment</p>
+                    </div>
+                )}
+
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                `}} />
+            </div>
+        );
+    }
+
+    if (gameState === 'pc_shutdown_scene') {
+        const isFadingOut = outroStep === 2.5;
+        return (
+            <div className={`absolute inset-0 z-[2000] overflow-hidden bg-black transition-opacity duration-1000 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+                <div
+                    className="w-full h-full bg-cover bg-center transition-all duration-[3000ms] scale-110"
+                    style={{
+                        backgroundImage: 'url("/assets/temppho.png")',
+                        filter: 'brightness(0.3) contrast(1.2)'
+                    }}
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
+
+                <div className="absolute inset-0 flex flex-col items-center justify-center z-30 px-12 text-center">
+                    <p className={`text-white text-4xl font-serif italic tracking-wide drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] transition-all duration-1000 max-w-3xl leading-relaxed ${outroStep === 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                        "It's not just me..."
+                    </p>
+                    <p className={`mt-8 text-white/90 text-3xl font-serif italic tracking-wider drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] transition-all duration-1000 max-w-3xl leading-relaxed ${outroStep === 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                        "Many people out there are suffering from these shadows."
+                    </p>
+                </div>
+
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em] opacity-40">
+                    <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                    <div className="text-white/80 font-mono text-[11px] uppercase">
+                        Digital Reflection // Case #5
+                    </div>
+                </div>
+                <style dangerouslySetInnerHTML={{ __html: `@keyframes fadeInSlow { from { opacity: 0; } to { opacity: 1; } }` }} />
+            </div>
+        );
+    }
+
+    if (gameState === 'end_card') {
+        return (
+            <div className="w-full h-full bg-stone-950 flex flex-col items-center justify-center animate-fadeIn relative overflow-hidden z-[3000]">
+                {/* Scanning line effects */}
+                <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
+                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-500/5 to-transparent animate-[scanLine_4s_linear_infinite] pointer-events-none" />
+
+                <div className="relative group text-center">
+                    <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                    <h2 className="text-white text-6xl font-black tracking-[0.5em] uppercase mb-12 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                        Level 5: QR Code Scam
+                        {outroStep >= 4 && (
+                            <div className="absolute top-1/2 left-[-10%] w-[120%] h-3 bg-red-600/90 -translate-y-1/2 animate-[strikeThrough_0.5s_forwards] shadow-[0_0_25px_rgba(220,38,38,1)] z-20 skew-y-[-1deg]" />
+                        )}
+                    </h2>
+
+                    {outroStep >= 4 && (
+                        <div className={`mt-12 text-8xl font-black italic tracking-[0.2em] uppercase animate-surge relative ${outroSuccess ? 'text-emerald-500' : 'text-red-500'}`}>
+                            <span className="relative z-10">{outroSuccess ? 'COMPLETED' : 'FAILED'}</span>
+                            <span className={`absolute inset-0 opacity-40 translate-x-1 animate-[aberration_3s_infinite] ${outroSuccess ? 'text-cyan-400' : 'text-red-400'}`}>{outroSuccess ? 'COMPLETED' : 'FAILED'}</span>
+                            <span className={`absolute inset-0 opacity-40 -translate-x-1 animate-[aberration-alt_3s_infinite] ${outroSuccess ? 'text-emerald-300' : 'text-orange-600'}`}>{outroSuccess ? 'COMPLETED' : 'FAILED'}</span>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-20 flex flex-col items-center gap-4">
+                    <div className="h-px w-80 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+                    <div className="text-[11px] font-mono text-zinc-500 tracking-[0.8em] uppercase opacity-60 animate-pulse">
+                        Digital Incident Forensics // STATUS_RECORDED
+                    </div>
+                </div>
+
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                    @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
+                    @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
+                    @keyframes surge {
+                        0%, 100% { transform: scale(1); filter: brightness(1); }
+                        50% { transform: scale(1.05) filter: brightness(1.2); }
+                    }
+                    @keyframes aberration {
+                        0%, 100% { transform: translate(0,0); }
+                        25% { transform: translate(-2px, 1px); }
+                        50% { transform: translate(2px, -1px); }
+                        75% { transform: translate(-1px, -2px); }
+                    }
+                    @keyframes aberration-alt {
+                        0%, 100% { transform: translate(0,0); }
+                        25% { transform: translate(2px, -1px); }
+                        50% { transform: translate(-2px, 1px); }
+                        75% { transform: translate(1px, 2px); }
+                    }
+                `}} />
             </div>
         );
     }

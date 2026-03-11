@@ -50,7 +50,7 @@ const CLUE_INFO = {
     }
 };
 
-const Level10 = () => {
+const Level11 = () => {
     const { completeLevel, adjustAssets, assets, setSafetyScore, lives, adjustLives } = useGameState();
     const [gameState, setGameState] = useState('room'); // room, phone, laptop, outcome
     const [playerPos, setPlayerPos] = useState({ x: 780, y: 750 });
@@ -913,7 +913,7 @@ const Level10 = () => {
                 <div className="max-w-4xl space-y-12 animate-in zoom-in-95 duration-1000">
                     <div className="space-y-4">
                         <h1 className="text-[100px] font-black uppercase tracking-tighter italic leading-none">THE_VOICE_IS_GEN</h1>
-                        <p className="text-emerald-400 font-mono text-xl tracking-[0.3em] uppercase">Level 10: The Voice That Wasn't Cleared</p>
+                        <p className="text-emerald-400 font-mono text-xl tracking-[0.3em] uppercase">Level 11: The Voice That Wasn't Cleared</p>
                     </div>
                     <div className="bg-white/5 border border-white/10 p-10 rounded-[40px] text-left relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-8 text-6xl opacity-20 group-hover:scale-110 transition-transform">🤖</div>
@@ -959,4 +959,4 @@ const Level10 = () => {
     return null;
 };
 
-export default Level10;
+export default Level11;

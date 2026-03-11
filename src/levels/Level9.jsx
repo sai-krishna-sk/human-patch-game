@@ -4,9 +4,10 @@ import { useGameState } from '../context/GameStateContext';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
+const LIVING_ROOM_WIDTH = 1600;
+const LIVING_ROOM_HEIGHT = 1100;
 const SPEED = 9;
 const PLAYER_SIZE = 40;
-const DESK_ZONE = { x: 500, y: 280, w: 200, h: 100 };
 
 const checkCollision = (px, py, rect) => (
     px < rect.x + rect.w && px + PLAYER_SIZE > rect.x &&
@@ -49,9 +50,15 @@ const SOCIAL_MEDIA_BKG = "data:image/svg+xml,%3Csvg width='100' height='100' vie
 
 const Level9 = () => {
     const { completeLevel, adjustAssets, adjustLives } = useGameState();
-    const [playerPos, setPlayerPos] = useState({ x: 200, y: 600 });
+    const [livingRoomPlayerPos, setLivingRoomPlayerPos] = useState({ x: 740, y: 550 });
+    const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 600, y: 700 });
     const [keys, setKeys] = useState({});
-    const [gameState, setGameState] = useState('room_intro');
+    const [gameState, setGameState] = useState('living_room');
+    const [interactionTarget, setInteractionTarget] = useState(null);
+    const [isTransitioning, setIsTransitioning] = useState(true);
+    const [showText, setShowText] = useState(false);
+    const [dimScreen, setDimScreen] = useState(false);
+    const [tvDialogueShown, setTvDialogueShown] = useState(false);
     const [showThought, setShowThought] = useState(false);
     const [reverseImageSearched, setReverseImageSearched] = useState(false);
     const [cluesFound, setCluesFound] = useState([]);
@@ -70,14 +77,33 @@ const Level9 = () => {
     const [callStep, setCallStep] = useState(0); // 0=ringing, 1=connecting, 2=connected, 3=dialogue
     const [dialogueIndex, setDialogueIndex] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
+    const [finalSleepStep, setFinalSleepStep] = useState(0);
     const firstLineSpoken = React.useRef(false);
+
+    const triggerTransition = (newState, delay = 500) => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+            if (newState) setGameState(newState);
+            setTimeout(() => setIsTransitioning(false), 200);
+        }, delay);
+    };
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsTransitioning(false), 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Handle Interaction Key (E)
     useEffect(() => {
-        if (keys['e'] && canInteract && gameState === 'room_intro') {
-            setGameState('social_media_feed');
-        }
-    }, [keys, canInteract, gameState]);
+        const handleKey = (e) => {
+            if (e.key.toLowerCase() === 'e') {
+                if (gameState === 'living_room' && interactionTarget === 'bedroom') triggerTransition('bedroom_walk');
+                else if (gameState === 'bedroom_walk' && interactionTarget === 'sleep') triggerTransition('sleep_pov');
+            }
+        };
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [gameState, interactionTarget]);
 
     useEffect(() => {
         const dk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
@@ -105,37 +131,93 @@ const Level9 = () => {
     }, []);
 
     useEffect(() => {
-        if (gameState !== 'room_intro') return;
-
+        if (!['living_room', 'bedroom_walk'].includes(gameState)) return;
         let frameId;
         const loop = () => {
-            const currentRoomWidth = Math.max(ROOM_WIDTH, windowWidth);
-            setPlayerPos(p => {
-                let nx = p.x, ny = p.y;
-                if (keys['w'] || keys['arrowup']) ny -= SPEED;
-                if (keys['s'] || keys['arrowdown']) ny += SPEED;
-                if (keys['a'] || keys['arrowleft']) nx -= SPEED;
-                if (keys['d'] || keys['arrowright']) nx += SPEED;
-                nx = Math.max(0, Math.min(nx, currentRoomWidth - PLAYER_SIZE));
-                ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
-                if (checkCollision(nx, ny, DESK_ZONE)) {
-                    if (p.x + PLAYER_SIZE <= DESK_ZONE.x || p.x >= DESK_ZONE.x + DESK_ZONE.w) nx = p.x;
-                    if (p.y + PLAYER_SIZE <= DESK_ZONE.y || p.y >= DESK_ZONE.y + DESK_ZONE.h) ny = p.y;
-                }
-                setCanInteract(checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 }));
-                return { x: nx, y: ny };
-            });
+            if (gameState === 'living_room') {
+                setLivingRoomPlayerPos(p => {
+                    let nx = p.x, ny = p.y;
+                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                    if (keys['d'] || keys['arrowright']) nx += SPEED;
+
+                    nx = Math.max(120, Math.min(nx, LIVING_ROOM_WIDTH - 120));
+                    ny = Math.max(120, Math.min(ny, LIVING_ROOM_HEIGHT - 120));
+
+                    let target = null;
+                    if (Math.abs(nx - 800) < 150 && ny > LIVING_ROOM_HEIGHT - 150) target = 'bedroom'; // bottom exit
+                    setInteractionTarget(target);
+
+                    return { x: nx, y: ny };
+                });
+            } else if (gameState === 'bedroom_walk') {
+                setBedroomPlayerPos(p => {
+                    let nx = p.x, ny = p.y;
+                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
+                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
+                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+                    if (keys['d'] || keys['arrowright']) nx += SPEED;
+                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                    ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+
+                    let target = null;
+                    if (Math.abs(nx - 600) < 150 && ny < 400) target = 'sleep';
+                    setInteractionTarget(target);
+
+                    return { x: nx, y: ny };
+                });
+            }
             frameId = requestAnimationFrame(loop);
         };
-
         frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [keys, gameState]);
 
-        return () => {
-            if (frameId) {
-                cancelAnimationFrame(frameId);
-            }
-        };
-    }, [keys, gameState, windowWidth]);
+    // Handle initial dialogue in living room
+    useEffect(() => {
+        if (gameState === 'living_room' && !tvDialogueShown) {
+            setTvDialogueShown(true);
+            setTimeout(() => {
+                showFeedback("It's getting late. I should go to the bedroom and sleep.");
+            }, 800);
+        }
+    }, [gameState, tvDialogueShown]);
+
+    // Handle sleep to social media transition
+    useEffect(() => {
+        if (gameState === 'sleep_pov') {
+            const t1 = setTimeout(() => setShowText(true), 1500);
+            const t2 = setTimeout(() => setDimScreen(true), 4000);
+            return () => { clearTimeout(t1); clearTimeout(t2); };
+        }
+        if (gameState === 'title_card') {
+            const t3 = setTimeout(() => {
+                triggerTransition('social_media_feed', 500);
+            }, 5500);
+            return () => clearTimeout(t3);
+        }
+    }, [gameState]);
+
+    // Auto-answer call and handle final sleep timing
+    useEffect(() => {
+        if (gameState === 'call_real_nithya') {
+            const timer = setTimeout(() => {
+                setCalledRealNithya(true);
+                setCallStep(0);
+                setDialogueIndex(0);
+                firstLineSpoken.current = false;
+                setGameState('call_confirmation');
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+        
+        if (gameState === 'final_sleep') {
+            const t1 = setTimeout(() => setFinalSleepStep(1), 500);
+            const t2 = setTimeout(() => setFinalSleepStep(2), 3500);
+            return () => { clearTimeout(t1); clearTimeout(t2); };
+        }
+    }, [gameState]);
 
     // Delayed inner thought reveal
     useEffect(() => {
@@ -152,13 +234,9 @@ const Level9 = () => {
         { amount: 12000, message: "I need to travel back to Chennai. They're asking for ₹20,000 more for taxi, tickets, and follow-up appointments. This is the last time, I promise!" },
     ];
 
-    // No auto-escalation — player makes choices at each step
-
-    const playerScale = 0.6 + (playerPos.y / ROOM_HEIGHT) * 0.4;
 
     const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
 
-    // Voice synthesis utility
     const speakLine = (text, isNithya = false) => {
         if (isMuted || typeof window === 'undefined' || !window.speechSynthesis) return;
         window.speechSynthesis.cancel();
@@ -187,38 +265,175 @@ const Level9 = () => {
         </div>
     ) : null;
 
-    // ROOM INTRO STATE
-    if (gameState === 'room_intro') {
+    // ═══════════════════════════════════════════
+    // NEW INTRO SEQUENCE STATES
+    // ═══════════════════════════════════════════
 
+    if (gameState === 'living_room') {
+        const VIEWPORT_WIDTH = 1200;
+        const VIEWPORT_HEIGHT = 800;
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <FeedbackToast />
-                <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH > windowWidth ? windowWidth - 64 : ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                    {/* Room Background Image */}
-                    <div
-                        className="absolute inset-0 z-0"
-                        style={{
-                            backgroundImage: "url('/assets/study.png')",
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
-                        }}
-                    />
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: '#2c3e50' }}>
+                        <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/60 pointer-events-none z-10"></div>
 
-                    <Player x={playerPos.x} y={playerPos.y} />
+                        {/* Top Return Door */}
+                        <div className={`absolute top-0 right-0 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 opacity-80 transition-all`} />
+                        {/* Bottom Double Door (Bedroom Exit) */}
+                        <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-b-0 flex z-10 ${interactionTarget === 'bedroom' ? 'opacity-100 scale-105' : 'opacity-80'} transition-all`}>
+                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">BEDROOM</div>
+                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
+                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            </div>
+                        </div>
 
-                    {/* Interaction Prompt */}
-                    {canInteract && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-amber-500/60 text-amber-400 font-bold px-8 py-4 rounded-xl animate-bounce cursor-pointer shadow-[0_0_20px_rgba(245,158,11,0.3)] z-50 select-none"
-                            onClick={() => setGameState('social_media_feed')}>
-                            <span className="text-amber-300 mr-2">[ E ]</span> CHECK PHONE 📱
+                        {/* RUGS FROM LEVEL 9 */}
+                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0"></div>
+                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0"></div>
+
+                        {/* SOFA */}
+                        <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start z-20 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                            <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2 shadow-inner"></div>
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mb-2 shadow-inner"></div>
+                            </div>
+                            <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black shadow-inner"></div>
+                            <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black shadow-inner"></div>
+                            <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black shadow-inner"></div>
+                            <div className="absolute -bottom-8 left-4 right-4 h-8 bg-black/40 blur-xl rounded-full -z-10"></div>
+                        </div>
+                        {/* COFFEE TABLE */}
+                        <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-2xl flex items-center justify-center">
+                            <div className="absolute top-full left-2 right-2 h-6 bg-black/40 blur-xl rounded-full -z-10"></div>
+                        </div>
+
+                        {/* LAMPS FROM LEVEL 9 */}
+                        <div className="absolute right-[410px] top-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
+                        <div className="absolute right-[410px] bottom-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_10px_20px_rgba(0,0,0,0.5)]">
+                            <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-yellow-500/10 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                        </div>
+
+                        {/* TV UNIT FROM LEVEL 9 */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[180px] h-[340px] bg-[#222938] border-4 border-l-0 border-black flex items-center z-20 shadow-[20px_0_40px_rgba(0,0,0,0.6)]">
+                            <div className="w-[120px] h-[260px] bg-[#1e4868] border-4 border-[#122336] ml-4 relative overflow-hidden shadow-inner">
+                                <div className="w-[180px] h-[40px] bg-white/10 -rotate-45 absolute top-4 -left-8"></div>
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-blue-500/20 blur-lg animate-pulse"></div>
+                                <div className="absolute top-1/2 left-full -translate-y-1/2 w-40 h-56 bg-blue-500/5 blur-2xl rounded-full -z-10 animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        {/* CORNER PLANTS FROM LEVEL 9 */}
+                        <div className="absolute left-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
+                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center relative overflow-hidden">
+                                <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
+                                <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
+                            </div>
+                        </div>
+                        <div className="absolute right-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
+                            <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center relative overflow-hidden">
+                                <div className="w-[60px] h-[10px] bg-[#22c55e] rotate-45 absolute shadow-[0_0_10px_#22c55e]"></div>
+                                <div className="w-[60px] h-[10px] bg-[#22c55e] -rotate-45 absolute"></div>
+                            </div>
+                        </div>
+
+                        <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
+                    </div>
+
+                    {interactionTarget === 'bedroom' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                Press E to enter bedroom
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'bedroom_walk') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
+                    <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.8)' }} />
+                    <div className="absolute inset-0 bg-blue-900/10 pointer-events-none mix-blend-multiply z-10"></div>
+
+                    <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
+
+                    {interactionTarget === 'sleep' && (
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                Press E to lay down
+                            </div>
                         </div>
                     )}
 
-                    {/* Day/Location label */}
                     <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
-                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">NIGHT — 9:30 PM</p>
-                        <p className="text-slate-400 text-[10px] font-mono">YOUR ROOM</p>
+                        <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">NIGHT — 9:35 PM</p>
+                        <p className="text-slate-400 text-[10px] font-mono">YOUR BEDROOM</p>
                     </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'sleep_pov') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")' }}>
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
+
+                    <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-[3000ms] ${showText ? 'opacity-100' : 'opacity-0'} z-30`}>
+                        <p className="text-white text-3xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
+                            "Let me check Instagram for a bit before sleeping..."
+                        </p>
+                    </div>
+
+                    <div
+                        className={`absolute inset-0 z-50 bg-black transition-opacity duration-[3000ms] ease-in-out ${dimScreen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        onTransitionEnd={(e) => {
+                            if (dimScreen && e.propertyName === 'opacity') {
+                                triggerTransition('title_card');
+                            }
+                        }}
+                    ></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'title_card') {
+        return (
+            <div className="absolute inset-0 z-[1000] bg-black flex flex-col justify-center items-center animate-cinematic-sequence">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="relative group text-center animate-fadeInSlow">
+                    <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent mb-8 mx-auto animate-[width_1.5s_ease-in-out]" />
+                    <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
+                        Level 9
+                    </h2>
+                    <div className="text-purple-500 text-lg font-mono tracking-[0.8em] uppercase drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] text-center w-full">
+                        Profile Impersonation
+                    </div>
+                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent mt-8 mx-auto animate-[width_1.5s_ease-in-out]" />
                 </div>
             </div>
         );
@@ -227,82 +442,155 @@ const Level9 = () => {
     // SOCIAL MEDIA FEED STATE
     if (gameState === 'social_media_feed') {
         return (
-            <div className="w-full h-full bg-slate-900 flex items-center justify-center p-8 relative overflow-hidden">
-                <FeedbackToast />
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
-                {/* Phone container - matching Levels 1-3 style */}
-                <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
-                    <StatusBar dark />
+                <div className="relative z-20">
+                    <FeedbackToast />
 
-                    {/* Dynamic Island */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
-                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
-                    </div>
+                    {/* Phone container */}
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                        <StatusBar dark />
 
-                    <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-8">
-                        {/* App header - simplified */}
-                        <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-                            <h2 className="text-2xl font-black text-gray-900">SocialFeed</h2>
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">&#128269;</div>
-                                <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center relative">
-                                    &#128172;
-                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                                </div>
-                            </div>
+                        {/* Dynamic Island */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-3xl z-50 flex items-center justify-center">
+                            <div className="w-2 h-2 bg-slate-800 rounded-full shadow-[inset_0_0_2px_rgba(255,255,255,0.2)]" />
                         </div>
 
-                        {/* Feed content */}
-                        <div className="flex-1 overflow-y-auto bg-gray-50">
-                            {/* Normal posts */}
-                            <div className="p-4 space-y-4">
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-black">A</div>
-                                        <div>
-                                            <p className="font-black text-sm">Arjun Kumar</p>
-                                            <p className="text-xs text-gray-500">2 hours ago</p>
+                        <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-8">
+                            {/* Instagram-style Header */}
+                            <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
+                                <h1 className="text-xl font-bold font-serif italic tracking-tighter" style={{ fontFamily: "'Grand Hotel', 'Brush Script MT', cursive", fontSize: '28px' }}>Instagram</h1>
+                                <div className="flex gap-4 items-center">
+                                    <svg aria-label="Notifications" className="w-6 h-6 outline-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                                    <div className="relative cursor-pointer">
+                                        <svg aria-label="Messenger" className="w-6 h-6 outline-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center animate-pulse">
+                                            <span className="text-[8px] text-white font-bold leading-none">1</span>
                                         </div>
                                     </div>
-                                    <p className="text-sm text-gray-800 mb-2">Finally graduated! &#127877; Thanks to everyone who supported me through this journey!</p>
-                                    <div className="w-full h-40 bg-blue-100 rounded-lg flex items-center justify-center text-4xl">&#127877;</div>
-                                </div>
-
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-black">M</div>
-                                        <div>
-                                            <p className="font-black text-sm">Mom</p>
-                                            <p className="text-xs text-gray-500">4 hours ago</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-gray-800">Beautiful evening at the temple &#128583;</p>
-                                    <div className="w-full h-40 bg-orange-100 rounded-lg flex items-center justify-center text-4xl">&#1585;&#1583;&#1575;</div>
-                                </div>
-
-                                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-black">F</div>
-                                        <div>
-                                            <p className="font-black text-sm">Foodie Chennai</p>
-                                            <p className="text-xs text-gray-500">6 hours ago</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-gray-800">New dosa recipe just dropped! Check it out &#127860;</p>
-                                    <div className="w-full h-40 bg-yellow-100 rounded-lg flex items-center justify-center text-4xl">&#127855;</div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Notification appears after 3 seconds */}
-                        <div className="absolute bottom-20 right-4 animate-in slide-in-from-right duration-500">
-                            <div className="bg-blue-500 text-white p-4 rounded-2xl shadow-2xl cursor-pointer hover:scale-105 transition-transform"
-                                onClick={() => setGameState('message_received')}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">N</div>
-                                    <div>
-                                        <p className="font-black text-sm">Nithya Krishnan</p>
-                                        <p className="text-xs opacity-90">Hey! Long time!!</p>
+                            {/* Stories Row */}
+                            <div className="w-full flex gap-3 overflow-x-auto px-4 py-2 border-b border-gray-100 no-scrollbar">
+                                {[
+                                    { name: "Your story", color: "gray-200", add: true },
+                                    { name: "zara_xo", color: "pink-500", ring: true },
+                                    { name: "rahul99", color: "blue-500", ring: true },
+                                    { name: "chennai_foodie", color: "orange-500", ring: true },
+                                    { name: "karthik.v", color: "emerald-500", ring: true }
+                                ].map((story, i) => (
+                                    <div key={i} className="flex flex-col items-center gap-1 min-w-[64px]">
+                                        <div className={`relative w-16 h-16 rounded-full p-[2px] ${story.ring ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600' : 'bg-transparent'}`}>
+                                            <div className="w-full h-full rounded-full border-[2px] border-white bg-white overflow-hidden flex items-center justify-center">
+                                                <div className={`w-full h-full bg-${story.color}`}></div>
+                                            </div>
+                                            {story.add && (
+                                                <div className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full border-[2px] border-white flex items-center justify-center text-white text-xs font-bold leading-none pb-[1px]">
+                                                    +
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] text-gray-600 truncate w-full text-center">{story.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Feed content */}
+                            <div className="flex-1 overflow-y-auto bg-white custom-scrollbar pb-20">
+                                {/* Post 1 */}
+                                <div className="border-b border-gray-100 pb-2 mb-2">
+                                    <div className="flex items-center justify-between px-3 py-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600 p-[1.5px]">
+                                                <div className="w-full h-full bg-blue-500 rounded-full border border-white flex items-center justify-center text-white text-[10px] font-bold">A</div>
+                                            </div>
+                                            <div>
+                                                <span className="font-semibold text-[13px] text-gray-900">arjun_kumar</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-gray-500 flex justify-center w-6 cursor-pointer">
+                                            <svg aria-label="More options" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+                                        </div>
+                                    </div>
+                                    <div className="w-full aspect-[4/5] bg-blue-50 flex items-center justify-center text-7xl">&#127877;</div>
+                                    <div className="px-3 py-2">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex gap-4">
+                                                <svg aria-label="Like" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                                <svg aria-label="Comment" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                                <svg aria-label="Share" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                            </div>
+                                            <svg aria-label="Save" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                                        </div>
+                                        <p className="font-semibold text-[13px] mb-1">2,341 likes</p>
+                                        <p className="text-[13px] leading-snug"><span className="font-semibold mr-1">arjun_kumar</span>Finally graduated! &#127877; Thanks to everyone who supported me through this journey!</p>
+                                        <p className="text-gray-500 text-[11px] uppercase tracking-wide mt-2">2 HOURS AGO</p>
+                                    </div>
+                                </div>
+
+                                {/* Post 2 */}
+                                <div className="border-b border-gray-100 pb-2 mb-2">
+                                    <div className="flex items-center justify-between px-3 py-2">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-8 h-8 rounded-full bg-orange-500 border border-gray-200 flex items-center justify-center text-white text-[10px] font-bold">M</div>
+                                            <div>
+                                                <span className="font-semibold text-[13px] text-gray-900">usha_temple_tour</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-gray-500 flex justify-center w-6 cursor-pointer">
+                                            <svg aria-label="More options" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+                                        </div>
+                                    </div>
+                                    <div className="w-full aspect-square bg-orange-50 flex items-center justify-center text-7xl">&#1585;&#1583;&#1575;</div>
+                                    <div className="px-3 py-2">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex gap-4">
+                                                <svg aria-label="Like" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                                <svg aria-label="Comment" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                                <svg aria-label="Share" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                            </div>
+                                            <svg aria-label="Save" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                                        </div>
+                                        <p className="font-semibold text-[13px] mb-1">104 likes</p>
+                                        <p className="text-[13px] leading-snug"><span className="font-semibold mr-1">usha_temple_tour</span>Beautiful evening at the temple &#128583;</p>
+                                        <p className="text-gray-500 text-[11px] uppercase tracking-wide mt-2">4 HOURS AGO</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Instagram Bottom Nav Area Content below absolute layer */}
+                            <div className="absolute bottom-0 w-full bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-8 z-40">
+                                <svg aria-label="Home" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.099l-9 6.8V22h5v-6h8v6h5V8.899l-9-6.8zm-7 8.3l7-5.3 7 5.3V20h-2v-6H9v6H5v-9.6z" opacity="0"></path><path d="M12 2l-10 7.5V22h6v-6h4v6h6V9.5L12 2z"></path></svg>
+                                <svg aria-label="Search" className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                <svg aria-label="New post" className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                                <svg aria-label="Reels" className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                <div className="w-6 h-6 rounded-full bg-gray-300 border border-gray-200"></div>
+                            </div>
+
+                            {/* Notification appears after 3 seconds */}
+                            <div className="absolute top-12 right-2 left-2 animate-in slide-in-from-top-4 fade-in duration-500 z-50">
+                                <div className="bg-zinc-900/95 backdrop-blur-md text-white p-3 px-4 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.5)] cursor-pointer hover:scale-[1.02] transition-transform border border-zinc-800"
+                                    onClick={() => setGameState('message_received')}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3">
+                                            <div className="relative">
+                                                <div className="w-11 h-11 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-lg">N</div>
+                                                <div className="absolute -bottom-1 -right-1 bg-red-500 w-5 h-5 rounded-full flex items-center justify-center border-2 border-zinc-900">
+                                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-semibold text-[15px] leading-tight flex items-center gap-1">nithya.k <span className="w-3 h-3 bg-blue-500 text-white rounded-full flex items-center justify-center text-[8px]">✓</span></p>
+                                                    <p className="text-[11px] text-gray-400 font-medium">now</p>
+                                                </div>
+                                                <p className="text-[13px] text-gray-300 truncate w-[220px]">Hey! Oh my god it's been so long!!</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -329,10 +617,15 @@ const Level9 = () => {
         ];
 
         return (
-            <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
-                <FeedbackToast />
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
-                <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col">
+                <div className="relative z-20">
+                    <FeedbackToast />
+
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
                     <StatusBar />
 
                     {/* Dynamic Island */}
@@ -432,6 +725,7 @@ const Level9 = () => {
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         );
     }
@@ -439,8 +733,13 @@ const Level9 = () => {
     // PROFILE INVESTIGATION STATE
     if (gameState === 'profile_investigation') {
         return (
-            <div className="w-full h-full bg-zinc-900 p-4 flex flex-row items-center justify-center gap-8 relative">
-                <FeedbackToast />
+            <div className="w-full h-full flex flex-row items-center justify-center gap-8 p-4 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
+
+                <div className="relative z-20 flex flex-row items-center justify-center gap-8 w-full h-full">
+                    <FeedbackToast />
 
                 {/* Phone with profile - matching Levels 1-3 style */}
                 <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
@@ -908,119 +1207,70 @@ const Level9 = () => {
 
 
                 </div>
+                </div>
             </div>
         );
     }
 
-    // CALL REAL NITHYA STATE — Split Screen
+    // CALL REAL NITHYA STATE — Outgoing Call
     if (gameState === 'call_real_nithya') {
         return (
-            <div className="w-full h-full bg-gradient-to-br from-slate-950 via-zinc-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-                <FeedbackToast />
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
-                {/* Ambient glow */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl animate-pulse" />
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-                </div>
+                <div className="relative z-20">
+                    <FeedbackToast />
 
-                {/* Split Screen Container */}
-                <div className="flex items-center gap-8 z-10">
-
-                    {/* LEFT — Player's Phone (Outgoing Call) */}
-                    <div className="w-[320px] max-h-[85vh] h-[680px] bg-zinc-900 border-[10px] border-black rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col">
+                    {/* Single Phone UI (Outgoing Call) */}
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col items-center justify-center">
                         {/* Dynamic Island */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-50 flex items-center justify-center">
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                             <div className="w-2 h-2 bg-slate-700 rounded-full" />
                         </div>
 
-                        <div className="w-full h-full bg-gradient-to-b from-blue-600 via-blue-500 to-indigo-600 flex flex-col items-center justify-center text-white relative overflow-hidden rounded-[1.5rem]">
+                        <div className="w-full h-full bg-gradient-to-b from-blue-700 via-blue-600 to-indigo-800 flex flex-col items-center text-white relative overflow-hidden pt-20">
                             {/* Ripple effect */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className="w-40 h-40 border-2 border-white/10 rounded-full animate-ping" />
-                                <div className="absolute w-56 h-56 border border-white/5 rounded-full animate-ping" style={{ animationDelay: '0.5s' }} />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-20">
+                                <div className="w-64 h-64 border border-white/10 rounded-full animate-ping" />
+                                <div className="absolute w-80 h-80 border border-white/5 rounded-full animate-ping" style={{ animationDelay: '0.8s' }} />
+                                <div className="absolute w-96 h-96 border border-white/5 rounded-full animate-ping" style={{ animationDelay: '1.6s' }} />
                             </div>
 
-                            <div className="relative z-10 flex flex-col items-center">
-                                <p className="text-xs opacity-60 uppercase tracking-[0.3em] mb-2 font-bold">Outgoing Call</p>
-                                <div className="w-24 h-24 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center text-5xl mb-6 shadow-xl border-2 border-white/20">
-                                    👤
-                                </div>
-                                <p className="font-black text-2xl mb-1">You</p>
-                                <p className="text-sm opacity-70">Calling Nithya...</p>
-
-                                {/* Call duration indicator */}
-                                <div className="mt-8 flex items-center gap-2">
-                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                                    <span className="text-xs font-mono opacity-60">Ringing...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* CENTER — Connection pulse */}
-                    <div className="flex flex-col items-center gap-4">
-                        <div className="flex gap-2">
-                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-bounce" />
-                            <div className="w-3 h-3 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-                            <div className="w-3 h-3 bg-emerald-300 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
-                        </div>
-                        <p className="text-white/40 text-xs font-bold uppercase tracking-[0.2em]">Connecting</p>
-                    </div>
-
-                    {/* RIGHT — Nithya's Phone (Incoming Call) */}
-                    <div className="w-[320px] max-h-[85vh] h-[680px] bg-zinc-900 border-[10px] border-black rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col">
-                        {/* Dynamic Island */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-b-xl z-50 flex items-center justify-center">
-                            <div className="w-2 h-2 bg-slate-700 rounded-full" />
-                        </div>
-
-                        <div className="w-full h-full bg-gradient-to-b from-emerald-600 via-emerald-500 to-teal-600 flex flex-col items-center justify-between text-white relative overflow-hidden rounded-[1.5rem] py-12">
-                            {/* Ripple effect */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <div className="w-40 h-40 border-2 border-white/10 rounded-full animate-ping" />
-                            </div>
-
-                            <div className="relative z-10 flex flex-col items-center flex-1 justify-center">
-                                <p className="text-xs opacity-60 uppercase tracking-[0.3em] mb-2 font-bold">Incoming Call</p>
-                                <div className="w-28 h-28 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center text-6xl mb-6 shadow-xl border-2 border-white/20 animate-pulse">
+                            <div className="relative z-10 flex flex-col items-center mt-20 w-full px-8">
+                                <p className="text-xs opacity-60 uppercase tracking-[0.3em] font-bold mb-6">Outgoing Call</p>
+                                <div className="w-32 h-32 bg-white/15 backdrop-blur-md rounded-full flex items-center justify-center text-6xl mb-8 shadow-2xl border-2 border-white/20">
                                     👩
                                 </div>
-                                <p className="font-black text-2xl mb-1">Nithya Krishnan</p>
-                                <p className="text-sm opacity-70">Chennai, Tamil Nadu</p>
-                                <div className="flex items-center gap-2 mt-2">
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                                    </svg>
-                                    <span className="text-sm opacity-70">Mobile</span>
-                                </div>
-                            </div>
+                                <h2 className="font-black text-3xl mb-2 drop-shadow-lg">Nithya</h2>
+                                <p className="text-sm opacity-80 mb-12 flex items-center justify-center gap-2">
+                                    <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                                    Ringing...
+                                </p>
 
-                            {/* Answer Call Button */}
-                            <div className="relative z-10 flex flex-col items-center gap-3 pb-4">
-                                <p className="text-white/60 text-xs font-bold animate-pulse">Tap to answer</p>
-                                <button
-                                    className="w-20 h-20 bg-white rounded-full flex items-center justify-center text-emerald-600 text-3xl shadow-[0_8px_30px_rgba(255,255,255,0.3)] hover:scale-110 transition-all active:scale-95 border-4 border-white/50"
-                                    onClick={() => {
-                                        setCalledRealNithya(true);
-                                        setCallStep(0);
-                                        setDialogueIndex(0);
-                                        firstLineSpoken.current = false;
-                                        setGameState('call_confirmation');
-                                    }}
-                                >
-                                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                                    </svg>
+                                {/* Action Buttons (Disabled/Decorational) */}
+                                <div className="grid grid-cols-3 gap-8 mb-16 opacity-50 mt-10 w-full px-4">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-xl">🔇</div>
+                                        <span className="text-xs font-medium">Mute</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-xl">⌨️</div>
+                                        <span className="text-xs font-medium">Keypad</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-xl">🔊</div>
+                                        <span className="text-xs font-medium">Speaker</span>
+                                    </div>
+                                </div>
+
+                                <button className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-[0_5px_20px_rgba(239,68,68,0.5)] border-4 border-white/20 mx-auto">
+                                    <svg className="w-8 h-8 text-white rotate-[135deg]" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Label */}
-                <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-slate-800/80 backdrop-blur-sm px-6 py-2 rounded-full border border-slate-700/50">
-                    <p className="text-white/80 text-sm font-bold tracking-wider">📞 VERIFYING REAL IDENTITY</p>
                 </div>
             </div>
         );
@@ -1053,142 +1303,109 @@ const Level9 = () => {
         }
 
         return (
-            <div className="w-full h-full bg-gradient-to-br from-slate-950 via-zinc-900 to-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-                <FeedbackToast />
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
-                {/* Ambient glow */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/3 left-1/3 w-80 h-80 bg-emerald-500/5 rounded-full blur-3xl" />
-                    <div className="absolute bottom-1/3 right-1/3 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl" />
-                </div>
+                <div className="relative z-20">
+                    <FeedbackToast />
 
-                {/* Split Screen — Connected Call */}
-                <div className="flex items-stretch gap-6 z-10 max-w-5xl w-full">
+                    {/* Single Phone UI (Connected Call) */}
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                        <StatusBar dark={false} />
 
-                    {/* LEFT — Player's side */}
-                    <div className="w-48 flex-shrink-0 bg-gradient-to-b from-blue-700 to-indigo-800 rounded-3xl p-6 flex flex-col items-center justify-center text-white shadow-2xl border border-blue-600/30">
-                        <div className="w-20 h-20 bg-white/15 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-white/20">
-                            👤
-                        </div>
-                        <p className="font-black text-lg mb-1">You</p>
-                        <div className="flex items-center gap-2 mt-2">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                            <span className="text-xs opacity-70 font-mono">Connected</span>
+                        {/* Dynamic Island */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
+                            <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                            <div className="absolute right-3 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_#10b981]" />
                         </div>
 
-                        {/* Audio wave animation */}
-                        <div className="flex items-end gap-1 mt-6 h-8">
-                            {[3, 5, 2, 6, 4, 3, 5].map((h, i) => (
-                                <div key={i} className="w-1 bg-white/40 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.1}s` }} />
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* CENTER — Dialogue */}
-                    <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
-                        {/* Header */}
-                        <div className="bg-emerald-600/20 border-b border-emerald-500/20 px-6 py-4 flex items-center justify-between flex-shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse" />
-                                <h2 className="text-white font-black text-lg">Call Connected</h2>
-                                <span className="text-emerald-300/60 text-xs font-mono">— Real Nithya is safe in Chennai</span>
+                        <div className="w-full h-full bg-[#0a1128] overflow-hidden flex flex-col relative pt-10">
+                            {/* Blurred ambient background effect inside phone */}
+                            <div className="absolute inset-0 z-0 opacity-40">
+                                <div className="absolute top-10 right-10 w-40 h-40 bg-purple-600 rounded-full blur-[80px]"></div>
+                                <div className="absolute bottom-40 left-10 w-40 h-40 bg-emerald-600 rounded-full blur-[80px]"></div>
                             </div>
-                            <button
-                                onClick={() => setIsMuted(!isMuted)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${isMuted ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20'}`}
-                            >
-                                {isMuted ? '🔇 Muted' : '🔊 Audio On'}
-                            </button>
-                        </div>
 
-                        {/* Dialogue bubbles */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                            {dialogueLines.slice(0, dialogueIndex + 1).map((line, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`flex ${line.sender === 'you' ? 'justify-start' : 'justify-end'} animate-in slide-in-from-bottom-2 duration-500`}
-                                    style={{ animationDelay: `${idx * 0.1}s` }}
-                                >
-                                    <div className={`max-w-[80%] p-4 rounded-2xl shadow-lg ${line.sender === 'you'
-                                        ? 'bg-blue-600/20 border border-blue-500/30 text-blue-100 rounded-tl-sm'
-                                        : 'bg-emerald-600/20 border border-emerald-500/30 text-emerald-100 rounded-tr-sm'
-                                        }`}>
-                                        <p className={`text-xs font-black uppercase tracking-wider mb-2 ${line.sender === 'you' ? 'text-blue-400' : 'text-emerald-400'}`}>
-                                            {line.sender === 'you' ? '👤 You:' : '👩 Nithya (Real):'}
-                                        </p>
-                                        <p className="text-sm leading-relaxed">"{line.text}"</p>
+                            {/* Call Header */}
+                            <div className="px-6 py-4 flex flex-col items-center border-b border-white/5 bg-black/20 backdrop-blur-md z-10 mt-6">
+                                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-3xl mb-3 shadow-[0_5px_15px_rgba(0,0,0,0.3)] border-2 border-white/10">
+                                    👩
+                                </div>
+                                <h2 className="text-white font-black text-xl mb-1 drop-shadow-md">Nithya</h2>
+                                <div className="flex gap-2 items-center">
+                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]" />
+                                    <span className="text-emerald-400 text-[11px] font-mono font-bold tracking-widest uppercase opacity-90">Connected 00:0{dialogueIndex + 2}</span>
+                                </div>
+                            </div>
+
+                            {/* Live Transcript / Dialogue */}
+                            <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar z-10 pb-32">
+                                {/* Visualizer */}
+                                <div className="flex justify-center items-end gap-1 h-12 mb-6 opacity-60">
+                                    {[3, 5, 2, 8, 4, 3, 6, 2, 7, 4, 5, 2, 4, 3].map((h, i) => (
+                                        <div key={i} className="w-1 bg-emerald-400 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.1}s` }} />
+                                    ))}
+                                </div>
+
+                                {dialogueLines.slice(0, dialogueIndex + 1).map((line, idx) => (
+                                    <div
+                                        key={idx}
+                                        className={`flex flex-col ${line.sender === 'you' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-500`}
+                                        style={{ animationDelay: `${idx * 0.1}s` }}
+                                    >
+                                        <span className={`text-[9px] mb-1 font-bold uppercase tracking-widest ${line.sender === 'you' ? 'text-blue-400/80 mr-1' : 'text-emerald-400/80 ml-1'}`}>
+                                            {line.sender === 'you' ? 'You' : 'Nithya (Real)'}
+                                        </span>
+                                        <div className={`max-w-[85%] p-4 rounded-[1.2rem] shadow-lg text-[13px] leading-relaxed backdrop-blur-md border ${line.sender === 'you'
+                                            ? 'bg-blue-600/30 border-blue-500/30 text-blue-50 rounded-tr-sm'
+                                            : 'bg-emerald-600/30 border-emerald-500/30 text-emerald-50 rounded-tl-sm'
+                                            }`}>
+                                            "{line.text}"
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                                
+                                <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                            </div>
 
-                            {/* Typing indicator */}
-                            {dialogueIndex < dialogueLines.length - 1 && (
-                                <div className="flex justify-center">
-                                    <div className="flex gap-1 p-3">
-                                        <div className="w-2 h-2 bg-white/30 rounded-full animate-bounce" />
-                                        <div className="w-2 h-2 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
-                                        <div className="w-2 h-2 bg-white/30 rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                            {/* Call Controls / Continue Button Overlay */}
+                            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#050a17] via-[#050a17]/90 to-transparent z-20 pb-10 flex flex-col items-center">
+                                {dialogueIndex < dialogueLines.length - 1 ? (
+                                    <button
+                                        className="w-full bg-white text-black font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 hover:bg-gray-100"
+                                        onClick={showNextLine}
+                                    >
+                                        <span>Continue Conversation</span>
+                                        <span className="text-xl">💬</span>
+                                    </button>
+                                ) : (
+                                    <div className="w-full space-y-3">
+                                        {!scamReported && (
+                                            <button className="w-full bg-red-600/20 border border-red-500/50 hover:bg-red-600/30 text-red-400 font-black py-3.5 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-sm backdrop-blur-md"
+                                                onClick={() => setGameState('report_fake_account')}>
+                                                🚨 Report Fake Account
+                                            </button>
+                                        )}
+                                        {!communityAlerted && (
+                                            <button className="w-full bg-amber-500/20 border border-amber-500/50 hover:bg-amber-500/30 text-amber-400 font-black py-3.5 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-sm backdrop-blur-md"
+                                                onClick={() => setGameState('alert_community')}>
+                                                👥 Alert Mutual Friends
+                                            </button>
+                                        )}
+                                        {scamReported && communityAlerted && (
+                                            <button className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 animate-pulse flex items-center justify-center gap-2"
+                                                onClick={() => {
+                                                    window.speechSynthesis?.cancel();
+                                                    setGameState('final_sleep');
+                                                }}>
+                                                ✅ Hang Up & Sleep
+                                            </button>
+                                        )}
                                     </div>
-                                </div>
-                            )}
-                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="p-4 border-t border-white/10 flex-shrink-0">
-                            {dialogueIndex < dialogueLines.length - 1 ? (
-                                <button
-                                    className="w-full bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2"
-                                    onClick={showNextLine}
-                                >
-                                    <span>Continue Conversation</span>
-                                    <span className="animate-bounce">→</span>
-                                </button>
-                            ) : (
-                                <div className="space-y-3">
-                                    {!scamReported && (
-                                        <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
-                                            onClick={() => setGameState('report_fake_account')}>
-                                            🚨 Report Fake Account
-                                        </button>
-                                    )}
-                                    {!communityAlerted && (
-                                        <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
-                                            onClick={() => setGameState('alert_community')}>
-                                            👥 Alert Mutual Friends
-                                        </button>
-                                    )}
-                                    {scamReported && communityAlerted && (
-                                        <button className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 animate-pulse flex items-center justify-center gap-2"
-                                            onClick={() => {
-                                                window.speechSynthesis?.cancel();
-                                                setGameState('correct_path');
-                                            }}>
-                                            ✅ All Done — View Results
-                                        </button>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* RIGHT — Nithya's side */}
-                    <div className="w-48 flex-shrink-0 bg-gradient-to-b from-emerald-700 to-teal-800 rounded-3xl p-6 flex flex-col items-center justify-center text-white shadow-2xl border border-emerald-600/30">
-                        <div className="w-20 h-20 bg-white/15 rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-white/20">
-                            👩
-                        </div>
-                        <p className="font-black text-lg mb-1">Nithya</p>
-                        <p className="text-xs opacity-60">Chennai</p>
-                        <div className="flex items-center gap-2 mt-2">
-                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                            <span className="text-xs opacity-70 font-mono">Connected</span>
-                        </div>
-
-                        {/* Audio wave animation */}
-                        <div className="flex items-end gap-1 mt-6 h-8">
-                            {[4, 2, 6, 3, 5, 4, 2].map((h, i) => (
-                                <div key={i} className="w-1 bg-white/40 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.15}s` }} />
-                            ))}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1199,8 +1416,13 @@ const Level9 = () => {
     // REPORT FAKE ACCOUNT STATE
     if (gameState === 'report_fake_account') {
         return (
-            <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
-                <FeedbackToast />
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
+
+                <div className="relative z-20">
+                    <FeedbackToast />
 
                 <div className="w-[380px] max-h-[90vh] h-[700px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col"
                     style={{
@@ -1271,6 +1493,7 @@ const Level9 = () => {
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         );
     }
@@ -1278,8 +1501,13 @@ const Level9 = () => {
     // ALERT COMMUNITY STATE
     if (gameState === 'alert_community') {
         return (
-            <div className="w-full h-full bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
-                <FeedbackToast />
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+                {/* Bedroom background */}
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
+                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
+
+                <div className="relative z-20">
+                    <FeedbackToast />
 
                 <div className="w-[380px] max-h-[90vh] h-[700px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col"
                     style={{
@@ -1349,97 +1577,65 @@ const Level9 = () => {
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         );
     }
 
-    // CORRECT PATH STATE
-    if (gameState === 'correct_path') {
-        const allActionsComplete = calledRealNithya && scamReported && communityAlerted;
-
+    // FINAL BEDTIME SEQUENCE
+    if (gameState === 'final_sleep') {
         return (
-            <div className="w-full h-full bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-10 overflow-hidden relative">
-                <FeedbackToast />
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+                <div className="w-full h-full bg-cover bg-center relative" style={{ backgroundImage: 'url("/assets/bedplain.png")', filter: 'brightness(0.6)' }}>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
 
-                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.3)_0%,transparent_70%)]"></div>
+                    <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-[2000ms] ${finalSleepStep >= 1 ? 'opacity-100' : 'opacity-0'} z-30`}>
+                        <p className="text-white text-3xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
+                            "That's enough phone for today. Time to sleep."
+                        </p>
+                    </div>
 
-                <div className="w-full max-w-4xl bg-white/5 backdrop-blur-3xl rounded-[3rem] border-4 border-emerald-500/30 shadow-3xl overflow-hidden flex flex-col p-8 pb-6 animate-in zoom-in-95 duration-500 h-[680px]">
-                    <div className="flex items-center gap-6 mb-8 flex-shrink-0">
-                        <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-4xl shadow-[0_0_50px_rgba(16,185,129,0.4)] border-4 border-black/20">&#128737;</div>
-                        <div>
-                            <h2 className="text-emerald-400 font-black text-5xl uppercase italic tracking-tighter drop-shadow-lg">Ghost Profile Exposed</h2>
-                            <p className="text-slate-400 font-black text-lg uppercase tracking-widest mt-1">
-                                {allActionsComplete ? "COMMUNITY PROTECTED" : "VERIFICATION COMPLETE"}
-                            </p>
+                    <div
+                        className={`absolute inset-0 z-[100] bg-black transition-opacity duration-[2000ms] ease-in-out ${finalSleepStep >= 2 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        onTransitionEnd={(e) => {
+                            if (finalSleepStep >= 2 && e.propertyName === 'opacity') {
+                                setGameState('end_card');
+                            }
+                        }}
+                    ></div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'end_card') {
+        return (
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black flex flex-col items-center justify-center">
+                <div className="text-center animate-in zoom-in duration-1000">
+                    <div className="w-24 h-24 bg-purple-600 rounded-full flex items-center justify-center text-5xl mx-auto shadow-[0_0_80px_rgba(147,51,234,0.5)] animate-bounce mb-8">
+                        🌙
+                    </div>
+                    <h1 className="text-6xl font-black text-white uppercase tracking-[0.3em] mb-4">Level 9 Completed</h1>
+                    <p className="text-purple-400 text-2xl font-light tracking-widest uppercase italic mb-12">Profile Impersonation Defeated</p>
+                    
+                    <div className="flex gap-6 justify-center mb-16 px-10">
+                        <div className="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 w-56 shadow-2xl">
+                            <div className="text-5xl text-emerald-400 font-black mb-3">+35</div>
+                            <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">Safety Score</div>
+                        </div>
+                        <div className="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 w-56 shadow-2xl flex flex-col items-center justify-center">
+                            <div className="text-2xl text-cyan-400 font-black mb-3 uppercase leading-tight tracking-wider text-center">The Verifier</div>
+                            <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">Badge Earned</div>
                         </div>
                     </div>
 
-                    <div className="flex-1 grid grid-cols-2 gap-12 overflow-y-auto pr-4 custom-scrollbar">
-                        {/* Completed Steps */}
-                        <div className="space-y-6">
-                            <div className="p-6 rounded-[2rem] bg-emerald-900/20 border-2 border-emerald-500/50">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter text-emerald-400">✓ Step 1: Profile Investigation</h4>
-                                <p className="text-slate-300 leading-relaxed text-sm">
-                                    You discovered the fake profile was created 4 days ago, used stock photos, and had suspicious mutual friend patterns.
-                                </p>
-                            </div>
-
-                            <div className="p-6 rounded-[2rem] bg-emerald-500 text-black border-4 border-transparent shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">✓ Step 2: Real Contact Verified</h4>
-                                <p className="text-black/80 text-sm leading-relaxed">Verified identity through a different channel before taking action.</p>
-                            </div>
-
-                            <div className="p-6 rounded-[2rem] bg-red-500 text-white border-4 border-transparent shadow-[0_10px_30px_rgba(220,38,38,0.3)]">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">✓ Step 3: Fake Account Reported</h4>
-                                <p className="text-white/80 text-sm leading-relaxed">Reported impersonation accounts to protect the community.</p>
-                            </div>
-
-                            <div className="p-6 rounded-[2rem] bg-blue-500 text-white border-4 border-transparent shadow-[0_10px_30px_rgba(59,130,246,0.3)]">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">✓ Step 4: Community Alerted</h4>
-                                <p className="text-white/80 text-sm leading-relaxed">Warned mutual friends about the impersonation attempt.</p>
-                            </div>
-                        </div>
-
-                        {/* Impact Summary */}
-                        <div className="bg-black/40 border-4 border-white/5 rounded-[2.5rem] p-8 relative flex flex-col justify-between overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
-                            <div className="space-y-6 relative z-10">
-                                <p className="text-white/30 font-black text-[10px] uppercase tracking-[0.4em] mb-2 border-b border-white/10 pb-2">Impact Summary</p>
-
-                                <div className="space-y-4">
-                                    <div className="bg-emerald-900/40 border border-emerald-500/30 rounded-xl p-4">
-                                        <p className="text-emerald-400 font-black text-sm uppercase tracking-widest mb-1">Financial Loss Prevented</p>
-                                        <p className="text-emerald-200 text-3xl font-black font-mono">₹8,000</p>
-                                    </div>
-
-                                    <div className="bg-blue-900/40 border border-blue-500/30 rounded-xl p-4">
-                                        <p className="text-blue-400 font-black text-sm uppercase tracking-widest mb-1">Friends Protected</p>
-                                        <p className="text-blue-200 text-3xl font-black font-mono">12</p>
-                                    </div>
-
-                                    <div className="bg-purple-900/40 border border-purple-500/30 rounded-xl p-4">
-                                        <p className="text-purple-400 font-black text-sm uppercase tracking-widest mb-1">Cyber Safety Score</p>
-                                        <p className="text-purple-200 text-3xl font-black font-mono">+35</p>
-                                    </div>
-                                </div>
-
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p className="text-white/80 font-black text-sm mb-2">🏅 Achievement Unlocked:</p>
-                                    <p className="text-white font-black text-lg">The Verifier</p>
-                                    <p className="text-white/60 text-xs mt-1">Confirmed identity before acting, protected community</p>
-                                </div>
-                            </div>
-
-                            {allActionsComplete && (
-                                <div className="mt-8 animate-in fade-in duration-500">
-                                    <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] animate-pulse"
-                                        onClick={() => completeLevel(true, 35, 0)}>
-                                        COMPLETE LEVEL ➔
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                    <button 
+                        onClick={() => completeLevel(true, 35, 0)}
+                        className="bg-purple-600 hover:bg-purple-500 text-white px-12 py-5 rounded-full font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_30px_rgba(147,51,234,0.3)] hover:shadow-[0_0_50px_rgba(147,51,234,0.5)] hover:-translate-y-1"
+                    >
+                        Return to Hub ➔
+                    </button>
                 </div>
             </div>
         );

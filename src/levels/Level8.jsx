@@ -47,6 +47,12 @@ const CLUE_DATA = [
     name: 'False Security Badge',
     description: 'The "Secured Checkout - 100% Safe" badge is a static image, not a verified SSL certificate. Scammers add these to build false trust.',
     points: 15
+  },
+  {
+    id: 'too_good_to_be_true',
+    name: 'Unrealistic Pricing',
+    description: 'A Samsung Galaxy S24 Ultra for ₹2,499 (97% discount) is logically impossible. Scammers use extreme discounts to bypass critical thinking.',
+    points: 25
   }
 ];
 
@@ -54,11 +60,10 @@ const Level8 = () => {
   const { completeLevel, adjustAssets, adjustLives } = useGameState();
 
   // ═══ STATE ═══
-  const [gameState, setGameState] = useState('living-room'); // living-room, whatsapp, website, trust-score, outcome
+  const [gameState, setGameState] = useState('garden'); // garden, living-room, whatsapp, website, trust-score, outcome
   const [cluesFound, setCluesFound] = useState([]);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const [activeClue, setActiveClue] = useState(null);
-  const [feedbackMsg, setFeedbackMsg] = useState(null);
   const [showDetectiveBoard, setShowDetectiveBoard] = useState(false);
   const [isPhoneVibrating, setIsPhoneVibrating] = useState(false);
   const [scamProgress, setScamProgress] = useState(0); // For trust score meter
@@ -70,19 +75,38 @@ const Level8 = () => {
   const [hasWarned, setHasWarned] = useState(false);
 
   // Movement State
-  const [playerPos, setPlayerPos] = useState({ x: 750, y: 430 });
+  const [playerPos, setPlayerPos] = useState({ x: 750, y: 430 }); // Default living room pos
+  const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 800, y: 400 }); // Centered around car
   const [keys, setKeys] = useState({});
   const [interactionActive, setInteractionActive] = useState(false);
+  const [interactionTarget, setInteractionTarget] = useState(null);
+  const [isCarExited, setIsCarExited] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [tvDialogueShown, setTvDialogueShown] = useState(false);
+  const [phoneTriggered, setPhoneTriggered] = useState(false);
+  const [activeDialogue, setActiveDialogue] = useState(null);
+  const [epilogueStep, setEpilogueStep] = useState(0);
 
-  // ═══ HELPERS ═══
-  const showFeedback = (msg, color = 'cyan') => {
-    setFeedbackMsg({ text: msg, color });
-    setTimeout(() => setFeedbackMsg(null), 3500);
+  const triggerTransition = (newState, newPos = null) => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+        if (newState) setGameState(newState);
+        if (newPos) setPlayerPos(newPos);
+        setTimeout(() => setIsTransitioning(false), 500);
+    }, 500);
   };
 
   const handleClueDiscovery = useCallback((clueId) => {
     if (cluesFound.some(c => c.id === clueId)) return;
+    // Show cinematic dialogue first, don't log the clue yet
+    setActiveDialogue(clueId);
+  }, [cluesFound]);
+
+  const handleDialogueComplete = useCallback((clueId) => {
+    setActiveDialogue(null);
+    if (cluesFound.some(c => c.id === clueId)) return;
     const clueDef = CLUE_DATA.find(c => c.id === clueId);
+    if (!clueDef) return;
 
     // Calculate grid-based position to prevent stacking
     const gridPositions = [
@@ -109,19 +133,30 @@ const Level8 = () => {
     };
 
     setCluesFound(prev => [...prev, newClue]);
-    setActiveClue(clueDef);
     setShowDetectiveBoard(true);
-    showFeedback(`New Evidence: ${clueDef.name}`, 'emerald');
   }, [cluesFound]);
 
+  // Epilogue sequence timers
   useEffect(() => {
-    // Initial phone vibration after 2 seconds
-    const timer = setTimeout(() => {
-      setIsPhoneVibrating(true);
-      showFeedback("WhatsApp Notification from Aunty Priya", "indigo");
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+    if (gameState === 'epilogue') {
+      const timers = [
+        setTimeout(() => setEpilogueStep(1), 2000),
+        setTimeout(() => setEpilogueStep(2), 6000),
+        setTimeout(() => setEpilogueStep(3), 9000),
+        setTimeout(() => setEpilogueStep(4), 11000),
+      ];
+      return () => timers.forEach(t => clearTimeout(t));
+    }
+  }, [gameState]);
+
+  // Remove initial phone vibration on load, we trigger it based on proximity now
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     setIsPhoneVibrating(true);
+  //     showFeedback("WhatsApp Notification from Aunty Priya", "indigo");
+  //   }, 2000);
+  //   return () => clearTimeout(timer);
+  // }, []);
 
   // ═══ MOVEMENT LOGIC ═══
   useEffect(() => {
@@ -136,7 +171,8 @@ const Level8 = () => {
   }, []);
 
   useEffect(() => {
-    if (gameState !== 'living-room' || showWhatsApp) return;
+    // Only process if no modal is active
+    if (showWhatsApp || showWhatsAppWarn || gameState === 'cybercrime-portal') return;
 
     let animationFrameId;
     const speed = 7;
@@ -144,44 +180,136 @@ const Level8 = () => {
     const ROOM_HEIGHT = 1100;
 
     const gameLoop = () => {
-      setPlayerPos(prev => {
-        let newX = prev.x;
-        let newY = prev.y;
+      if (gameState === 'living-room') {
+        setPlayerPos(prev => {
+          let newX = prev.x;
+          let newY = prev.y;
 
-        if (keys['w'] || keys['arrowup']) newY -= speed;
-        if (keys['s'] || keys['arrowdown']) newY += speed;
-        if (keys['a'] || keys['arrowleft']) newX -= speed;
-        if (keys['d'] || keys['arrowright']) newX += speed;
+          if (keys['w'] || keys['arrowup']) newY -= speed;
+          if (keys['s'] || keys['arrowdown']) newY += speed;
+          if (keys['a'] || keys['arrowleft']) newX -= speed;
+          if (keys['d'] || keys['arrowright']) newX += speed;
 
-        // Simple boundaries matching the room walls
-        newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
-        newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
+          // Simple boundaries matching the room walls
+          newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
+          newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
 
-        // Interaction zone for the phone on the central rug/sofa area
-        const nearPhone = Math.abs(newX - 740) < 150 && Math.abs(newY - 550) < 150;
-        setInteractionActive(nearPhone);
+          // Interaction zone for the sofa to sit down
+          let target = null;
+          const nearSofa = Math.abs(newX - 740) < 150 && Math.abs(newY - 550) < 150;
+          if (nearSofa) target = 'sofa';
+          
+          setInteractionActive(nearSofa);
+          setInteractionTarget(target);
 
-        return { x: newX, y: newY };
-      });
+          return { x: newX, y: newY };
+        });
+      } else if (gameState === 'garden') {
+        setGardenPlayerPos(prev => {
+          let newX = prev.x;
+          let newY = prev.y;
+
+          if (keys['w'] || keys['arrowup']) newY -= speed;
+          if (keys['s'] || keys['arrowdown']) newY += speed;
+          if (keys['a'] || keys['arrowleft']) newX -= speed;
+          if (keys['d'] || keys['arrowright']) newX += speed;
+
+          const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+          const currentRoomHeight = window.innerHeight; // Use window height for vertical bounds
+          
+          // Constrain movement based on car exit status
+          if (!isCarExited) {
+              // Stay inside car bounds
+              newX = currentRoomWidth / 2;
+              newY = currentRoomHeight / 2 + 100; // Place closer to bottom
+          } else {
+              newX = Math.max(0, Math.min(newX, currentRoomWidth - 40));
+              newY = Math.max(50, Math.min(newY, currentRoomHeight - 40));
+          }
+
+          let target = null;
+          // Entering the house zone
+          const doorZone = { x: currentRoomWidth / 2 - 100, y: 0, w: 200, h: 200 };
+          const px = newX;
+          const py = newY;
+          if (!isCarExited) {
+              target = 'exit_car';
+          } else if (px > doorZone.x && px < doorZone.x + doorZone.w && py < doorZone.y + doorZone.h) {
+              target = 'enter_house';
+          }
+          
+          setInteractionTarget(target);
+
+          return { x: newX, y: newY };
+        });
+      }
+      
       animationFrameId = requestAnimationFrame(gameLoop);
     };
     animationFrameId = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [keys, gameState, showWhatsApp]);
+  }, [keys, gameState, showWhatsApp, showWhatsAppWarn, isCarExited, phoneTriggered, hasWarned]);
 
   // Handle Interaction Key 'E'
   useEffect(() => {
-    if (keys['e'] && interactionActive && gameState === 'living-room') {
-      if (!showWhatsApp && !hasWarned && !showWhatsAppWarn) {
-        setIsPhoneVibrating(false);
-        setShowWhatsApp(true);
-        setKeys(k => ({ ...k, 'e': false }));
-      } else if (hasWarned) {
-        setGameState('cybercrime-portal');
-        setKeys(k => ({ ...k, 'e': false }));
+    const handleActionKey = (e) => {
+      if (e.key.toLowerCase() === 'e') {
+        if (activeDialogue) {
+            handleDialogueComplete(activeDialogue);
+            return;
+        }
+
+        if (gameState === 'garden') {
+            if (interactionTarget === 'exit_car' && !isCarExited) {
+                setIsCarExited(true);
+            } else if (interactionTarget === 'enter_house') {
+                triggerTransition('living-room', { x: 800, y: 150 });
+            }
+        } else if (gameState === 'living-room' && interactionTarget === 'sofa') {
+            triggerTransition('living-pov');
+            setKeys(k => ({ ...k, 'e': false }));
+        } else if (gameState === 'living-pov' && e.key.toLowerCase() === 'escape') {
+            triggerTransition('living-room');
+        }
       }
+    };
+
+    window.addEventListener('keydown', handleActionKey);
+    return () => window.removeEventListener('keydown', handleActionKey);
+  }, [gameState, interactionTarget, isCarExited, showWhatsApp, hasWarned, showWhatsAppWarn, phoneTriggered, activeDialogue]);
+
+  // Handle Dialogue after entering Living Room
+  useEffect(() => {
+      if (gameState === 'living-room' && !tvDialogueShown) {
+          setTvDialogueShown(true);
+          // Small delay so transition finishes before the dialogue appears
+          setTimeout(() => {
+              showFeedback("I feel like watching TV.", "cyan");
+          }, 800);
+      }
+  }, [gameState, tvDialogueShown]);
+
+  // Handle phone notification in POV
+  useEffect(() => {
+    if (gameState === 'living-pov' && !phoneTriggered && !hasWarned) {
+      const timer = setTimeout(() => {
+        setPhoneTriggered(true);
+        setIsPhoneVibrating(true);
+        showFeedback("WhatsApp Notification from Aunty Priya", "indigo");
+      }, 4000);
+      return () => clearTimeout(timer);
     }
-  }, [keys, interactionActive, showWhatsApp, hasWarned, showWhatsAppWarn, gameState]);
+  }, [gameState, phoneTriggered, hasWarned]);
+
+  // Handle Title Card Transition
+  useEffect(() => {
+    if (gameState === 'title-card') {
+      const timer = setTimeout(() => {
+        triggerTransition('website');
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState]);
 
   // ═══ COMPONENTS ═══
 
@@ -195,7 +323,7 @@ const Level8 = () => {
     const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
     return (
-      <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000">
+      <div className={`w-full h-full flex items-center justify-center bg-zinc-950 px-8 transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {/* Viewport Container */}
         <div
           className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900"
@@ -343,217 +471,334 @@ const Level8 = () => {
               </div>
             </div>
 
-            {/* PHONE OR LAPTOP (Interacable area on the coffee table) */}
-            {!hasWarned ? (
-              <div
-                className="absolute z-30"
-                style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
-              >
-                <div
-                  className={`w-[40px] h-[75px] bg-[#0f172a] rounded-[8px] border-[2px] border-slate-600 shadow-2xl cursor-pointer hover:scale-110 flex flex-col items-center justify-center transition-all ${isPhoneVibrating ? 'animate-[shake_0.5s_infinite] ring-2 ring-emerald-500' : 'hover:ring-2 hover:ring-cyan-500'}`}
-                  onClick={() => {
-                    setIsPhoneVibrating(false);
-                    setShowWhatsApp(true);
-                  }}
-                >
-                  <div className="w-[12px] h-[2px] bg-slate-700 rounded-full absolute top-[3px]"></div>
-                  <div className="flex-1 w-[32px] bg-slate-900 mt-2 mb-1 border border-slate-700 mx-[2px] flex items-center justify-center">
-                    {isPhoneVibrating ? (
-                      <div className="text-[12px] animate-pulse shadow-[0_0_10px_#22c55e] rounded-full">💬</div>
-                    ) : (
-                      <span className="text-white/40 text-[7px] font-black">19:29</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                className="absolute z-30"
-                style={{ left: 740, top: 550, transform: 'translate(-50%, -50%)' }}
-              >
-                <div
-                  className="w-[90px] h-[60px] bg-slate-800 rounded-md shadow-2xl flex flex-col items-center justify-end p-1 border-b-4 border-slate-950 cursor-pointer hover:scale-110 hover:ring-2 hover:ring-indigo-500 transition-all group animate-[shake_2s_infinite]"
-                  onClick={() => setGameState('cybercrime-portal')}
-                >
-                  <div className="w-full flex-1 bg-slate-950 border border-slate-700 mb-1 rounded-sm flex items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-blue-500/10"></div>
-                    <div className="text-[8px] text-blue-400 font-mono text-center shadow-[0_0_10px_rgba(96,165,250,0.5)]">GOV.IN</div>
-                  </div>
-                  <div className="w-full h-[6px] bg-slate-600 rounded-b-sm flex items-center justify-center">
-                    <div className="w-4 h-1 bg-slate-500 rounded-full"></div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* INTERACTION HINT UI */}
-            {interactionActive && gameState === 'living-room' && !showWhatsApp && !hasWarned && isPhoneVibrating && (
+            {interactionTarget === 'sofa' && (
               <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-emerald-500 font-bold animate-bounce text-sm whitespace-nowrap">
-                  Press [E] to read message
-                </div>
-              </div>
-            )}
-            {interactionActive && gameState === 'living-room' && !showWhatsApp && !hasWarned && !isPhoneVibrating && (
-              <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-slate-500 font-bold text-sm whitespace-nowrap">
-                  Press [E] to check phone
-                </div>
-              </div>
-            )}
-            {interactionActive && gameState === 'living-room' && hasWarned && (
-              <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-indigo-500 font-bold animate-bounce text-sm whitespace-nowrap">
-                  Press [E] to open Cybercrime Portal
+                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-slate-500 font-bold animate-bounce text-sm whitespace-nowrap">
+                  Press [E] to sit down
                 </div>
               </div>
             )}
 
             {/* THE PLAYER AVATAR */}
-            {gameState === 'living-room' && (
-              <div className="absolute z-40 transition-all duration-[50ms]" style={{ left: playerPos.x, top: playerPos.y, transform: 'translate(-50%, -50%)' }}>
-                <Player x={0} y={0} isFixed={true} />
-              </div>
-            )}
+            {gameState === 'living-room' && <Player x={playerPos.x} y={playerPos.y} />}
           </div>
         </div>
       </div>
     );
   };
 
-  const WhatsAppThread = () => (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-500">
-      <div className="w-[450px] bg-[#075e54] rounded-[45px] shadow-[0_60px_150px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="px-10 py-10 flex items-center gap-6 bg-[#075e54]">
-          <button onClick={() => setShowWhatsApp(false)} className="text-white text-2xl hover:bg-white/10 w-10 h-10 rounded-full flex items-center justify-center transition-all">←</button>
-          <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10">
-            <span className="text-3xl">👩‍🍳</span>
+  const LivingPov = () => (
+    <div className={`w-full h-full flex flex-col items-center justify-center bg-black relative animate-in fade-in duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+      <img src="/assets/living_pov.png" alt="Living POV" className="w-full h-full object-cover" />
+      
+      {/* Clickable Phone Area */}
+      {!hasWarned ? (
+          <div 
+            className={`absolute cursor-pointer transition-all ${isPhoneVibrating ? 'animate-[shake_0.5s_infinite] ring-4 ring-emerald-500 rounded-[20px] bg-emerald-500/20' : 'hover:ring-4 hover:ring-cyan-500 rounded-[20px] hover:bg-cyan-500/10'}`}
+            style={{ width: '10%', height: '22%', left: '45.5%', top: '70%' }}
+            onClick={() => {
+              if (phoneTriggered) {
+                  setIsPhoneVibrating(false);
+                  setShowWhatsApp(true);
+              }
+            }}
+          >
+             {isPhoneVibrating && (
+                <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 bg-white text-slate-900 px-4 py-2 rounded shadow-xl border-2 border-emerald-500 font-bold animate-bounce text-sm whitespace-nowrap z-50">
+                  Click to read message
+                </div>
+             )}
           </div>
-          <div className="flex flex-col">
-            <h3 className="text-white font-black text-xl">Aunty Priya 💛</h3>
-            <span className="text-white/60 text-xs font-medium">Online</span>
+      ) : (
+          <div 
+            className="absolute cursor-pointer transition-all hover:ring-4 hover:ring-indigo-500 rounded-[20px] hover:bg-indigo-500/20 group animate-[shake_1.5s_infinite]"
+            style={{ width: '10%', height: '22%', left: '45.5%', top: '70%' }}
+            onClick={() => {
+              setGameState('cybercrime-portal');
+            }}
+          >
+             <div className="absolute top-[-50px] left-1/2 -translate-x-1/2 bg-white text-slate-900 px-4 py-2 rounded shadow-xl border-2 border-indigo-500 font-bold animate-bounce text-sm whitespace-nowrap z-50">
+                Click to open Cybercrime Portal
+             </div>
+          </div>
+      )}
+
+    </div>
+  );
+
+  const Garden = () => {
+    const ROOM_WIDTH = 1600;
+    const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+    const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
+
+    return (
+      <div className={`w-full h-full flex flex-col bg-slate-900 overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        {interactionTarget === 'exit_car' && !isCarExited && (
+          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
+            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                Press E to exit car
+            </div>
+          </div>
+        )}
+        {interactionTarget === 'enter_house' && (
+          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
+            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                Press E to enter house
+            </div>
+          </div>
+        )}
+
+        <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)` }}>
+          <div className="absolute top-0 left-0 w-full h-full z-0">
+            <img src="/assets/aftergarden.png" alt="Garden Day" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
+          </div>
+
+          {isCarExited && <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />}
+        </div>
+      </div>
+    );
+  };
+
+  const WhatsAppThread = () => (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-black/70 backdrop-blur-md animate-in fade-in zoom-in duration-300">
+      <div className="w-[400px] bg-[#efeae2] rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col h-[85vh] max-h-[850px] border border-white/10 ring-4 ring-black/40">
+        
+        {/* iOS StatusBar Mock */}
+        <div className="bg-[#008069] w-full h-[30px] flex justify-between items-end px-6 pb-1 text-white/90 text-[11px] font-medium tracking-wide">
+            <span>19:29</span>
+            <div className="flex items-center gap-1.5">
+                <span className="mb-[1px]">LTE</span>
+                <div className="w-5 h-2.5 border border-white/60 rounded-[3px] p-[1px] relative">
+                    <div className="w-[80%] h-full bg-white rounded-[1px]"></div>
+                    <div className="absolute -right-[3px] top-1/2 -translate-y-1/2 w-[2px] h-[4px] bg-white/60 rounded-r-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        {/* WhatsApp Header */}
+        <div className="px-4 py-3 flex items-center gap-3 bg-[#008069] shadow-sm z-10">
+          <button onClick={() => setShowWhatsApp(false)} className="text-white hover:bg-white/10 w-10 h-10 rounded-full flex items-center justify-center transition-all -ml-2">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          </button>
+          <div className="w-10 h-10 bg-emerald-700 rounded-full flex items-center justify-center overflow-hidden border border-emerald-500/50 cursor-pointer">
+            <span className="text-xl">👩‍🍳</span>
+          </div>
+          <div className="flex flex-col flex-1 cursor-pointer">
+            <h3 className="text-white font-semibold text-[16px] leading-tight">Aunty Priya</h3>
+            <span className="text-white/80 text-[12px] font-medium">online</span>
+          </div>
+          <div className="flex gap-4 text-white p-2">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
           </div>
         </div>
 
         {/* Chat Background */}
-        <div className="flex-1 bg-[#e5ddd5] p-8 space-y-6 overflow-y-auto" style={{
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto" style={{
           backgroundImage: 'url("https://user-images.githubusercontent.com/1507727/101833400-33499000-3b4d-11eb-8283-bc7b9d6d23f3.png")',
-          backgroundSize: '400px'
+          backgroundSize: '400px',
+          backgroundColor: '#efeae2',
+          backgroundBlendMode: 'overlay'
         }}>
-          <div className="flex flex-col gap-4">
-            <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm relative">
-              <div className="flex items-center gap-2 mb-2 text-[10px] text-slate-400 border-b border-slate-100 pb-1">
-                <span className="font-bold">Forwarded many times</span>
+          <div className="flex justify-center mb-6">
+            <div className="bg-[#D1EAF1]/80 backdrop-blur-sm text-[#54656f] text-[11px] font-medium px-3 py-1 rounded-lg">TODAY</div>
+          </div>
+
+          {/* Message 1 (Text + Link Card) */}
+          <div className="flex items-start gap-2 max-w-[85%]">
+            <div className="bg-white p-2 pb-1.5 rounded-lg rounded-tl-none shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative text-[14.5px] text-[#111b21] leading-[1.35]">
+              {/* Message Tail SVG */}
+              <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-[8px] top-0 text-white fill-current">
+                <path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
+                <path opacity=".08" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
+                <path d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path>
+              </svg>
+              
+              <div className="flex items-center gap-1.5 mb-1 text-[12px] text-[#8696a0] italic">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M5.5 10.3 2.2 7l1.4-1.4 1.9 1.9L11.8 1l1.4 1.4L5.5 10.3z"></path><path d="M10.5 10.3 7.2 7l1.4-1.4 1.9 1.9L16.8 1l1.4 1.4-7.7 7.9z"></path></svg>
+                <span>Forwarded many times</span>
               </div>
-              <p className="text-sm font-medium leading-relaxed">
-                AMAZING SALE!!! 🤯🔥 Buy Samsung S24 for only ₹4,999!!! Limited stock!! Only 47 left!!!
-                My neighbour bought two yesterday! I just ordered one for Karthik’s birthday!
-              </p>
+              
+              <p className="px-1 whitespace-pre-wrap">AMAZING SALE!!! 🤯🔥 Buy Samsung S24 for only ₹4,999!!! Limited stock!! Only 47 left!!! My neighbour bought two yesterday! I just ordered one for Karthik’s birthday!</p>
+              
               <div
-                className="mt-4 p-4 bg-slate-50 border rounded-xl flex items-start gap-4 cursor-pointer hover:bg-slate-100 transition-all group"
+                className="mt-2 bg-[#f0f2f5] rounded-md overflow-hidden border border-[#d1d7db] cursor-pointer hover:bg-[#e2e5e9] transition-colors"
                 onClick={() => {
-                  setGameState('website');
                   setShowWhatsApp(false);
+                  setGameState('title-card');
+                  setTimeout(() => {
+                      setGameState('website');
+                  }, 3000);
                 }}
               >
-                <div className="w-16 h-16 bg-slate-200 rounded-lg flex items-center justify-center text-4xl">📱</div>
-                <div className="flex-1">
-                  <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-1">techdeals-india.shop</div>
-                  <div className="text-xs font-bold text-slate-800 group-hover:underline">Samsung Galaxy S24 Ultra - Flash Sale Live!</div>
-                  <div className="text-[10px] text-slate-400 mt-1 italic">Click now for 94% off...</div>
+                <div className="w-full h-[140px] bg-[#d1d7db] relative flex items-center justify-center overflow-hidden">
+                   <div className="absolute inset-x-0 bottom-0 top-1/2 bg-gradient-to-t from-black/60 to-transparent"></div>
+                   <div className="text-[60px]">📦</div>
+                   <div className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">FLASH SALE LIVE</div>
+                </div>
+                <div className="p-3">
+                  <div className="text-[14px] font-semibold text-[#111b21] leading-tight mb-1 truncate">Samsung Galaxy S24 Ultra - 97% OFF!</div>
+                  <div className="text-[12px] text-[#54656f] leading-snug line-clamp-2">Click to claim yours now before stock ends. Final units remaining. Official sale.</div>
+                  <div className="text-[11px] text-[#8696a0] uppercase mt-2 font-medium tracking-wide">techdeals-india.shop</div>
                 </div>
               </div>
-              <div className="text-[10px] text-slate-400 text-right mt-2 font-bold">19:29 ✓✓</div>
-            </div>
 
-            <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-[#075e54]/20 rounded-full flex items-center justify-center">▶️</div>
-                <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div className="w-1/2 h-full bg-blue-500" />
-                </div>
-                <span className="text-[10px] text-slate-400 font-bold">0:12</span>
+              <div className="flex justify-end items-center gap-1 mt-1 -mb-0.5">
+                <span className="text-[11px] text-[#667781]">19:29</span>
               </div>
-              <p className="text-[10px] text-slate-400 italic mt-3">"Dei, this is real da, my neighbour actually got the phone already, share with everyone!"</p>
             </div>
           </div>
+
+          {/* Message 2 (Voice Note) */}
+          <div className="flex items-start gap-2 max-w-[85%]">
+            <div className="bg-white px-3 py-2 rounded-lg shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative">
+              <div className="flex items-center gap-4">
+                {/* Play Button */}
+                <div className="w-10 h-10 rounded-full flex justify-center items-center cursor-pointer">
+                    <svg viewBox="0 0 24 24" width="30" height="30" fill="#54656f"><path d="M8 5.14v14l11-7-11-7z"></path></svg>
+                </div>
+                
+                {/* Waveform Visualization Fake */}
+                <div className="flex-1 flex items-center h-8 gap-[2px]">
+                   {[2, 4, 3, 5, 8, 5, 3, 2, 6, 9, 12, 8, 4, 2, 3, 5, 4, 2].map((h, i) => (
+                       <div key={i} className="w-[3px] bg-[#00a884] rounded-full" style={{ height: `${h * 2}px` }}></div>
+                   ))}
+                   {[6, 8, 5, 3, 2, 4, 5, 3, 2, 4, 5].map((h, i) => (
+                       <div key={i} className="w-[3px] bg-[#d1d7db] rounded-full" style={{ height: `${h * 2}px` }}></div>
+                   ))}
+                </div>
+                
+                {/* Profile Pic Thumb */}
+                <div className="w-10 h-10 bg-emerald-700/80 rounded-full overflow-hidden flex items-center justify-center text-lg shadow-sm border border-emerald-900/10">👩‍🍳</div>
+              </div>
+              
+              <div className="flex justify-between items-center mt-1 w-full px-1">
+                 <span className="text-[11px] text-[#54656f] font-medium">0:12</span>
+                 <span className="text-[11px] text-[#667781]">19:30</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Subtitle helper for audio context */}
+          <div className="flex items-start gap-2 max-w-[85%] mt-1">
+             <div className="bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-white/40 text-[11px] text-[#54656f] italic leading-tight shadow-sm">
+                 Audio transcript: "Dei, this is real da, my neighbour actually got the phone already, share with everyone!"
+             </div>
+          </div>
+
         </div>
 
-        {/* Footer */}
-        <div className="p-6 bg-[#f0f2f5] flex items-center gap-4">
-          <div className="w-10 h-10 text-xl flex items-center justify-center">😊</div>
-          <div className="flex-1 bg-white h-12 rounded-full px-6 flex items-center text-slate-400 text-sm">Type a message...</div>
-          <div className="w-10 h-10 text-xl flex items-center justify-center">🎙️</div>
+        {/* Chat Input Area */}
+        <div className="bg-[#f0f2f5] p-2 flex items-end gap-2 z-10">
+          <div className="flex-1 bg-white rounded-full min-h-[42px] flex items-center px-4 shadow-sm border border-[#e2e5e9]">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#54656f" className="cursor-pointer mr-3"><path d="M9.15 8.16C8.89 7.02 8 6.09 6.83 5.8 5.67 5.51 4.46 6 3.84 6.94c-.66.99-.5 2.37.38 3.19.06.05.12.11.19.16.89.72 1.94.94 2.89.65.68-.21 1.25-.66 1.6-1.28.16-.29.41-.39.75-.43l.03-.01c.29-.04.49-.07.64-.19.03-.02.04-.05.07-.07.03-.03.05-.07.08-.11.23-.42.23-1.02.03-1.4l-.35-.71zM14.52 7.03c-1.12-1-2.8-.75-3.61.54-.78 1.25-.45 2.94.75 3.8.31.22.65.37.99.43l-.04.01c-.13.06-.2.18-.32.32-.23.28-.48.65-.63.99-.04.09-.08.19-.11.29 0 .01-.01.02-.02.03l-.02.13c-.02.11-.05.23-.05.35v.06c-.03.46.07.92.3 1.32.22.37.52.68.88.92.36.25.76.43 1.18.52.33.06.67.1.1 0 .68-.08 1.33-.36 1.83-.8l.21-.19c.14-.14.28-.29.4-.44.75-.95.83-2.31.18-3.34-.14-.23-.32-.44-.52-.61-1.05-.88-2.67-.93-3.79-.1l-1.04.79c-.19.14-.3.21-.49.19-.18-.02-.3-.13-.42-.31-.1-.13-.17-.28-.2-.44v-.03c-.01-.11-.02-.23-.01-.34 0-.01.01-.02.01-.03.02-.09.05-.18.08-.28.11-.27.28-.56.46-.78.09-.11.16-.18.23-.21.05-.02.43.08.7.07.93-.03 1.8-.46 2.39-1.2.62-.77.83-1.8.56-2.73-.24-.84-.79-1.54-1.55-1.92zm-9.35 12.01c-.06.26-.05.51.01.76.12.5.42.92.83 1.2.39.26.85.39 1.31.39.19 0 .38-.02.58-.06.66-.14 1.22-.55 1.58-1.14.36-.6.44-1.32.23-1.96-.21-.63-.66-1.15-1.25-1.46-.38-.2-.79-.31-1.21-.31-.22 0-.44.03-.66.08-.66.14-1.22.54-1.58 1.13-.19.33-.29.68-.29 1.05 0 .11 0 .22.01.32h-.01c.06-.06.27-.33.44-.5zm8.56 1.96c.73-1 2.22-1.23 3.23-.5.98.71 1.23 2.15.54 3.16-.72 1.03-2.26 1.26-3.23.5-.96-.73-1.25-2.11-.54-3.16z"></path></svg>
+            <span className="flex-1 text-[#8696a0] text-[15px]">Message</span>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#54656f" className="cursor-pointer ml-2"><path d="M21.58 12.09l-19.16 8.3c-.22.1-.48.09-.7-.03-.22-.12-.34-.34-.32-.59l1.63-7.58 8.04-1.42c.16-.03.26-.18.23-.33-.03-.13-.13-.23-.27-.24L2.94 8.79 1.38 1.22c-.03-.24.09-.47.3-.59.22-.11.47-.1.68.01l19.19 8.27c.28.12.45.39.44.69.02.29-.14.56-.41.69z"></path></svg>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="#54656f" className="cursor-pointer ml-3"><path d="M11.999 14.942c2.001 0 3.531-1.53 3.531-3.531V4.35c0-2.001-1.53-3.531-3.531-3.531S8.469 2.35 8.469 4.35v7.061c0 2.001 1.53 3.531 3.53 3.531zm6.238-3.53c0 3.531-2.942 6.002-6.237 6.002s-6.237-2.471-6.237-6.002H3.761c0 4.001 3.178 7.297 7.061 7.885v3.884h2.354v-3.884c3.884-.588 7.061-3.884 7.061-7.885h-2z"></path></svg>
+          </div>
         </div>
       </div>
     </div>
   );
 
   const WhatsAppWarnThread = () => (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md animate-in fade-in duration-500">
-      <div className="w-[450px] bg-[#075e54] rounded-[45px] shadow-[0_60px_150px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="px-10 py-10 flex items-center gap-6 bg-[#075e54]">
-          <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center overflow-hidden border-2 border-white/10">
-            <span className="text-3xl">👩‍🍳</span>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/70 backdrop-blur-md animate-in fade-in zoom-in duration-300">
+      <div className="w-[400px] bg-[#efeae2] rounded-[30px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col h-[85vh] max-h-[850px] border border-white/10 ring-4 ring-black/40">
+        
+        {/* iOS StatusBar Mock */}
+        <div className="bg-[#008069] w-full h-[30px] flex justify-between items-end px-6 pb-1 text-white/90 text-[11px] font-medium tracking-wide">
+            <span>20:16</span>
+            <div className="flex items-center gap-1.5">
+                <span className="mb-[1px]">LTE</span>
+                <div className="w-5 h-2.5 border border-white/60 rounded-[3px] p-[1px] relative">
+                    <div className="w-[80%] h-full bg-white rounded-[1px]"></div>
+                    <div className="absolute -right-[3px] top-1/2 -translate-y-1/2 w-[2px] h-[4px] bg-white/60 rounded-r-sm"></div>
+                </div>
+            </div>
+        </div>
+
+        {/* WhatsApp Header */}
+        <div className="px-4 py-3 flex items-center gap-3 bg-[#008069] shadow-sm z-10 transition-colors">
+          <button className="text-white w-8 h-8 rounded-full flex items-center justify-center transition-all -ml-2">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+          </button>
+          <div className="w-10 h-10 bg-emerald-700 rounded-full flex items-center justify-center overflow-hidden border border-emerald-500/50 cursor-pointer">
+            <span className="text-xl">👩‍🍳</span>
           </div>
-          <div className="flex flex-col">
-            <h3 className="text-white font-black text-xl">Aunty Priya 💛</h3>
-            <span className="text-white/60 text-xs font-medium">Online</span>
+          <div className="flex flex-col flex-1 cursor-pointer">
+            <h3 className="text-white font-semibold text-[16px] leading-tight">Aunty Priya</h3>
+            <span className="text-white/80 text-[12px] font-medium">taking a deep breath...</span>
           </div>
         </div>
 
         {/* Chat Background */}
-        <div className="flex-1 bg-[#e5ddd5] p-8 space-y-6 overflow-y-auto" style={{
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto" style={{
           backgroundImage: 'url("https://user-images.githubusercontent.com/1507727/101833400-33499000-3b4d-11eb-8283-bc7b9d6d23f3.png")',
-          backgroundSize: '400px'
+          backgroundSize: '400px',
+          backgroundColor: '#efeae2',
+          backgroundBlendMode: 'overlay'
         }}>
-          <div className="flex flex-col gap-4">
-            {/* Outgoing Message */}
-            <div className="self-end max-w-[85%] bg-[#dcf8c6] p-4 rounded-l-2xl rounded-tr-2xl shadow-sm relative animate-in slide-in-from-right duration-300">
-              <p className="text-sm font-medium leading-relaxed text-slate-800">
-                Aunty STOP! 🛑 Do not buy anything and don't share this link! The website is a complete scam. They have no GST, the domain was created 19 days ago, and the security badges are fake images.
-              </p>
-              <div className="text-[10px] text-emerald-600 text-right mt-2 font-bold flex justify-end items-center gap-1">
-                <span>20:15</span>
-                <span>✓✓</span>
+          <div className="flex flex-col gap-3 pt-6">
+            
+            {/* Outgoing Message 1 */}
+            <div className="self-end max-w-[85%] bg-[#d9fdd3] p-2 pb-1.5 rounded-lg rounded-tr-none shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative text-[14.5px] text-[#111b21] leading-[1.35] animate-in slide-in-from-right duration-300">
+              <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -right-[8px] top-0 text-[#d9fdd3] fill-current">
+                <path opacity=".13" d="M5.188 1H8v11.193l-6.467-8.625C.474 2.156 1.042 1 2.812 1h2.376z"></path>
+                <path d="M5.188 0H8v11.193l-6.467-8.625C.474 1.156 1.042 0 2.812 0h2.376z"></path>
+              </svg>
+              <p className="px-1 whitespace-pre-wrap">Aunty STOP! 🛑 Do not buy anything and don't share this link! The website is a complete scam. They have no GST, the domain was created 19 days ago, and the security badges are fake images.</p>
+              <div className="flex justify-end items-center gap-1 mt-1 -mb-0.5">
+                <span className="text-[11px] text-[#667781]">20:15</span>
+                <svg viewBox="0 0 16 15" width="16" height="15"><path fill="#53bdeb" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>
               </div>
             </div>
 
-            {/* Aunty Priya Response */}
-            <div className="self-start max-w-[85%] bg-white p-4 rounded-r-2xl rounded-bl-2xl shadow-sm animate-in slide-in-from-left duration-500 delay-1000 fill-mode-both">
-              <p className="text-sm font-medium leading-relaxed text-slate-800">
-                Oh my god thank you Kannaa!! 🙏 I will block the sender immediately and delete the link. How do we stop this from spreading to others??
-              </p>
-              <div className="text-[10px] text-slate-400 text-right mt-2 font-bold">20:16</div>
+            {/* Incoming Reply */}
+            <div className="self-start max-w-[85%] bg-white p-2 pb-1.5 rounded-lg rounded-tl-none shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative text-[14.5px] text-[#111b21] leading-[1.35] animate-in slide-in-from-left duration-500 delay-1000 fill-mode-both">
+              <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -left-[8px] top-0 text-white fill-current">
+                <path opacity=".13" fill="#0000000" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
+                <path opacity=".08" d="M1.533 3.568 8 12.193V1H2.812C1.042 1 .474 2.156 1.533 3.568z"></path>
+                <path d="M1.533 2.568 8 11.193V0H2.812C1.042 0 .474 1.156 1.533 2.568z"></path>
+              </svg>
+              <p className="px-1 whitespace-pre-wrap">Oh my god thank you Kannaa!! 🙏 I will block the sender immediately and delete the link. How do we stop this from spreading to others??</p>
+              <div className="flex justify-end items-center gap-1 mt-1 -mb-0.5">
+                <span className="text-[11px] text-[#667781]">20:16</span>
+              </div>
             </div>
 
             {/* Outgoing Message 2 */}
-            <div className="self-end max-w-[85%] bg-[#dcf8c6] p-4 rounded-l-2xl rounded-tr-2xl shadow-sm relative animate-in slide-in-from-right duration-500 delay-[2500ms] fill-mode-both">
-              <p className="text-sm font-medium leading-relaxed text-slate-800">
-                Don't worry, I have collected all the evidence on my Evidence Board. I need to go to my laptop right now and file an official report on the Cybercrime Portal. I'll handle it!
-              </p>
-              <div className="text-[10px] text-emerald-600 text-right mt-2 font-bold flex justify-end items-center gap-1">
-                <span>20:16</span>
-                <span>✓✓</span>
+            <div className="self-end max-w-[85%] bg-[#d9fdd3] p-2 pb-1.5 rounded-lg rounded-tr-none shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative text-[14.5px] text-[#111b21] leading-[1.35] animate-in slide-in-from-right duration-500 delay-[2500ms] fill-mode-both">
+              <svg viewBox="0 0 8 13" width="8" height="13" className="absolute -right-[8px] top-0 text-[#d9fdd3] fill-current">
+                <path opacity=".13" d="M5.188 1H8v11.193l-6.467-8.625C.474 2.156 1.042 1 2.812 1h2.376z"></path>
+                <path d="M5.188 0H8v11.193l-6.467-8.625C.474 1.156 1.042 0 2.812 0h2.376z"></path>
+              </svg>
+              <p className="px-1 whitespace-pre-wrap">Don't worry, I have collected all the evidence on my Evidence Board. I need to go to my laptop right now and file an official report on the Cybercrime Portal. I'll handle it!</p>
+              <div className="flex justify-end items-center gap-1 mt-1 -mb-0.5">
+                <span className="text-[11px] text-[#667781]">20:16</span>
+                <svg viewBox="0 0 16 15" width="16" height="15"><path fill="#8696a0" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer Action */}
-        <div className="p-6 bg-slate-900 border-t-4 border-slate-800">
-          <button
-            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-black py-5 rounded-2xl shadow-lg transition-all animate-pulse uppercase tracking-widest flex items-center justify-center gap-3"
+        {/* Floating Action / Objective Button */}
+        <div className="absolute inset-x-8 bottom-8 flex flex-col gap-3 z-20 animate-in slide-in-from-bottom duration-1000 delay-[3500ms] fill-mode-both">
+           <div className="bg-white/90 backdrop-blur shadow-lg border border-red-200 p-3 rounded-xl scale-[0.9] origin-bottom text-center mb-2 animate-pulse">
+              <div className="text-[11px] font-bold text-red-600 uppercase tracking-widest mb-1">New Objective</div>
+              <div className="text-[13px] text-[#111b21] font-semibold">Report the incident to the Cyber Cell</div>
+           </div>
+           <button
+            className="w-full bg-[#00a884] hover:bg-[#01886b] text-white font-bold py-4 rounded-xl shadow-[0_8px_20px_rgba(0,168,132,0.4)] transition-all font-sans text-lg flex items-center justify-center gap-3 scale-100 hover:scale-[1.02] active:scale-95 uppercase tracking-wide"
             onClick={() => {
               setShowWhatsAppWarn(false);
               setHasWarned(true);
-              setGameState('living-room');
+              setGameState('cybercrime-portal');
             }}
           >
-            <span>💻</span>
-            <span>Go to Laptop & Report</span>
+            Access Cybercrime Portal 💻
           </button>
         </div>
       </div>
@@ -567,8 +812,8 @@ const Level8 = () => {
     const handleSubmit = () => {
       setIsSubmitting(true);
       setTimeout(() => {
-        setOutcomeType('victory');
-        setGameState('outcome');
+        setGameState('epilogue');
+        setEpilogueStep(0);
       }, 2000); // simulate loading
     };
 
@@ -629,13 +874,13 @@ const Level8 = () => {
                       onClick={() => setIsAttachmentAdded(true)}
                     >
                       <span className="text-2xl">📋</span>
-                      <span>Attach Evidence Board Clues (7 Items)</span>
+                      <span>Attach Evidence Board Clues ({cluesFound.length} Items)</span>
                     </button>
                   ) : (
                     <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between">
                       <div className="flex items-center gap-3 text-emerald-700 font-bold">
                         <span className="text-2xl">✅</span>
-                        <span className="text-sm md:text-base">evidence_logs.zip (7 items successfully attached)</span>
+                        <span className="text-sm md:text-base">evidence_logs.zip ({cluesFound.length} items successfully attached)</span>
                       </div>
                       <span className="text-xs text-emerald-600 font-mono">1.2MB</span>
                     </div>
@@ -660,171 +905,449 @@ const Level8 = () => {
     );
   };
 
-  const GhostStore = () => (
-    <div className={`absolute top-0 bottom-0 left-0 bg-[#f4f4f4] flex flex-col font-sans animate-in slide-in-from-bottom-20 duration-1000 overflow-y-auto transition-all ${showDetectiveBoard ? 'w-[65%]' : 'w-full'}`}>
+  const Epilogue = () => {
+    return (
+      <div className="absolute inset-0 z-[1000] bg-black">
+        {/* Living Room POV Background */}
+        {epilogueStep < 3 && (
+          <div className="absolute inset-0 animate-in fade-in duration-1000">
+            <img src="/assets/living_pov.png" alt="Cricket Match" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/30" />
+            
+            {/* Cricket score overlay */}
+            <div className="absolute top-8 right-8 bg-black/70 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-4 text-center z-10">
+              <div className="text-emerald-400 text-xs font-mono uppercase tracking-[0.3em] mb-1">Live Score</div>
+              <div className="text-white font-black text-3xl tracking-tight">IND 287/4</div>
+              <div className="text-white/50 text-xs font-bold mt-1">India won by 6 wickets 🏏</div>
+            </div>
+          </div>
+        )}
+
+        {/* Dialogue Step 1 */}
+        {epilogueStep === 1 && (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            <div className="absolute bottom-32 w-full text-center animate-fadeInSlow">
+              <p className="text-white text-4xl font-serif italic tracking-wide drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] px-16 leading-relaxed max-w-5xl mx-auto">
+                "Yesss! India won the match! What a chase! Kohli was unreal tonight."
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Dialogue Step 2 */}
+        {epilogueStep === 2 && (
+          <div className="absolute inset-0 z-20 pointer-events-none">
+            <div className="absolute bottom-32 w-full text-center animate-fadeInSlow">
+              <p className="text-white text-4xl font-serif italic tracking-wide drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] px-16 leading-relaxed max-w-5xl mx-auto">
+                "Aunty Priya is safe, the scam site is reported... I guess it's time to call it a night."
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* End Card (Step 3+) */}
+        {epilogueStep >= 3 && (
+          <div className="absolute inset-0 bg-stone-950 flex flex-col items-center justify-center animate-in fade-in duration-1000 overflow-hidden z-30">
+            {/* Scanning line effects */}
+            <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
+            <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none" style={{ animation: 'scanLine 3s linear infinite' }} />
+
+            <div className="relative group text-center">
+              <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+              <h2 className="text-white text-6xl font-black tracking-[0.5em] uppercase mb-12 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                Level 8: Ghost Store
+                {epilogueStep === 4 && (
+                  <div className="absolute top-1/2 left-[-10%] w-[120%] h-3 bg-red-600/90 -translate-y-1/2 shadow-[0_0_25px_rgba(220,38,38,1)] z-20 skew-y-[-1deg]" style={{ animation: 'strikeThrough 0.5s ease-out forwards' }} />
+                )}
+              </h2>
+
+              {epilogueStep === 4 && (
+                <div className="mt-12 text-8xl font-black italic tracking-[0.2em] uppercase relative text-emerald-500" style={{ animation: 'surge 3s infinite' }}>
+                  <span className="relative z-10">COMPLETED</span>
+                  <span className="absolute inset-0 opacity-40 translate-x-1 text-cyan-400" style={{ animation: 'aberration 1.5s infinite' }}>COMPLETED</span>
+                  <span className="absolute inset-0 opacity-40 -translate-x-1 text-emerald-300" style={{ animation: 'aberration-alt 1.5s infinite' }}>COMPLETED</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-20 flex flex-col items-center gap-4">
+              <div className="h-px w-80 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+              <div className="text-[11px] font-mono text-zinc-500 tracking-[0.8em] uppercase opacity-60 animate-pulse">
+                Digital Forensics Session // STATUS_CLEARED
+              </div>
+            </div>
+
+            {epilogueStep === 4 && (
+              <button
+                onClick={() => completeLevel(true, 150, 0)}
+                className="mt-16 group relative px-16 py-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-[0.3em] uppercase rounded-xl shadow-2xl transition-all hover:scale-105 active:scale-95 animate-in fade-in slide-in-from-bottom duration-700"
+              >
+                <span className="relative z-10">Continue</span>
+                <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const GhostStore = ({ 
+    activeDialogue, 
+    setActiveDialogue, 
+    cluesFound, 
+    activeClue, 
+    setActiveClue, 
+    handleDialogueComplete,
+    handleClueDiscovery,
+    showDetectiveBoard,
+    setShowDetectiveBoard
+  }) => {
+    const [activePage, setActivePage] = useState('home');
+    const [showChatWindow, setShowChatWindow] = useState(false);
+    const [isAgentTyping, setIsAgentTyping] = useState(false);
+    const [chatMessages, setChatMessages] = useState([
+      { role: 'agent', text: 'Hello! Only 12 units left in Flash Sale. Need help checking out with UPI?' }
+    ]);
+    const [chatOptions, setChatOptions] = useState([
+      { id: 'card', text: 'Can I pay with credit card?' },
+      { id: 'cod', text: 'Is Cash on Delivery available?' },
+      { id: 'gst', text: 'Can you provide your GSTIN number?' }
+    ]);
+    const [originalOptions] = useState([
+      { id: 'card', text: 'Can I pay with credit card?' },
+      { id: 'cod', text: 'Is Cash on Delivery available?' },
+      { id: 'gst', text: 'Can you provide your GSTIN number?' }
+    ]);
+    const [clickedOptions, setClickedOptions] = useState([]);
+    const [showWhoisModal, setShowWhoisModal] = useState(false);
+    const [showReviewsHighlight, setShowReviewsHighlight] = useState(false);
+    const [isPaymentVisible, setIsPaymentVisible] = useState(false);
+
+
+    const handleChatOption = (option) => {
+      setChatMessages(prev => [...prev, { role: 'user', text: option.text }]);
+      const newClicked = [...clickedOptions, option.id];
+      setClickedOptions(newClicked);
+      setChatOptions([]);
+      setIsAgentTyping(true);
+      
+      setTimeout(() => {
+        setIsAgentTyping(false);
+        if (option.id === 'gst') {
+          setChatMessages(prev => [...prev, { role: 'agent', text: 'Sir/Madam, hurry! Only 8 units left now! Please pay via UPI immediately to secure your order. GST statement will be sent later.' }]);
+        } else if (option.id === 'card') {
+          setChatMessages(prev => [...prev, { role: 'agent', text: 'Only 10 units left! Our card gateway is under maintenance due to huge traffic. Only direct UPI transfers are working.' }]);
+        } else if (option.id === 'cod') {
+          setChatMessages(prev => [...prev, { role: 'agent', text: 'Stock is literally flying, 9 units left! COD is not available for promotional items with 90%+ discounts.' }]);
+        }
+
+        // Only give clue when all 3 options are clicked
+        if (newClicked.length === 3) {
+            handleClueDiscovery('pressure_chat');
+            setChatOptions([]); // no more options
+        } else {
+            // Restore unclicked options
+            setChatOptions(originalOptions.filter(opt => !newClicked.includes(opt.id)));
+        }
+      }, 1500);
+    };
+
+    return (
+    <div className={`absolute top-0 bottom-0 left-0 bg-[#f4f5f9] flex flex-col font-sans animate-in slide-in-from-bottom-20 duration-1000 overflow-y-auto transition-all ${showDetectiveBoard ? 'w-[65%]' : 'w-full'}`}>
       {/* Browser Header */}
-      <div className="sticky top-0 z-[50] bg-white border-b border-gray-200 p-3 flex flex-col gap-2 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2 ml-2">
-            <div className="w-3 h-3 rounded-full bg-red-400" />
-            <div className="w-3 h-3 rounded-full bg-amber-400" />
-            <div className="w-3 h-3 rounded-full bg-emerald-400" />
+      <div className="sticky top-0 z-[50] bg-zinc-900 border-b border-black/80 px-2 py-2 flex flex-col gap-2 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2 ml-3">
+            <div className="w-3 h-3 rounded-full bg-red-500/90 border border-red-900/50" />
+            <div className="w-3 h-3 rounded-full bg-amber-500/90 border border-amber-900/50" />
+            <div className="w-3 h-3 rounded-full bg-emerald-500/90 border border-emerald-900/50" />
           </div>
           <div
-            className="flex-1 max-w-3xl bg-gray-100/80 hover:bg-gray-100 border border-transparent rounded-full h-9 flex items-center px-4 gap-3 cursor-pointer transition-colors group mx-auto relative"
-            onClick={() => handleClueDiscovery('domain_lookup')}
+            className="flex-1 max-w-4xl bg-[#1e1e1e] border border-white/10 rounded-lg h-8 flex items-center px-4 gap-3 cursor-pointer transition-all hover:bg-[#262626] group mx-auto relative shadow-inner"
+            onClick={() => {
+                setShowWhoisModal(true);
+                handleClueDiscovery('domain_lookup');
+            }}
           >
-            <span className="text-gray-500 text-sm">🔒</span>
-            <span className="text-sm font-medium text-gray-500">https://www.<span className="text-gray-800">techdeals-india.shop</span>/sale24</span>
-            <div className="absolute inset-0 rounded-full border border-blue-400 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-[0_0_8px_rgba(96,165,250,0.5)]"></div>
-            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] uppercase tracking-widest px-3 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg">Click to Inspect URL</div>
+            <span className="text-white/40 text-sm">🔒</span>
+            <span className="text-[13px] font-mono text-white/50 tracking-wide mt-[2px]">https://www.<span className="text-white">techdeals-india.shop</span>/{activePage === 'home' ? 'sale24' : activePage}</span>
+            <div className="absolute inset-0 rounded-lg border border-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-[0_0_15px_rgba(6,182,212,0.5)]"></div>
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-[11px] font-black uppercase tracking-[0.2em] px-4 py-2 rounded-md opacity-0 group-hover:opacity-100 transition-all group-hover:translate-y-0 translate-y-2 whitespace-nowrap z-50 shadow-2xl before:absolute before:-top-1 before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-b-cyan-600">Inspect URL Metadata</div>
           </div>
-          <div className="text-xl text-gray-500 pr-2">⋮</div>
+          <div className="text-white/40 pr-3 flex gap-4">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+          </div>
+        </div>
+        {/* Bookmark Bar */}
+        <div className="px-14 flex items-center gap-6 mt-1 mb-1 text-[11px] font-medium text-white/40">
+           <div className="flex items-center gap-1.5 hover:text-white/80 cursor-pointer transition-colors"><span className="text-[#34a853]">★</span> Bookmarks</div>
+           <div className="flex items-center gap-1.5 hover:text-white/80 cursor-pointer transition-colors">TechDeals Official</div>
+           <div className="flex items-center gap-1.5 hover:text-white/80 cursor-pointer transition-colors">Order Tracking</div>
         </div>
       </div>
 
       {/* Website Content */}
-      <div className="w-full bg-white flex-1 flex flex-col">
+      <div className="w-full bg-white flex-1 flex flex-col shadow-[0_0_50px_rgba(0,0,0,0.1)]">
         {/* Top Promo Bar */}
-        <div className="bg-black text-white text-[11px] text-center py-2 font-medium tracking-wide">
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-purple-900 text-white text-[11px] text-center py-2 font-bold tracking-widest uppercase shadow-md relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-px bg-white/20"></div>
           SAMSUNG FESTIVAL SALE • UP TO 97% OFF ON GALAXY S24 ULTRA • FREE DELIVERY IN 24 HOURS
         </div>
 
         {/* Main Nav Banner */}
-        <header className="py-5 px-12 pr-64 flex justify-between items-center border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="text-blue-600 font-extrabold text-3xl tracking-tighter" style={{ fontFamily: 'Arial, sans-serif' }}>SAMSUNG</div>
-            <div className="h-6 w-px bg-gray-300 mx-2"></div>
-            <div className="text-gray-800 font-bold text-lg tracking-tight hover:text-blue-600 transition-colors">TechDeals Official Partner</div>
+        <header className="py-6 px-16 flex justify-between items-center border-b border-gray-100 bg-white sticky top-16 z-40">
+          <div className="flex items-center gap-6">
+            <div className="text-black font-black text-4xl tracking-tighter" style={{ fontFamily: 'Arial, sans-serif' }}>SAMSUNG</div>
+            <div className="h-8 w-px bg-gray-200"></div>
+            <div className="text-gray-900 font-extrabold text-xl tracking-tight leading-none">
+                <span className="text-blue-600 block text-[10px] uppercase tracking-widest mb-1">Authorized Channel</span>
+                TechDeals India
+            </div>
           </div>
 
           <div className="flex items-center gap-6">
+            {/* False Positive Clue */}
+            <div 
+              className="hidden lg:flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-blue-600 cursor-pointer transition-colors mr-6 px-4 py-2 hover:bg-gray-50 rounded-lg"
+              onClick={() => {
+                showFeedback("False Alarm! This is a generic tracking button. (-5 pts)", "orange");
+                adjustAssets(-5); 
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8zM5.5 16A1.5 1.5 0 0 1 4 17.5A1.5 1.5 0 0 1 2.5 16A1.5 1.5 0 0 1 4 14.5A1.5 1.5 0 0 1 5.5 16zM19.5 16A1.5 1.5 0 0 1 18 17.5A1.5 1.5 0 0 1 16.5 16A1.5 1.5 0 0 1 18 14.5A1.5 1.5 0 0 1 19.5 16z"></path></svg>
+              <span>Track My Order</span>
+            </div>
             <div
-              className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-200 cursor-pointer hover:bg-green-100 transition-colors shadow-sm ml-auto"
+              className="flex items-center gap-3 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 px-6 py-3 rounded-xl border border-emerald-200/60 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all shadow-sm shadow-emerald-900/5 group"
               onClick={() => handleClueDiscovery('fake_security')}
             >
-              <span className="text-lg animate-pulse">🔒</span>
-              <span className="font-bold text-sm">Secured Checkout <span className="font-medium opacity-80">— 100% Safe</span></span>
+              <span className="text-xl group-hover:animate-pulse">🔒</span>
+              <div className="flex flex-col">
+                  <span className="font-extrabold text-sm leading-tight text-emerald-900">100% Secure Checkout</span>
+                  <span className="font-medium text-[10px] uppercase tracking-widest text-emerald-600">Verified Protection™</span>
+              </div>
             </div>
           </div>
         </header>
 
+        {activePage === 'home' && (
+          <>
         {/* Primary Sale Section */}
-        <section className="max-w-[1400px] mx-auto w-full p-12 grid grid-cols-2 gap-16">
+        <section className="max-w-[1400px] mx-auto w-full p-16 pt-12 grid grid-cols-[1fr_1.1fr] gap-x-20">
           {/* Visuals Column */}
-          <div className="space-y-6">
-            <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-[2rem] flex items-center justify-center p-12 shadow-[0_20px_50px_rgba(0,0,0,0.05)] overflow-hidden group">
+          <div className="space-y-8">
+            <div className="relative aspect-[4/3] bg-[#f8f9fa] rounded-3xl flex items-center justify-center p-12 overflow-hidden group hover:shadow-[0_40px_80px_rgba(0,0,0,0.07)] transition-all duration-700 border border-gray-200">
+                {/* Radial gradient background */}
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(0,0,0,0.02)_0%,_transparent_100%)]"></div>
+
               {/* Realistic Phone Mock View */}
-              <div className="w-[45%] h-[85%] bg-black rounded-[2.5rem] shadow-[-20px_10px_40px_rgba(0,0,0,0.3)] border-4 border-[#5E5E5E] relative transform rotate-[-5deg] group-hover:rotate-0 transition-transform duration-500 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-900 border-[8px] border-black rounded-[2.2rem]">
-                  {/* Mock Screen UI */}
-                  <div className="w-full h-full relative overflow-hidden backdrop-blur-xl">
-                    <div className="absolute top-4 right-4 text-white/50 text-xs">10:42</div>
-                    <div className="absolute inset-x-8 top-1/3 h-32 bg-gradient-to-r from-blue-500/20 to-purple-500/20 blur-xl rounded-full"></div>
-                    <div className="absolute bottom-16 inset-x-4 flex justify-between px-4">
-                      <div className="w-10 h-10 rounded-full bg-white/10 blur-sm"></div>
-                      <div className="w-10 h-10 rounded-full bg-white/10 blur-sm"></div>
-                    </div>
+              <div className="w-[48%] h-[88%] bg-[#1a1a1a] rounded-[2.5rem] shadow-[-20px_20px_60px_rgba(0,0,0,0.2)] border-2 border-[#666] relative transform rotate-[-4deg] group-hover:rotate-0 transition-transform duration-700 flex items-center justify-center overflow-hidden group-hover:scale-105 z-10">
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#0a0f1c] via-[#1a2333] to-[#0f172a] border-[6px] border-[#111] rounded-[2.4rem] overflow-hidden">
+                  
+                  {/* Phone Bezel Reflection */}
+                  <div className="absolute inset-0 rounded-[2.2rem] ring-1 ring-white/10 inset-ring-1 inset-ring-black/50 z-20 pointer-events-none"></div>
+                  
+                  {/* Screen Glare */}
+                  <div className="absolute top-0 -left-[100%] w-[50%] h-[200%] bg-gradient-to-r from-transparent via-white/5 to-transparent rotate-[35deg] transform group-hover:translate-x-[400%] transition-transform duration-1000 z-10"></div>
+                  
+                  {/* Mock Screen UI Content */}
+                  <div className="w-full h-full relative z-0 flex flex-col">
+                      {/* Status Bar */}
+                      <div className="h-8 flex justify-between items-center px-5 pt-1">
+                          <span className="text-white/60 text-[10px] font-medium tracking-wide">10:42</span>
+                          <div className="flex gap-1.5 opacity-60">
+                              <div className="w-3 h-2.5 border border-white rounded-[2px] relative"><div className="w-[8px] h-full bg-white rounded-sm"></div></div>
+                          </div>
+                      </div>
+                      
+                      {/* App Content Fake */}
+                      <div className="flex-1 px-4 pt-10 pb-4 flex flex-col">
+                          <div className="text-4xl font-light text-white leading-tight mb-8 opacity-90"><span className="block text-blue-400 font-normal">Galaxy</span> AI is here</div>
+                          <div className="mt-auto flex gap-3 mb-6">
+                              <div className="flex-1 h-32 bg-white/10 rounded-2xl backdrop-blur-md"></div>
+                              <div className="flex-1 h-32 bg-white/10 rounded-2xl backdrop-blur-md"></div>
+                          </div>
+                          <div className="h-14 bg-white/10 rounded-full backdrop-blur-md flex items-center justify-between px-6 border border-white/5">
+                              <div className="h-1 w-1/3 bg-white/30 rounded-full mx-auto"></div>
+                          </div>
+                      </div>
                   </div>
                 </div>
-                <div className="absolute right-0 top-1/4 h-16 w-1 bg-[#4A4A4A] rounded-l-md"></div>
+                {/* Hardware Buttons */}
+                <div className="absolute -right-[4px] top-1/4 h-16 w-1 bg-[#333] rounded-l-md"></div>
+                <div className="absolute -right-[4px] top-[15%] h-10 w-1 bg-[#333] rounded-l-md"></div>
               </div>
 
-              <div className="absolute top-6 left-6 bg-red-600 text-white font-black px-4 py-2 rounded shadow-lg text-sm tracking-widest animate-pulse z-10">FLASH SALE: 97% OFF</div>
+              {/* Fake Promotional Floating Badge */}
+               <div className="absolute top-8 left-8 bg-black text-white font-black px-5 py-3 rounded-lg shadow-2xl text-sm tracking-widest flex items-center gap-3 z-30">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                  FLASH SALE 97% OFF
+              </div>
             </div>
-            {/* Thumbnail Gallery (pure visual detail) */}
-            <div className="flex gap-4 justify-center">
+            {/* Thumbnail Gallery */}
+            <div className="flex gap-5 justify-center mt-8">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className={`w-20 h-20 rounded-2xl border-2 hover:border-blue-500 cursor-pointer transition-colors flex items-center justify-center ${i === 1 ? 'border-blue-500 bg-gray-50' : 'border-gray-200 bg-white'}`}>
-                  <div className="w-8 h-12 bg-gray-300 rounded border border-gray-400"></div>
+                <div key={i} className={`w-24 h-24 rounded-2xl border-2 hover:border-blue-600 cursor-pointer transition-all flex items-center justify-center p-2 ${i === 1 ? 'border-blue-600 bg-blue-50/50 shadow-sm' : 'border-transparent bg-[#f8f9fa] hover:bg-white hover:shadow-md'}`}>
+                  <div className={`w-10 h-16 rounded shadow-sm border ${i === 1 ? 'bg-gradient-to-tr from-slate-900 to-slate-800 border-slate-700' : 
+                                                                    i === 2 ? 'bg-gradient-to-tr from-[#3f3f46] to-[#d4d4d8] border-gray-400' : 
+                                                                    i === 3 ? 'bg-gradient-to-tr from-[#fcd34d] to-[#fffbeb] border-amber-200' : 
+                                                                    'bg-gradient-to-tr from-[#e2e8f0] to-white border-gray-200'}`}></div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Details Column */}
-          <div className="space-y-8 flex flex-col justify-center">
-            <div className="space-y-4">
-              <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 leading-tight" style={{ fontFamily: 'Helvetica Neue, Arial, sans-serif' }}>
-                Galaxy S24 Ultra, 256GB, Titanium Gray
+          <div className="flex flex-col">
+            <div className="space-y-3 mb-10">
+              <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-sm text-xs font-bold uppercase tracking-widest mb-2 border border-blue-100">
+                  <span>Choice</span>
+                  <span className="opacity-50">#1 Top Rated</span>
+              </div>
+              <h1 className="text-5xl font-black tracking-tight text-gray-900 leading-[1.1]" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+                Galaxy S24 Ultra, 256GB, Titanium Gray (Unlocked)
               </h1>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center text-[#ff9900] text-lg">
-                  ★★★★★ <span className="text-gray-500 text-sm font-medium ml-2 hover:underline cursor-pointer">(114 Verified Reviews)</span>
+              <div className="flex items-center gap-4 mt-4 text-sm font-medium">
+                <div className="flex items-center gap-1.5 text-[#ff9e00]">
+                  <span className="text-xl -mt-1">★★★★★</span>
+                  <span className="text-gray-800 font-bold ml-1 text-base">4.9</span>
                 </div>
-                <div className="w-px h-4 bg-gray-300"></div>
-                <div className="text-sm font-bold text-green-600">In Stock</div>
+                <div className="w-[1px] h-4 bg-gray-300"></div>
+                <span className="text-blue-600 hover:underline cursor-pointer transition-colors">(114 Verified Ratings)</span>
+                <div className="w-[1px] h-4 bg-gray-300"></div>
+                <span className="text-emerald-600 font-bold flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>In Stock. Ready to ship.</span>
               </div>
             </div>
 
             {/* Pricing Box highly manicured */}
-            <div className="bg-[#f9f9fb] p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-baseline gap-4">
-                  <span className="text-[14px] text-gray-500 font-bold mb-1 align-top">₹</span>
-                  <span className="text-[52px] font-black text-gray-900 tracking-tighter leading-none" style={{ fontFamily: 'Helvetica Neue, Arial, sans-serif' }}>2,499</span>
-                  <span className="text-[14px] text-gray-500 font-bold align-top">.00</span>
+            <div 
+              className="bg-gradient-to-br from-[#fcfcfd] to-[#f4f5f9] p-10 rounded-[2.5rem] shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-gray-200 relative overflow-hidden group hover:border-red-400/50 cursor-pointer transition-all"
+              onClick={() => handleClueDiscovery('too_good_to_be_true')}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
+              
+              <div className="flex flex-col gap-2 relative z-10">
+                <div className="flex items-start gap-1 text-red-600 font-black text-2xl tracking-tight mb-2">
+                    <span className="text-3xl mt-1.5">-97%</span>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-gray-500 line-through font-medium tracking-wide">M.R.P.: ₹1,29,999.00</span>
-                  <span className="text-red-600 font-bold">You Save: ₹1,25,000 (97%)</span>
+                <div className="flex items-start gap-1">
+                  <span className="text-[20px] text-gray-900 font-bold mt-2">₹</span>
+                  <span className="text-[72px] font-black text-gray-900 tracking-tighter leading-none" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>2,499</span>
+                  <span className="text-[20px] text-gray-900 font-bold mt-2">00</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-2">Inclusive of all taxes. Free shipping on this item.</p>
+                
+                <div className="flex items-center gap-4 text-sm mt-3">
+                  <span className="text-gray-500 font-medium">Original Price: <span className="line-through decoration-gray-400">₹1,29,999.00</span></span>
+                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded font-bold uppercase tracking-wider text-[10px]">You Save: ₹1,27,500</div>
+                </div>
+                <p className="text-[13px] text-gray-500 font-medium mt-1">Inclusive of all taxes. Fast & Free delivery applied.</p>
               </div>
 
-              <hr className="border-gray-200" />
+              <div className="h-px w-full bg-gray-200 my-8 relative z-10"></div>
 
-              <div className="flex items-center gap-3 bg-red-50 text-red-700 px-5 py-3 rounded-xl border border-red-100 shadow-inner">
-                <span className="text-lg">⏱️</span>
-                <span className="font-bold text-sm">Sale Ends In: <span className="font-black tabular-nums">02 : 14 : 33</span></span>
+              <div className="flex items-center justify-between bg-red-50 text-red-800 px-6 py-4 rounded-xl border border-red-200/50 relative z-10">
+                <div className="flex items-center gap-3">
+                     <span className="text-2xl animate-pulse">⏰</span>
+                     <div className="flex flex-col">
+                         <span className="font-extrabold text-[13px] uppercase tracking-wider">Flash Sale Ends In</span>
+                         <span className="font-mono text-xs opacity-70">Price goes up to ₹1,29,999</span>
+                     </div>
+                </div>
+                <span className="font-black tabular-nums text-3xl font-mono tracking-tighter">02:14:33</span>
               </div>
 
               {/* Payment Options (Clue 5) Designed as a Checkout Selection */}
               <div
-                className="mt-4 border border-[#e2e8f0] bg-white rounded-2xl overflow-hidden shadow-[0_4px_10px_rgba(0,0,0,0.03)] hover:border-red-300 hover:shadow-red-500/10 cursor-pointer transition-all group"
-                onClick={() => handleClueDiscovery('payment_trap')}
+                className={`mt-8 border-2 border-transparent bg-white rounded-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 ring-1 ring-gray-200 relative z-10 ${isPaymentVisible ? 'hover:border-red-400/50 hover:shadow-[0_10px_40px_rgba(239,68,68,0.15)] cursor-pointer group' : ''}`}
+                onClick={() => {
+                   if (isPaymentVisible) handleClueDiscovery('payment_trap');
+                }}
               >
-                <div className="bg-gray-50 px-5 py-3 border-b border-gray-100 flex justify-between items-center">
-                  <span className="font-bold text-gray-800 text-sm">Payment Method</span>
-                  <span className="text-xs text-gray-500 font-medium">Select to proceed</span>
-                </div>
-                <div className="p-5 flex flex-col gap-4">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <div className="mt-1 w-4 h-4 rounded-full border-4 border-blue-600 bg-white flex-shrink-0"></div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-gray-900">Direct UPI Transfer <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded ml-2 font-bold uppercase tracking-wider">Fastest</span></span>
-                      <span className="text-xs text-gray-500 mt-1">Pay to: <span className="font-medium">techdeals2024@ybl</span></span>
+                {!isPaymentVisible ? (
+                  <div className="p-8 flex flex-col items-center justify-center text-center bg-gray-50/50 backdrop-blur-sm">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mb-4 shadow-inner">
+                         <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" strokeWidth="2" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                      </div>
+                      <h4 className="font-black text-gray-900 text-lg mb-2">Secure Payment Gateway</h4>
+                      <p className="text-gray-500 text-sm mb-6 max-w-xs">Complete your order securely to reserve your device at the discounted price.</p>
+                      <button 
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-[0_4px_14px_rgba(37,99,235,0.3)] transition-all flex items-center gap-2 group hover:scale-105"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsPaymentVisible(true);
+                        }}
+                      >
+                         <span>View Payment Options</span>
+                         <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5" fill="none" className="group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                      </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-gray-50/80 px-6 py-4 border-b border-gray-100 flex justify-between items-center backdrop-blur-sm animate-in fade-in">
+                      <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black">1</div>
+                          <span className="font-black text-gray-900 text-[15px] uppercase tracking-wide">Payment Method</span>
+                      </div>
+                      <span className="text-[11px] text-gray-500 font-bold uppercase tracking-widest bg-white px-2 py-1 rounded shadow-sm">Required</span>
                     </div>
-                  </label>
-                  <div className="w-full h-px bg-gray-100"></div>
-                  <label className="flex items-start gap-3 opacity-50">
-                    <div className="mt-1 w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0"></div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-gray-900">Credit / Debit Card</span>
-                      <span className="text-xs text-red-500 mt-1 font-medium">Temporarily unavailable for flash sales</span>
+                    <div className="p-6 flex flex-col gap-5 animate-in slide-in-from-top-4 duration-500">
+                      <label className="flex items-start gap-4 cursor-pointer group-hover:bg-blue-50/30 p-2 -m-2 rounded-lg transition-colors relative z-20">
+                        <div className="mt-1 w-5 h-5 rounded-full border-[5px] border-blue-600 bg-white shadow-sm ring-2 ring-blue-600/20 flex-shrink-0"></div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-black text-gray-900 flex items-center gap-2">
+                            Direct UPI Transfer 
+                            <span className="text-[9px] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 py-0.5 rounded shadow-sm font-bold uppercase tracking-widest">Recommended Fastest</span>
+                          </span>
+                          <span className="text-[13px] text-gray-500 mt-1.5 font-medium flex items-center gap-2">
+                              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2" fill="none" className="text-gray-400"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                              Pay automatically to: <span className="font-mono bg-gray-100 px-2 rounded text-gray-800 font-bold border border-gray-200">techdeals2024@ybl</span>
+                          </span>
+                        </div>
+                      </label>
+                      
+                      <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+                      
+                      <label className="flex items-start gap-4 opacity-40 cursor-not-allowed grayscale">
+                        <div className="mt-1 w-5 h-5 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0"></div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-bold text-gray-900 flex items-center gap-2">Credit / Debit Card</span>
+                          <span className="text-[12px] text-red-600 mt-1 font-bold bg-red-50 inline-flex self-start px-2 py-0.5 rounded">⚠ Temporarily disabled for flash sales</span>
+                        </div>
+                      </label>
+                      
+                      <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent"></div>
+                      
+                      <label className="flex items-start gap-4 opacity-40 cursor-not-allowed grayscale">
+                        <div className="mt-1 w-5 h-5 rounded-full border-2 border-gray-300 bg-gray-50 flex-shrink-0"></div>
+                        <div className="flex flex-col">
+                          <span className="text-[15px] font-bold text-gray-900">Cash on Delivery (COD)</span>
+                          <span className="text-[12px] text-red-600 mt-1 font-bold bg-red-50 inline-flex self-start px-2 py-0.5 rounded">⚠ Not eligible on 90%+ discounted items</span>
+                        </div>
+                      </label>
                     </div>
-                  </label>
-                  <div className="w-full h-px bg-gray-100"></div>
-                  <label className="flex items-start gap-3 opacity-50">
-                    <div className="mt-1 w-4 h-4 rounded-full border border-gray-300 bg-gray-100 flex-shrink-0"></div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-gray-900">Cash on Delivery</span>
-                      <span className="text-xs text-red-500 mt-1 font-medium">Not allowed on heavily discounted items</span>
+                    <div className="p-6 bg-gray-50/50 border-t border-gray-100 animate-in slide-in-from-top-6 duration-700 relative z-30">
+                      <button
+                        className="w-full bg-[#fdd835] hover:bg-[#fbc02d] text-gray-900 font-black py-5 rounded-2xl text-[16px] shadow-[0_4px_14px_rgba(253,216,53,0.4)] transition-all border border-[#fbc02d] uppercase tracking-wider flex justify-center items-center gap-3 group-hover:scale-[1.02] cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOutcomeType('scam');
+                          setGameState('outcome');
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" strokeWidth="2.5" fill="none"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        Proceed to Pay Securely
+                      </button>
+                      <div className="text-center mt-4 pointer-events-none">
+                          <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                              <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" strokeWidth="2" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                              SSL Encrypted Transaction
+                          </span>
+                      </div>
                     </div>
-                  </label>
-                </div>
-                <div className="p-4 bg-gray-50 border-t border-gray-100">
-                  <button
-                    className="w-full bg-[#FFDF00] hover:bg-[#F2D300] text-gray-900 font-bold py-3.5 rounded-full text-sm shadow-sm transition-colors border border-[#DEBD00]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOutcomeType('scam');
-                      setGameState('outcome');
-                    }}
-                  >
-                    Proceed to Pay ₹2,499
-                  </button>
-                </div>
+                  </>
+                )}
               </div>
             </div>
 
@@ -842,7 +1365,10 @@ const Level8 = () => {
         <section className="max-w-[1200px] mx-auto w-full p-12">
           <div
             className="flex flex-col mb-10 cursor-pointer group hover:bg-gray-50 p-4 -ml-4 rounded-2xl transition-colors"
-            onClick={() => handleClueDiscovery('fake_reviews')}
+            onClick={() => {
+                setShowReviewsHighlight(true);
+                handleClueDiscovery('fake_reviews');
+            }}
           >
             <h3 className="text-2xl font-bold text-gray-900">Customer Reviews</h3>
             <div className="flex items-center gap-4 mt-2">
@@ -865,17 +1391,76 @@ const Level8 = () => {
                 </div>
                 <div className="flex text-[#ff9900] text-sm">★★★★★</div>
                 <span className="font-bold text-gray-900 text-sm">{review.title}</span>
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <p className={`text-sm leading-relaxed transition-colors ${showReviewsHighlight ? 'bg-red-100 text-red-800 font-bold px-1 rounded' : 'text-gray-600'}`}>
                   "I received the phone in 2 days. The packaging was perfect and the phone works flawlessly. TechDeals is truly the best shopping site in India. I am very happy."
                 </p>
-                <div className="text-xs text-gray-400">Reviewed in India on 3 Days Ago</div>
+                <div className={`text-xs transition-colors ${showReviewsHighlight ? 'text-red-600 font-bold' : 'text-gray-400'}`}>Reviewed in India on 3 Days Ago</div>
               </div>
             ))}
           </div>
         </section>
+        </>
+        )}
+
+        {/* Multi-Stage Pages */}
+        {activePage === 'about' && (
+             <section className="max-w-[1200px] mx-auto w-full p-16 min-h-[500px] animate-in slide-in-from-right duration-500">
+               <h1 className="text-4xl font-extrabold mb-8 text-gray-900 border-b-2 border-gray-100 pb-4">About TechDeals India</h1>
+               <div className="prose prose-lg text-gray-600 max-w-4xl space-y-6">
+                 <p>Welcome to TechDeals India, your number one source for the latest electronics and smartphones at unparalleled prices.</p>
+                 <p>We're dedicated to giving you the very best of consumer technology, with a focus on fast shipping, stellar customer service, and absolute security.</p>
+                 <p>Founded with the vision to make premium smartphones accessible to everyone, we have quickly become the fastest-growing online retailer in the country.</p>
+                 <div className="mt-8 p-6 bg-blue-50 border border-blue-100 rounded-xl">
+                   <h3 className="text-xl font-bold text-blue-900 mb-2">Our Mission</h3>
+                   <p className="text-blue-800">To provide flash sales that disrupt the industry standards. <span className="font-bold cursor-pointer hover:underline text-blue-600" onClick={() => setActivePage('legal')}>Read our Legal Policies</span> for more information on how we operate.</p>
+                 </div>
+               </div>
+             </section>
+        )}
+
+        {activePage === 'legal' && (
+             <section className="max-w-[1200px] mx-auto w-full p-16 min-h-[500px] animate-in slide-in-from-right duration-500">
+               <h1 className="text-4xl font-extrabold mb-8 text-gray-900 border-b-2 border-gray-100 pb-4">Legal & Privacy Policies</h1>
+               <div className="prose prose-lg text-gray-600 max-w-4xl space-y-6">
+                 <p>We respect your privacy. Any personal information you provide to us including and similar to your name, address, telephone number and e-mail address will not be released, sold, or rented to any entities or individuals outside of our organization.</p>
+                 
+                 <h2 className="text-2xl font-bold text-gray-800 mt-8 mb-4">Credit card details</h2>
+                 <p>For your absolute security we never process credit card info. We rely exclusively on direct peer-to-peer UPI networks to ensure your money stays in your control.</p>
+                 
+                 <div className="mt-8 p-6 bg-amber-50 border border-amber-100 rounded-xl">
+                   <h3 className="text-xl font-bold text-amber-900 mb-2">Detailed Terms</h3>
+                   <p className="text-amber-800">By using our services, you agree to our comprehensive <span className="font-bold cursor-pointer hover:underline text-amber-600" onClick={() => setActivePage('terms')}>Terms of Service</span>. Please review them carefully.</p>
+                 </div>
+               </div>
+             </section>
+        )}
+
+        {activePage === 'terms' && (
+             <section className="max-w-[1200px] mx-auto w-full p-16 min-h-[500px] animate-in slide-in-from-right duration-500">
+               <h1 className="text-4xl font-extrabold mb-8 text-gray-900 border-b-2 border-gray-100 pb-4">Terms of Service</h1>
+               <div className="prose text-sm text-gray-500 max-w-4xl space-y-4">
+                 <p>These terms and conditions outline the rules and regulations for the use of TechDeals's Website.</p>
+                 <p>By accessing this website we assume you accept these terms and conditions. Do not continue to use TechDeals if you do not agree to take all of the terms and conditions stated on this page.</p>
+                 <br/><br/><br/><br/>
+                 <div 
+                    className="p-6 bg-gray-50 border border-gray-200 rounded text-xs text-gray-400 hover:bg-white hover:border-red-200 hover:shadow-lg transition-all cursor-pointer group"
+                    onClick={() => handleClueDiscovery('contact_forensics')}
+                 >
+                    <h4 className="font-bold text-gray-600 mb-2 group-hover:text-red-600 transition-colors">7. Corporate Entity Information</h4>
+                    <p>TechDeals operates as an independent facilitation platform. The website owners are not liable for direct, indirect, or consequential loss.</p>
+                    <p className="mt-2 text-[10px] font-mono opacity-60">Registered Business Entity Info: N/A.</p>
+                    <p className="mt-1 text-[10px] font-mono opacity-60">GSTIN: NOT PROVIDED.</p>
+                    <p className="mt-1 text-[10px] font-mono opacity-60">Physical Operations: Undisclosed.</p>
+                    <div className="text-red-500 font-bold mt-3 text-xs uppercase tracking-wider group-hover:opacity-100 opacity-0 transition-opacity">
+                      ⚠️ CLICK TO LOG ENTITY FRAUD
+                    </div>
+                 </div>
+               </div>
+             </section>
+        )}
 
         {/* Footer Section (Contact/Policy) */}
-        <footer className="bg-[#232F3E] text-white p-16 pb-32">
+        <footer className="bg-[#232F3E] text-white p-16 pb-32 mt-auto">
           <div className="max-w-[1200px] mx-auto grid grid-cols-4 gap-12">
             <div className="space-y-4">
               <h4 className="font-bold text-[15px] mb-4">Get to Know Us</h4>
@@ -905,14 +1490,20 @@ const Level8 = () => {
             <div className="space-y-4">
               <h4 className="font-bold text-[15px] mb-4 flex items-center gap-2">Contact Customer Service </h4>
               <div
-                className="space-y-3 text-sm text-gray-300 font-medium cursor-pointer overflow-hidden relative p-3 -ml-3 rounded transition-colors hover:bg-white/5 group border border-transparent hover:border-red-500/30"
-                onClick={() => handleClueDiscovery('contact_forensics')}
+                className="space-y-3 text-sm text-gray-300 font-medium overflow-hidden relative p-3 -ml-3 rounded transition-colors hover:bg-white/5 border border-transparent"
               >
-                <div className="flex gap-3 items-center group-hover:text-white"><span className="opacity-70 group-hover:opacity-100">📱</span> +91 89XXXXXXXX (WhatsApp Only)</div>
-                <div className="flex gap-3 items-center group-hover:text-white"><span className="opacity-70 group-hover:opacity-100">✉️</span> techdeals.india2024@gmail.com</div>
-                <div className="flex gap-3 items-center group-hover:text-white"><span className="opacity-70 group-hover:opacity-100">🏢</span> Shop 14, Commercial Complex, Delhi</div>
-                <div className="text-red-400 font-bold mt-3 text-xs uppercase tracking-wider group-hover:opacity-100 opacity-0 transition-opacity">
-                  ⚠️ GSTIN / REGISTERED ENTITY NO. NOT PROVIDED
+                <div className="flex gap-3 items-center"><span className="opacity-70">📱</span> +91 89XXXXXXXX (WhatsApp Only)</div>
+                <div className="flex gap-3 items-center"><span className="opacity-70">✉️</span> techdeals.india2024@gmail.com</div>
+                <div className="flex gap-3 items-center"><span className="opacity-70">🏢</span> Shop 14, Commercial Complex, Delhi</div>
+                <div 
+                    className="mt-4 pt-4 border-t border-gray-700/50 text-blue-400 hover:text-white cursor-pointer transition-colors text-xs font-bold uppercase tracking-wider"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActivePage('about');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                >
+                    Learn more About Us →
                 </div>
               </div>
             </div>
@@ -920,60 +1511,147 @@ const Level8 = () => {
         </footer>
       </div>
 
-      {/* Floating Chat Clue */}
-      <div
-        className="fixed bottom-8 right-8 w-[250px] bg-white rounded-t-xl rounded-bl-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] flex flex-col cursor-pointer border border-gray-200 overflow-hidden hover:shadow-[0_15px_50px_rgba(0,0,0,0.3)] transition-all z-[200] group"
-        onClick={() => {
-          handleClueDiscovery('pressure_chat');
-          setShowChat(true);
-        }}
-      >
-        <div className="bg-[#007185] text-white p-3 font-bold text-sm flex items-center justify-between">
-          <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Chat Support</div>
-          <span>−</span>
-        </div>
-        <div className="p-4 bg-gray-50 flex flex-col gap-2">
-          <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-xs text-gray-700 font-medium self-start inline-block">
-            Hello! Only 12 units left in Flash Sale. Need help checking out with UPI?
+      {/* Interactive Chatbot */}
+      {showChatWindow ? (
+        <div className="fixed bottom-8 right-8 w-[320px] h-[450px] bg-white rounded-xl shadow-[0_15px_50px_rgba(0,0,0,0.3)] flex flex-col border border-gray-200 overflow-hidden z-[200] animate-in slide-in-from-bottom flex flex-col">
+          <div className="bg-[#007185] text-white p-4 font-bold text-sm flex items-center justify-between shadow-md z-10">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <span className="w-3 h-3 rounded-full bg-green-400 absolute -bottom-1 -right-1 border-2 border-[#007185]"></span>
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-lg">👩‍💼</div>
+              </div>
+              <div className="flex flex-col">
+                <span className="leading-tight">Riya (Agent)</span>
+                <span className="text-[10px] text-white/70 font-medium">Customer Support</span>
+              </div>
+            </div>
+            <span className="cursor-pointer text-xl hover:bg-white/20 w-8 h-8 flex items-center justify-center rounded-full transition-colors" onClick={() => setShowChatWindow(false)}>×</span>
           </div>
-          <div className="text-[10px] text-gray-400 mt-1 pl-1">Agent 'Riya' is typing...</div>
-        </div>
-      </div>
-
-      {/* DETECTIVE POPUP (Clue details) */}
-      {activeClue && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in zoom-in duration-500">
-          <div className="max-w-xl w-full bg-slate-900 border-2 border-cyan-500/30 p-16 rounded-[60px] shadow-2xl text-center">
-            <div className="w-24 h-24 bg-cyan-600/20 rounded-full flex items-center justify-center mx-auto mb-8 border-2 border-cyan-500">
-              <span className="text-5xl">🔍</span>
+          <div className="flex-1 bg-gray-50 p-4 overflow-y-auto flex flex-col gap-3">
+            {chatMessages.map((msg, i) => (
+              <div key={i} className={`flex max-w-[85%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}>
+                  <div className={`p-3 rounded-2xl text-sm shadow-sm ${msg.role === 'user' ? 'bg-[#007185] text-white rounded-tr-sm' : 'bg-white text-gray-800 border border-gray-200 rounded-tl-sm'}`}>
+                      {msg.text}
+                  </div>
+              </div>
+            ))}
+            {isAgentTyping && (
+                <div className="self-start bg-white p-3 rounded-2xl rounded-tl-sm border border-gray-200 shadow-sm flex items-center gap-1.5 w-16 h-10">
+                    <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '0ms'}}></span>
+                    <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '150ms'}}></span>
+                    <span className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '300ms'}}></span>
+                </div>
+            )}
+            <div className="mt-auto pt-4 flex flex-col gap-2">
+              {chatOptions.map(opt => (
+                  <button 
+                    key={opt.id}
+                    onClick={() => handleChatOption(opt)}
+                    className="bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 text-xs font-bold py-2.5 px-3 rounded-xl text-left shadow-sm transition-colors w-full"
+                  >
+                      {opt.text}
+                  </button>
+              ))}
             </div>
-            <h2 className="text-white text-4xl font-black mb-6 tracking-tighter uppercase italic">{activeClue.name}</h2>
-            <div className="bg-black/50 p-8 rounded-[40px] mb-10 border border-white/5">
-              <p className="text-slate-300 text-lg leading-relaxed italic font-medium">"{activeClue.description}"</p>
-            </div>
-            <button
-              onClick={() => setActiveClue(null)}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-black px-16 py-6 rounded-3xl text-sm uppercase tracking-[0.4em] transition-all hover:scale-105 active:scale-95"
-            >
-              Log Intelligence
+          </div>
+          <div className="border-t border-gray-200 p-3 bg-white flex gap-2">
+            <input type="text" disabled placeholder="Select an option above..." className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-500 cursor-not-allowed border border-gray-200" />
+            <button disabled className="bg-[#007185] opacity-50 text-white p-2 rounded-lg cursor-not-allowed">
+               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
             </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="fixed bottom-8 right-8 w-[250px] bg-white rounded-t-xl rounded-bl-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] flex flex-col cursor-pointer border border-gray-200 overflow-hidden hover:shadow-[0_15px_50px_rgba(0,0,0,0.3)] transition-all z-[200] group animate-bounce"
+          onClick={() => setShowChatWindow(true)}
+        >
+          <div className="bg-[#007185] text-white p-3 font-bold text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Chat Support (1)</div>
+            <span>+</span>
+          </div>
+          <div className="p-4 bg-gray-50 flex flex-col gap-2">
+            <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm text-xs text-gray-700 font-medium self-start inline-block">
+              {chatMessages[chatMessages.length - 1].text}
+            </div>
           </div>
         </div>
       )}
 
-      {/* DETECTIVE MODE HUD BUTTON */}
-      <div className="fixed bottom-10 left-10 z-[150] flex flex-col items-center">
-        <button
-          className="w-16 h-16 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.6)] border-4 border-amber-300 text-3xl transition-transform hover:scale-110 active:scale-95 relative"
-          onClick={() => setShowDetectiveBoard(!showDetectiveBoard)}
-        >
-          🔍
-          {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-7 h-7 rounded-full flex justify-center items-center shadow-lg border-2 border-red-800 animate-bounce">{cluesFound.length}</span>}
-        </button>
-        <div className="mt-4 font-black text-[10px] text-white uppercase tracking-widest whitespace-nowrap bg-black/50 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">Evidence Board</div>
-      </div>
+      {/* WHOIS Modal Overlay (for URL inspect) */}
+      {showWhoisModal && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowWhoisModal(false)}>
+            <div className="bg-zinc-900 border border-zinc-700 w-full max-w-2xl rounded-lg overflow-hidden shadow-2xl font-mono text-sm animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                <div className="bg-zinc-800 px-4 py-2 border-b border-zinc-700 flex justify-between items-center text-zinc-300">
+                    <div className="flex gap-2">
+                        <span className="text-red-500">●</span>
+                        <span className="text-amber-500">●</span>
+                        <span className="text-emerald-500">●</span>
+                    </div>
+                    <span className="font-bold">Terminal - whois techdeals-india.shop</span>
+                    <span className="cursor-pointer hover:text-white" onClick={() => setShowWhoisModal(false)}>✕</span>
+                </div>
+                <div className="p-6 text-emerald-400 h-[300px] overflow-y-auto w-full leading-relaxed">
+                    <p className="opacity-70 mb-4">$ whois techdeals-india.shop</p>
+                    <p>Domain Name: techdeals-india.shop</p>
+                    <p>Registry Domain ID: 329188204_DOMAIN_SHOP-VRSN</p>
+                    <p>Registrar WHOIS Server: whois.namesilo.com</p>
+                    <p className="text-red-400 font-bold bg-red-400/10 inline-block px-1">Creation Date: 2024-03-01T14:22:11Z (19 days ago)</p>
+                    <p className="text-amber-400 font-bold bg-amber-400/10 mt-2 p-2 rounded">
+                       WARNING: Domain Age is extremely young.<br/>
+                       High risk indicator for e-commerce sites.
+                    </p>
+                    <p className="mt-4">Registrar: NameSilo, LLC</p>
+                    <p>Registrant Organization: PrivacyGuardian.org</p>
+                    <p>Registrant State/Province: Arizona</p>
+                    <p className="text-red-400 font-bold bg-red-400/10 inline-block px-1 mt-2">Registrant Country: US (Hidden by Proxy)</p>
+                    <p className="mt-4">Name Server: ns1.dns-parking.com</p>
+                    <p>Name Server: ns2.dns-parking.com</p>
+                    <p className="text-zinc-500 mt-4">DNSSEC: unsigned</p>
+                    <p className="text-zinc-500">{'>>>'} Last update of WHOIS database: 2024-03-20T00:00:00Z {'<<<'}</p>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* CINEMATIC INTERNAL MONOLOGUE OVERLAY */}
+      {activeDialogue && (
+          <div className="fixed inset-0 z-[5000] pointer-events-auto flex flex-col justify-end">
+              {/* Full screen dim */}
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-opacity duration-700"></div>
+              
+              <div className="absolute bottom-24 w-full text-center animate-fadeInSlow flex flex-col items-center">
+                  <p className="text-white text-4xl font-serif italic tracking-wide drop-shadow-[0_0_20px_rgba(255,255,255,0.4)] px-16 leading-relaxed max-w-6xl mx-auto mb-16">
+                      "{activeDialogue === 'domain_lookup' && "Wait... this website was registered only 19 days ago? And the owner's identity is hidden behind a proxy in the US? That's a huge red flag for a so-called established business."}
+                      {activeDialogue === 'fake_reviews' && "These reviews... They all sound identical and generic. One says 'received in 2 days' but was posted 3 days ago for a site created 19 days ago? Definitely artificially scripted."}
+                      {activeDialogue === 'pressure_chat' && "That's odd. The customer support agent isn't answering my questions about payment options or GST details. They are just creating panic about stock and rushing me to pay via UPI."}
+                      {activeDialogue === 'contact_forensics' && "No corporate entity listed? The GSTIN number is 'NOT PROVIDED' and their physical operations are undisclosed... Who am I actually buying this from at this point?"}
+                      {activeDialogue === 'vague_policy' && "A 45-60 day return policy that requires 'management approval'? And no chargebacks allowed on flash sale items? They're legally ensuring I can't get my money back."}
+                      {activeDialogue === 'fake_security' && "100% Secure Checkout? Verified Protection? These are just static text labels, not actual certificates. Scammers add these to build fake trust."}
+                      {activeDialogue === 'payment_trap' && "They've disabled Credit Cards and COD... only direct UPI to a personal account? That means zero protection for me once the money leaves my account."}
+                      {activeDialogue === 'too_good_to_be_true' && "₹2,499 for a Galaxy S24 Ultra? That's a 97% discount on a flagship device. It's not just a 'deal'—it's a mathematical impossibility used to bait victims."}"
+                  </p>
+                  
+                  {/* Interaction Prompt (Press E) */}
+                  <div 
+                      className="flex flex-col items-center gap-3 cursor-pointer group animate-pulse hover:animate-none transition-all"
+                      onClick={() => handleDialogueComplete(activeDialogue)}
+                  >
+                      <div className="w-14 h-14 rounded-full border border-white/30 flex items-center justify-center bg-black/40 backdrop-blur-md shadow-[0_0_15px_rgba(255,255,255,0.1)] group-hover:bg-white/10 group-hover:border-white/60 transition-colors">
+                          <span className="text-white font-bold text-xl shadow-sm">E</span>
+                      </div>
+                      <span className="text-[10px] text-white/50 uppercase tracking-[0.3em] font-bold group-hover:text-white transition-colors drop-shadow-md">Log Clue</span>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* DETECTIVE POPUP (Clue details) removed as redundant */}
+
+
     </div>
-  );
+    );
+  };
 
   const EvidenceBoard = () => (
     <div
@@ -1082,9 +1760,13 @@ const Level8 = () => {
   );
 
   const OutcomeDecision = () => (
-    <div className="absolute inset-0 bg-black/95 flex flex-col items-center justify-center p-12 text-center">
-      <div className="max-w-4xl space-y-16">
-        <div className="w-40 h-40 bg-indigo-600 rounded-[55px] flex items-center justify-center text-8xl mx-auto shadow-2xl animate-pulse italic">👵</div>
+    <div className="absolute inset-0 z-[1000] flex flex-col items-center justify-center p-12 text-center overflow-hidden">
+      {/* Background Image & Overlay */}
+      <img src="/assets/living_pov.png" alt="Living POV" className="absolute inset-0 w-full h-full object-cover z-0" />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-10"></div>
+      
+      <div className="max-w-4xl space-y-16 relative z-20 animate-in fade-in zoom-in duration-500">
+        <div className="w-40 h-40 bg-indigo-600 rounded-[55px] flex items-center justify-center text-8xl mx-auto shadow-[0_0_80px_rgba(79,70,229,0.5)] border-4 border-indigo-400 animate-pulse italic">👵</div>
         <div className="space-y-6">
           <h2 className="text-6xl font-black text-white italic tracking-tighter uppercase">Call Aunty Priya?</h2>
           <p className="text-2xl text-slate-400 font-medium leading-relaxed italic opacity-80">
@@ -1106,7 +1788,7 @@ const Level8 = () => {
             className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-12 px-12 rounded-[50px] shadow-3xl text-xl uppercase tracking-widest transition-all hover:scale-105"
             onClick={() => {
               setShowWhatsAppWarn(true);
-              setGameState('living-room');
+              // don't change game state yet, keep Outcome background beneath
             }}
           >
             Warn Aunty Priya & Report
@@ -1180,12 +1862,57 @@ const Level8 = () => {
     </div>
   );
 
+  const TitleCard = () => (
+    <div className="absolute inset-0 bg-black z-[1000] flex flex-col items-center justify-center animate-cinematic-sequence">
+      <div className="flex flex-col items-center relative">
+        {/* Dramatic pulse rings */}
+        <div className="absolute inset-0 bg-red-500/20 rounded-full blur-3xl animate-ping scale-[2.5] opacity-50" />
+
+        <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mb-8 animate-[width_1.5s_ease-in-out]" />
+
+        <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative opacity-0" style={{ animation: 'fadeIn 1s forwards, surge 3s infinite' }}>
+          <span className="relative z-10">Level 8</span>
+          {/* Chromatic aberration layers */}
+          <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-aberration">Level 8</span>
+          <span className="absolute inset-0 text-cyan-400 opacity-60 -translate-x-1 -z-10 animate-aberration-alt">Level 8</span>
+        </h2>
+
+        <h3 className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase opacity-0 font-bold" style={{ animation: 'fadeIn 1s forwards 1.2s' }}>
+          Identifying Digital Illusions
+        </h3>
+
+        <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mt-12 animate-[width_1.5s_ease-in-out]" />
+
+        {/* Tension metadata */}
+        <div className="mt-8 text-[8px] font-mono text-zinc-800 tracking-widest uppercase animate-pulse">
+            Establishing Secure Connection... [33%] [66%] [99%]
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="w-full h-full bg-black relative selection:bg-cyan-500/30 overflow-hidden font-sans">
-      {gameState === 'living-room' && <LivingRoom />}
-      {gameState === 'website' && <GhostStore />}
+      <div className={`fixed inset-0 bg-black z-[1000] pointer-events-none transition-opacity duration-700 ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+      
+      {gameState === 'garden' && Garden()}
+      {gameState === 'living-room' && LivingRoom()}
+      {gameState === 'living-pov' && LivingPov()}
+      {gameState === 'title-card' && TitleCard()}
+      {gameState === 'website' && <GhostStore 
+        activeDialogue={activeDialogue} 
+        setActiveDialogue={setActiveDialogue} 
+        cluesFound={cluesFound} 
+        activeClue={activeClue} 
+        setActiveClue={setActiveClue} 
+        handleDialogueComplete={handleDialogueComplete} 
+        handleClueDiscovery={handleClueDiscovery}
+        showDetectiveBoard={showDetectiveBoard}
+        setShowDetectiveBoard={setShowDetectiveBoard}
+      />}
       {gameState === 'outcome-pre' && <OutcomeDecision />}
       {gameState === 'outcome' && <OutcomeFinal />}
+      {gameState === 'epilogue' && <Epilogue />}
       {gameState === 'cybercrime-portal' && <CybercrimePortal />}
 
       {showWhatsApp && <WhatsAppThread />}
@@ -1193,17 +1920,55 @@ const Level8 = () => {
 
       {showDetectiveBoard && <EvidenceBoard />}
 
-
-
-      {/* Toast Feedback */}
-      {feedbackMsg && (
-        <div className={`fixed top-12 right-12 py-6 px-12 rounded-[35px] shadow-3xl z-[1000] animate-in slide-in-from-right-20 font-black tracking-widest text-[10px] uppercase flex items-center gap-5 border-2 ${feedbackMsg.color === 'emerald' ? 'bg-emerald-950/95 border-emerald-500 text-emerald-100 shadow-emerald-900/30' :
-          'bg-slate-900/95 border-cyan-500 text-cyan-100 shadow-cyan-900/30'
-          }`}>
-          <div className={`w-3 h-3 rounded-full animate-pulse ${feedbackMsg.color === 'emerald' ? 'bg-emerald-500 shadow-[0_0_10px_emerald]' : 'bg-cyan-500 shadow-[0_0_10px_cyan]'}`} />
-          {feedbackMsg.text}
+      {/* DETECTIVE MODE HUD BUTTON */}
+      {!['title-card', 'outcome', 'outcome-pre', 'cybercrime-portal'].includes(gameState) && (
+        <div className="fixed bottom-10 left-10 z-[150] flex flex-col items-center">
+          <button
+            className="w-16 h-16 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.6)] border-4 border-amber-300 text-3xl transition-transform hover:scale-110 active:scale-95 relative"
+            onClick={() => setShowDetectiveBoard(!showDetectiveBoard)}
+          >
+            🔍
+            {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-7 h-7 rounded-full flex justify-center items-center shadow-lg border-2 border-red-800 animate-bounce">{cluesFound.length}</span>}
+          </button>
+          <div className="mt-4 font-black text-[10px] text-white uppercase tracking-widest whitespace-nowrap bg-black/50 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">Evidence Board</div>
         </div>
       )}
+
+
+
+      <style dangerouslySetInnerHTML={{
+        __html: `
+        .animate-cinematic-sequence { animation: cinematic-sequence 4s forwards; }
+        .animate-aberration { animation: aberration 1.5s infinite; }
+        .animate-aberration-alt { animation: aberration-alt 1.5s infinite; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes surge {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.08); filter: brightness(1.3); drop-shadow: 0 0 40px rgba(255,255,255,0.4); }
+        }
+        @keyframes cinematic-sequence {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        @keyframes aberration {
+            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+            25% { transform: translate(-4px, 2px); opacity: 0.8; }
+            50% { transform: translate(4px, -2px); opacity: 0.6; }
+            75% { transform: translate(-2px, -4px); opacity: 0.8; }
+        }
+        @keyframes aberration-alt {
+            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+            25% { transform: translate(4px, -2px); opacity: 0.8; }
+            50% { transform: translate(-4px, 2px); opacity: 0.6; }
+            75% { transform: translate(2px, 4px); opacity: 0.8; }
+        }
+        @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
+        @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
+        `
+      }} />
     </div>
   );
 };

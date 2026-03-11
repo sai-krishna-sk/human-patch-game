@@ -1,879 +1,939 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Player from '../components/Player';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
 
-// ═══ CONSTANTS ═══
-const ROOM_WIDTH = 1200;
-const ROOM_HEIGHT = 800;
-const DESK_ZONE = { x: 300, y: 450, w: 400, h: 350 };
-
-const CLUE_DATA = [
-    {
-        id: 'ad_badge',
-        name: 'Sponsored Ad Badge',
-        description: 'The tiny "Ad" label indicates this is a paid result, which scammers often buy to appear first.',
-        points: 15
-    },
-    {
-        id: 'fake_domain',
-        name: 'Inconsistent Domain',
-        description: 'sbi-help-service.in is not the official sbi.co.in. Banks use strictly verified domains.',
-        points: 15
-    },
-    {
-        id: 'anydesk_source',
-        name: 'Untrusted Installer',
-        description: 'The source "anydesk-sbi-fix.net" is not the official AnyDesk site. Banks never ask for remote access.',
-        points: 20
-    },
-    {
-        id: 'notebook',
-        name: 'Credentials Exposure',
-        description: 'Writing passwords in a notebook near your webcam allows remote attackers to see them.',
-        points: 10
-    },
-    {
-        id: 'thatha_note',
-        name: "Thatha's Official List",
-        description: 'The verified SBI number (1800-425-3800) contradicts the number from the Google Ad.',
-        points: 25
-    }
-];
-
 const Level6 = () => {
-    const { completeLevel, adjustAssets, adjustLives } = useGameState();
+    const { completeLevel } = useGameState();
 
-    // ═══ STATE ═══
-    const [gameState, setGameState] = useState('walk'); // walk, browser, google, phone_call, anydesk_countdown, mini_challenge, outcome
-    const [isPhoneOpen, setIsPhoneOpen] = useState(false);
-    const [playerPos, setPlayerPos] = useState({ x: 200, y: 400 });
-    const [cluesFound, setCluesFound] = useState([]);
-    const [anydeskProgress, setAnydeskProgress] = useState(55);
-    const [timeLeft, setTimeLeft] = useState(45);
+    // ═══ FLOW STEP — strict linear progression ═══
+    // 0: briefing (click PC)
+    // 1: full_pc_view (laggy PC + dialogues)
+    // 2: desk_explore (prompt: use phone)
+    // 3: phone_search (prompt: click Google)
+    // 4: dialer_ready (prompt: click Call)
+    // 5: call_active (conversation with Vikram)
+    // 6: link_offered (Accept Support Link visible)
+    // 7: anydesk_running (prompt: check notebook)
+    // 8: reading_notebook (browsing clue pages)
+    // 9: number_pinned (prompt: check phone to compare)
+    // 10: number_verified (prompt: hang up)
+    // 11: hung_up (prompt: abort from PC)
+    // 12: outcome
+    const [step, setStep] = useState(0);
+    const [gameState, setGameState] = useState('playing'); // 'playing' or 'title_card'
+    const [anydeskProgress, setAnydeskProgress] = useState(15);
+    const [outroStep, setOutroStep] = useState(0); // 0: none, 1: pc_aborted, 2: temppho_dialogue, 3: end_card
+    const [outroDialogueIdx, setOutroDialogueIdx] = useState(0);
+    const [isFadingOut, setIsFadingOut] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(90);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
-    const [showDetectiveBoard, setShowDetectiveBoard] = useState(false);
-    const [callerIdChoice, setCallerIdChoice] = useState(null);
-    const [outcomeType, setOutcomeType] = useState(null); // 'victory' or 'scam'
-    const [interactionActive, setInteractionActive] = useState(false);
-    const [showVerifyPanel, setShowVerifyPanel] = useState(false);
-    const [keys, setKeys] = useState({});
+    const [outcomeType, setOutcomeType] = useState(null);
+    const [activeZoom, setActiveZoom] = useState(null);
+    const [isPhoneOpen, setIsPhoneOpen] = useState(false);
+    const [activePhoneApp, setActivePhoneApp] = useState('home');
+    const [callLog, setCallLog] = useState([]);
+    const [pinnedNumber, setPinnedNumber] = useState(null);
+    const [notebookPage, setNotebookPage] = useState(0);
+
+    // PC Intro
+    const [pcDialogueIndex, setPcDialogueIndex] = useState(-1);
+    const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+    const [laggedCursorPos, setLaggedCursorPos] = useState({ x: 0, y: 0 });
+    const pcDialogues = [
+        "What is wrong with pc...",
+        "why is it lagging after update...",
+        "I should contact support maybe."
+    ];
+
+    // Prompt messages for each step
+    const [prompt, setPrompt] = useState(null);
 
     const timerRef = useRef(null);
-    const speechRef = useRef(null);
 
-    // ═══ MOVEMENT LOGIC ═══
-    useEffect(() => {
-        const handleKeyDown = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
-        const handleKeyUp = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('keyup', handleKeyUp);
-        };
-    }, []);
+    // Notebook clue pages
+    const notebookPages = [
+        {
+            title: 'Common Scam Tactics',
+            icon: '🚩',
+            content: 'Scammers often pose as tech support from big companies like Microsoft, Apple, or your bank. They create urgency to rush you into giving remote access.',
+            hint: 'Remember: Real support will NEVER cold-call you or ask for remote access.'
+        },
+        {
+            title: 'How to Spot Fake URLs',
+            icon: '🔗',
+            content: 'Fake websites use domains like ".ml", ".tk", or ".xyz" instead of official ".com" or ".microsoft.com". Always check the URL carefully before trusting a website.',
+            hint: 'The caller\'s website was "microsoft-patch-fix.ml" — that is NOT microsoft.com!'
+        },
+        {
+            title: 'Verified Helplines',
+            icon: '📞',
+            isFinalClue: true,
+            content: 'Always verify phone numbers with official records. Below are verified helplines:',
+            numbers: [
+                { label: 'Microsoft Support', number: '1800-425-3800', pinnable: true },
+                { label: 'SBI Official Care', number: '1800-11-2211', pinnable: false }
+            ]
+        }
+    ];
 
-    useEffect(() => {
-        if (isPhoneOpen || gameState === 'outcome' || gameState === 'mini_challenge') return;
-        let animationFrameId;
-        const speed = 10;
+    // ═══ LOGIC ═══
 
-        const gameLoop = () => {
-            setPlayerPos(prev => {
-                let newX = prev.x;
-                let newY = prev.y;
+    const showFeedback = (msg, color = 'cyan') => {
+        setFeedbackMsg({ text: msg, color });
+        setTimeout(() => setFeedbackMsg(null), 4000);
+    };
 
-                if (keys['w'] || keys['arrowup']) newY -= speed;
-                if (keys['s'] || keys['arrowdown']) newY += speed;
-                if (keys['a'] || keys['arrowleft']) newX -= speed;
-                if (keys['d'] || keys['arrowright']) newX += speed;
+    const showPrompt = (msg) => {
+        setPrompt(msg);
+        setTimeout(() => setPrompt(null), 5000);
+    };
 
-                newX = Math.max(20, Math.min(newX, ROOM_WIDTH - 60));
-                newY = Math.max(220, Math.min(newY, ROOM_HEIGHT - 100));
+    const handlePinNumber = (num) => {
+        setPinnedNumber(num);
+        setStep(9);
+        showPrompt("📌 Number pinned! Now open your phone and compare it with the caller's number.");
+    };
 
-                const inDesk = (
-                    newX > DESK_ZONE.x && newX < DESK_ZONE.x + DESK_ZONE.w &&
-                    newY > DESK_ZONE.y && newY < DESK_ZONE.y + DESK_ZONE.h
-                );
-                setInteractionActive(inDesk);
+    const startCall = () => {
+        setGameState('title_card');
 
-                return { x: newX, y: newY };
-            });
-            animationFrameId = requestAnimationFrame(gameLoop);
-        };
+        // Wait for title card animation (3.5s) before connecting
+        setTimeout(() => {
+            setGameState('playing');
+            setStep(5);
+            setActivePhoneApp('call');
+            setCallLog([{ sender: 'system', text: 'Calling 1800-000-2233...' }]);
 
-        animationFrameId = requestAnimationFrame(gameLoop);
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [keys, isPhoneOpen, gameState]);
+            setTimeout(() => {
+                setCallLog(prev => [...prev, { sender: 'system', text: 'Call connected.' }]);
+            }, 1500);
 
-    const handleOpenPhone = () => {
-        if (gameState !== 'outcome' && gameState !== 'mini_challenge') {
-            if (gameState === 'walk') {
-                setGameState('browser_timeout');
+            setTimeout(() => {
+                setCallLog(prev => [...prev, { sender: 'vikram', text: "Hello sir, thank you for calling Microsoft Windows Support. My name is Vikram, Senior Support Engineer." }]);
+            }, 3000);
+
+            setTimeout(() => {
+                setCallLog(prev => [...prev, { sender: 'vikram', text: "I can see your recent Windows Update caused a critical kernel slowdown. This is a known issue." }]);
+            }, 6000);
+
+            setTimeout(() => {
+                setCallLog(prev => [...prev, { sender: 'vikram', text: "To fix this remotely, I need you to accept the AnyDesk connection link. Please click 'Accept Support Link' below." }]);
+                setStep(6);
+            }, 9000);
+        }, 3500);
+    };
+
+    const handleAcceptLink = () => {
+        setStep(7);
+        setIsPhoneOpen(false);
+        showPrompt("⚠️ AnyDesk is running! Something feels wrong... Check the Records notebook on the desk.");
+    };
+
+    const handleAbortSession = () => {
+        clearInterval(timerRef.current);
+        setOutroStep(1);
+    };
+
+    const handleHangUp = () => {
+        if (step >= 7 && step < 11) {
+            // During anydesk, hanging up should only work at step 10
+            if (step === 10) {
+                setStep(11);
+                setIsPhoneOpen(false);
+                setActivePhoneApp('home');
+                showPrompt("Good! Now quickly open the PC System Status and ABORT the connection!");
+            } else {
+                showFeedback("You should investigate first before hanging up!", "orange");
             }
-            setIsPhoneOpen(true);
+        } else {
+            setIsPhoneOpen(false);
+            setActivePhoneApp('home');
         }
     };
 
-    // Handle Interaction Key
-    useEffect(() => {
-        if (keys['e'] && interactionActive && !isPhoneOpen) {
-            handleOpenPhone();
-            setKeys(k => ({ ...k, 'e': false })); // prevent multi-fire
+    const handlePhoneClick = () => {
+        if (step < 2) {
+            showFeedback("Check your PC first — there's an update notification.", "orange");
+            return;
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [keys, interactionActive, isPhoneOpen, gameState]);
+        setIsPhoneOpen(true);
+        if (step === 2) {
+            setStep(3);
+            showPrompt("Search Google for 'Windows Update Support' help.");
+        }
+        if (step === 9) {
+            showPrompt("Compare the pinned number with the caller's number on the phone!");
+        }
+    };
 
-    // ═══ ANYDESK COUNTDOWN ═══
+    const handleGoogleClick = () => {
+        setActivePhoneApp('search');
+        if (step === 3) {
+            showPrompt("Click the search result link to call support.");
+        }
+    };
+
+    const handleSearchResultClick = () => {
+        setActivePhoneApp('dialer');
+        if (step === 3) setStep(4);
+        showPrompt("Press the green call button to connect.");
+    };
+
+    const handleNotebookClick = () => {
+        if (step < 7) {
+            showFeedback("Nothing to check here yet.", "orange");
+            return;
+        }
+        setActiveZoom('notebook');
+        setNotebookPage(0);
+        if (step === 7) {
+            setStep(8);
+        }
+    };
+
+    const handleMonitorClick = () => {
+        if (step === 0) {
+            setStep(1);
+            return;
+        }
+        if (step === 11) {
+            setActiveZoom('laptop-left');
+            return;
+        }
+        if (step >= 7) {
+            setActiveZoom('laptop-left');
+            return;
+        }
+        if (step >= 2) {
+            showFeedback("Nothing to do on the PC right now. Use your phone!", "orange");
+        }
+    };
+
+    // ═══ EFFECTS ═══
+
     useEffect(() => {
-        if (gameState === 'anydesk_countdown') {
+        const handleMouseMove = (e) => setCursorPos({ x: e.clientX, y: e.clientY });
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    useEffect(() => {
+        if (step === 1) {
+            const interval = setInterval(() => {
+                setLaggedCursorPos(prev => ({
+                    x: prev.x + (cursorPos.x - prev.x) * 0.05,
+                    y: prev.y + (cursorPos.y - prev.y) * 0.05
+                }));
+            }, 16);
+            return () => clearInterval(interval);
+        } else {
+            setLaggedCursorPos(cursorPos);
+        }
+    }, [cursorPos, step]);
+
+    useEffect(() => {
+        if (step === 1) {
+            let s = 0;
+            const seqInterval = setInterval(() => {
+                if (s < pcDialogues.length) {
+                    setPcDialogueIndex(s);
+                    s++;
+                } else clearInterval(seqInterval);
+            }, 3000);
+            return () => clearInterval(seqInterval);
+        } else {
+            setPcDialogueIndex(-1);
+        }
+    }, [step]);
+
+    useEffect(() => {
+        if (step >= 7 && step < 12) {
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
                     if (prev <= 1) {
-                        handleScamTrigger();
+                        clearInterval(timerRef.current);
+                        setOutcomeType('scam');
+                        setStep(12);
                         return 0;
                     }
                     return prev - 1;
                 });
-                setAnydeskProgress(prev => Math.min(100, prev + 1.2));
+                setAnydeskProgress(prev => Math.min(100, prev + 1.1));
             }, 1000);
-        } else {
+        } else if (step < 7) {
             clearInterval(timerRef.current);
         }
         return () => clearInterval(timerRef.current);
-    }, [gameState]);
+    }, [step]);
 
-    const handleScamTrigger = () => {
-        setOutcomeType('scam');
-        setGameState('outcome');
-    };
-
-    const handleClueClick = (clueId) => {
-        if (cluesFound.includes(clueId)) return;
-        const clue = CLUE_DATA.find(c => c.id === clueId);
-        setCluesFound(prev => [...prev, clueId]);
-        showFeedback(`New Clue: ${clue.name} (+${clue.points} pts)`, 'cyan');
-    };
-
-    const showFeedback = (msg, color = 'cyan') => {
-        setFeedbackMsg({ text: msg, color });
-        setTimeout(() => setFeedbackMsg(null), 3000);
-    };
-
-    const handleDial = () => {
-        setGameState('phone_call');
-        // Speak Vikram's dialogue using Web Speech API
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(
-                "Hello sir, this is Vikram from SBI Senior Technical Support. I can see your net banking session has an issue. Don't worry sir, I am sending you a secure AnyDesk link to patch your device directly. Please accept the link and share the code with me."
-            );
-            utterance.rate = 0.9;
-            utterance.pitch = 0.8;
-            utterance.lang = 'en-IN';
-            speechRef.current = utterance;
-            window.speechSynthesis.speak(utterance);
+    // ═══ OUTRO LOGIC ═══
+    useEffect(() => {
+        let timer1, timer2;
+        if (outroStep === 1) {
+            timer1 = setTimeout(() => {
+                setIsFadingOut(true);
+                timer2 = setTimeout(() => {
+                    setOutroStep(2);
+                    setIsFadingOut(false);
+                }, 1000);
+            }, 2500);
+        } else if (outroStep === 2) {
+            const linesLength = 4;
+            if (outroDialogueIdx < linesLength) {
+                timer1 = setTimeout(() => {
+                    if (outroDialogueIdx === linesLength - 1) {
+                        setIsFadingOut(true);
+                        timer2 = setTimeout(() => {
+                            setOutroStep(3);
+                            setIsFadingOut(false);
+                        }, 1000);
+                    } else {
+                        setOutroDialogueIdx(prev => prev + 1);
+                    }
+                }, 3800);
+            }
         }
-    };
+        return () => {
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+        };
+    }, [outroStep, outroDialogueIdx]);
 
-    const handleHangUp = () => {
-        // Stop Vikram's speech
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        if (cluesFound.length >= 3) {
-            setIsPhoneOpen(false);
-            setOutcomeType('victory');
-            setGameState('outcome');
-        } else {
-            showFeedback("I need more evidence before I hang up and lose the trail...", "orange");
+    // Step 9 → auto prompt to check phone
+    useEffect(() => {
+        if (step === 10) {
+            showPrompt("The numbers don't match! This is a scam! Hang up the call now!");
         }
-    };
+    }, [step]);
 
-    const handleAbortSession = () => {
-        // Stop Vikram's speech
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        clearInterval(timerRef.current);
-        setIsPhoneOpen(false);
-        setOutcomeType('abort_victory');
-        setGameState('outcome');
-    };
+    // ═══ SUB-COMPONENTS ═══
 
-    const handleMiniChallenge = (choice) => {
-        setCallerIdChoice(choice);
-        if (choice === 'B') {
-            setTimeLeft(prev => prev + 15);
-            showFeedback("Correct! Extra time added.", "emerald");
-        } else {
-            setTimeLeft(prev => Math.max(0, prev - 10));
-            showFeedback("Incorrect. Fake number detected.", "red");
-        }
-        setTimeout(() => setGameState('anydesk_countdown'), 2000);
-    };
+    const PhoneUI = () => (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-hidden" onClick={() => setIsPhoneOpen(false)}>
+            <div className="w-[340px] h-[640px] bg-slate-900 rounded-[3rem] border-[10px] border-slate-800 relative shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-800 rounded-b-xl z-20" />
 
-    // ═══ RENDER HELPERS ═══
-
-    const PhoneContainer = ({ children }) => (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
-            <div className="w-[340px] h-[640px] bg-slate-900 rounded-[40px] border-[8px] border-slate-800 relative overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col pointer-events-auto">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-800 rounded-b-xl z-50 flex justify-center items-end pb-1 gap-2">
-                    <div className="w-1 h-1 rounded-full bg-slate-600"></div>
-                </div>
-                {children}
-
-                {/* Home Indicator */}
-                <div
-                    className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-300 rounded-full cursor-pointer hover:bg-slate-400 transition-colors z-[100]"
-                    onClick={(e) => { e.stopPropagation(); setIsPhoneOpen(false); }}
-                ></div>
-            </div>
-            <button
-                className="absolute top-8 right-8 text-white text-4xl hover:scale-110 transition-transform font-light z-[10000]"
-                onClick={(e) => { e.stopPropagation(); setIsPhoneOpen(false); }}
-            >
-                ×
-            </button>
-        </div>
-    );
-
-    const GoogleSearchUI = () => (
-        <PhoneContainer>
-            <div className="flex-1 bg-white flex flex-col font-sans text-slate-900 overflow-y-auto w-full custom-scrollbar">
-                <div className="border-b border-slate-200 p-4 sticky top-0 bg-white z-10 pt-10">
-                    <div className="flex flex-col gap-3">
-                        <div className="text-2xl font-bold text-center">
-                            <span className="text-blue-500">G</span><span className="text-red-500">o</span><span className="text-yellow-500">o</span><span className="text-blue-500">g</span><span className="text-green-500">l</span><span className="text-red-500">e</span>
-                        </div>
-                        <div className="bg-slate-100 rounded-full px-4 py-2 text-xs flex items-center justify-between border border-slate-300">
-                            <span className="truncate flex-1 font-medium text-slate-700">SBI net banking help num</span>
-                            <span className="text-blue-500 ml-2">🔍</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="py-4 px-4 space-y-6 pb-8">
-                    {/* SPONSORED AD */}
-                    <div className="group">
-                        <div className="flex items-center gap-1 mb-1">
-                            <span
-                                onClick={() => handleClueClick('ad_badge')}
-                                className={`text-[9px] bg-emerald-700 text-white px-1 rounded-sm font-bold cursor-help transition-all ${cluesFound.includes('ad_badge') ? 'ring-1 ring-cyan-400' : 'animate-pulse'}`}
-                            >
-                                Ad
-                            </span>
-                            <span
-                                onClick={() => handleClueClick('fake_domain')}
-                                className={`text-[10px] text-slate-700 cursor-help truncate block ${cluesFound.includes('fake_domain') ? 'text-red-500 font-bold' : ''}`}
-                            >
-                                www.sbi-help-service.in
-                            </span>
-                        </div>
-                        <h3 onClick={handleDial} className="text-sm text-blue-800 hover:underline cursor-pointer mb-1 font-medium leading-tight">
-                            SBI Premium Customer Support | Instant Resolution | 1800-000-2233
-                        </h3>
-                        <p className="text-[11px] text-slate-600 line-clamp-2">Get same-day resolution for net banking issues. Call our senior advisors now.</p>
-                    </div>
-
-                    {/* ORGANIC 1 */}
-                    <div>
-                        <p className="text-[10px] text-slate-700 mb-1 truncate">sbi.co.in › helpdesk</p>
-                        <h3 className="text-sm text-blue-800 mb-1 leading-tight">SBI Online Banking Help Centre</h3>
-                        <p className="text-[11px] text-slate-600 line-clamp-2">State Bank of India official helpline for all Internet Banking related queries.</p>
-                    </div>
-
-                    {/* ORGANIC 2 */}
-                    <div>
-                        <p className="text-[10px] text-slate-700 mb-1 truncate">bankbazaar.com › sbi-customer-care</p>
-                        <h3 className="text-sm text-blue-800 mb-1 leading-tight">SBI Customer Care: 1800-425-3800</h3>
-                        <p className="text-[11px] text-slate-600 line-clamp-2">Find the latest official toll-free numbers for State Bank of India.</p>
-                    </div>
-                </div>
-            </div>
-        </PhoneContainer>
-    );
-
-    const PhoneCallUI = () => (
-        <PhoneContainer>
-            <div className="flex-1 bg-[#0a0a0c] w-full h-full flex flex-col items-center p-6 pt-16">
-                <div className="w-20 h-20 bg-slate-700 rounded-full mb-3 flex items-center justify-center text-3xl text-white font-bold border-2 border-slate-600 shadow-lg">
-                    V
-                </div>
-                <h2 className="text-white text-xl font-bold mb-1">Vikram</h2>
-                <p className="text-slate-400 text-xs mb-6 animate-pulse">Calling from SBI Support...</p>
-
-                <div className="flex-1 w-full flex flex-col justify-center gap-4">
-                    <div className="bg-slate-800/50 p-3 rounded-lg border border-white/5 italic text-[11px] text-slate-300 text-center leading-relaxed">
-                        "This is Vikram from Senior Tech. I see your session issue. I am sending you a secure AnyDesk link to patch your device directly."
-                    </div>
-
-                    {gameState !== 'anydesk_countdown' ? (
-                        <button
-                            onClick={() => {
-                                setGameState('anydesk_countdown');
-                                setIsPhoneOpen(false);
-                                handleClueClick('anydesk_source');
-                                showFeedback("AnyDesk download started. Search the room for evidence!", "orange");
-                            }}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2 text-sm mt-4"
-                        >
-                            <span>⬇️</span> Accept Link
-                        </button>
-                    ) : (
-                        <div className="bg-orange-900/40 border border-orange-500/50 p-3 rounded-xl flex items-center justify-center gap-2 text-orange-400 font-bold text-sm mt-4">
-                            <span>⚠️</span> Remote Session Active
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-3 gap-6 mb-8 w-full px-4">
-                    <div className="flex flex-col items-center gap-1 opacity-40">
-                        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-lg">🔇</div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-lg">⌨️</div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center text-lg">🔊</div>
-                    </div>
-                </div>
-
-                <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center text-xl cursor-pointer hover:bg-red-500 transition-colors shadow-lg active:scale-90 mb-4"
-                    onClick={handleHangUp}>
-                    📞
-                </div>
-            </div>
-        </PhoneContainer>
-    );
-
-    const renderCountdownUI = () => (
-        <div key="countdown-ui" className="fixed top-8 left-8 z-[30000] w-80 animate-in fade-in slide-in-from-left duration-500 pointer-events-auto">
-            <div className="bg-slate-900/95 backdrop-blur-md border-2 border-red-500/60 p-6 rounded-2xl shadow-[0_20px_60px_rgba(220,38,38,0.3),inset_0_1px_0_rgba(255,255,255,0.05)]">
-                {/* Danger glow pulse */}
-                <div className="absolute -inset-1 bg-red-500/10 rounded-2xl blur-xl animate-pulse pointer-events-none" />
-                <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <h2 className="text-red-400 text-sm font-black tracking-widest uppercase mb-1 flex items-center gap-2">
-                                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-                                ANYDESK SESSION
-                            </h2>
-                            <span className="text-xs text-slate-400 uppercase font-bold tracking-widest">Active Connection</span>
-                        </div>
-                        <div className="text-right">
-                            <div className={`text-3xl font-mono font-black ${timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-cyan-400'}`} style={{ textShadow: timeLeft < 10 ? '0 0 20px rgba(239,68,68,0.6)' : '0 0 15px rgba(34,211,238,0.4)' }}>
-                                00:{timeLeft.toString().padStart(2, '0')}
+                {/* CALL SCREEN */}
+                {activePhoneApp === 'call' && step >= 5 ? (
+                    <div className="flex-1 flex flex-col p-4 pt-10 w-full bg-slate-50">
+                        <div className="flex items-center gap-3 mb-4 rounded-xl bg-white p-3 shadow-sm border border-slate-200">
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-sm">V</div>
+                            <div>
+                                <h2 className="text-slate-800 font-bold text-sm">Vikram (Support)</h2>
+                                <p className="text-[10px] text-slate-500">1800-000-2233</p>
+                                <p className="text-emerald-500 text-[10px] font-bold uppercase tracking-widest animate-pulse">Active Call</p>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="space-y-4 mb-4">
-                        <div>
-                            <div className="flex justify-between text-[10px] mb-1.5 font-bold">
-                                <span className="text-slate-400 uppercase tracking-wider">Downloading Patches</span>
-                                <span className="text-cyan-400 font-mono">{Math.round(anydeskProgress)}%</span>
+                        <div className="flex-1 overflow-y-auto space-y-3 mb-4 flex flex-col rounded-xl p-2 bg-slate-100/50">
+                            {callLog.map((log, i) => (
+                                <div key={i} className={`flex ${log.sender === 'vikram' ? 'justify-start' : 'justify-center'} w-full`}>
+                                    <div className={`p-3 rounded-2xl max-w-[85%] text-xs shadow-sm ${log.sender === 'vikram' ? 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm' :
+                                        'bg-slate-200/50 text-slate-500 text-[10px] italic py-1 px-4 rounded-full border border-slate-300'
+                                        }`}>
+                                        {log.text}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Pinned number comparison */}
+                        {pinnedNumber && step >= 9 && (
+                            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3">
+                                <p className="text-[9px] uppercase text-red-500 font-bold mb-1">📌 Number Check</p>
+                                <div className="flex items-center justify-between text-xs">
+                                    <span className="text-red-600 font-mono font-bold">Caller: 1800-000-2233</span>
+                                    <span className="text-slate-400">≠</span>
+                                    <span className="text-emerald-600 font-mono font-bold">Official: {pinnedNumber}</span>
+                                </div>
+                                {step === 9 && (
+                                    <button
+                                        onClick={() => setStep(10)}
+                                        className="w-full mt-2 bg-red-500 text-white text-[10px] font-bold py-2 rounded-lg uppercase"
+                                    >
+                                        Numbers Don't Match!
+                                    </button>
+                                )}
                             </div>
-                            <div className="h-2.5 bg-slate-800 rounded-full overflow-hidden shadow-inner">
-                                <div
-                                    className="h-full bg-gradient-to-r from-red-600 via-red-500 to-orange-400 transition-all duration-1000 relative"
-                                    style={{ width: `${anydeskProgress}%` }}
+                        )}
+
+                        <div className="w-full space-y-3 shrink-0">
+                            {step === 6 && (
+                                <button
+                                    onClick={handleAcceptLink}
+                                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3 rounded-xl shadow-md transition-all active:scale-95 text-xs text-center"
                                 >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                                    Accept Support Link
+                                </button>
+                            )}
+                            <button
+                                onClick={handleHangUp}
+                                className="w-full bg-red-500 hover:bg-red-400 text-white font-black py-3 rounded-xl shadow-md transition-all active:scale-95 text-xs text-center"
+                            >
+                                End Call
+                            </button>
+                        </div>
+                    </div>
+
+                ) : activePhoneApp === 'dialer' ? (
+                    <div className="flex-1 w-full bg-slate-50 flex flex-col items-center justify-between p-6 font-sans h-full overflow-hidden pt-12">
+                        <div className="w-full text-center mt-6">
+                            <h2 className="text-3xl font-light text-slate-800 tracking-widest mb-2 font-mono">1800-000-2233</h2>
+                            <p className="text-blue-500 text-xs font-medium">Windows Update Support</p>
+                        </div>
+                        <div className="w-full grid grid-cols-3 gap-y-4 gap-x-4 mb-4 text-xl font-light text-slate-700">
+                            {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map(key => (
+                                <div key={key} className="flex justify-center">
+                                    <div className="w-14 h-14 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center transition-colors shadow-sm cursor-default">{key}</div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="w-full flex justify-center mb-4">
+                            <button onClick={startCall} className="p-5 bg-green-500 hover:bg-green-400 text-white rounded-full flex items-center justify-center text-3xl shadow-lg transition-transform hover:scale-105 active:scale-95">📞</button>
+                        </div>
+                    </div>
+
+                ) : activePhoneApp === 'search' ? (
+                    <div className="flex-1 w-full bg-white text-black flex flex-col font-sans h-full overflow-hidden rounded-[2rem] mt-6">
+                        <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center gap-3">
+                            <button onClick={() => setActivePhoneApp('home')} className="text-slate-500">←</button>
+                            <div className="flex-1 bg-white border border-slate-300 rounded-full px-4 py-2 text-xs text-slate-700 shadow-inner overflow-hidden whitespace-nowrap text-ellipsis">Windows Update Support</div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-5 pb-10">
+                            <div className="space-y-6">
+                                <div className="group border-b border-slate-100 pb-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[9px] bg-slate-800 text-white px-2 py-0.5 font-black rounded">Ad</span>
+                                        <span className="text-[10px] text-slate-500 px-1 rounded">www.microsoft-patch-fix.ml</span>
+                                    </div>
+                                    <h3
+                                        onClick={handleSearchResultClick}
+                                        className="text-lg text-blue-700 font-medium mb-1 cursor-pointer hover:underline leading-tight"
+                                    >
+                                        Fix Windows 11 Slow Update: 1800-000-2233
+                                    </h3>
+                                    <p className="text-xs text-slate-600 leading-snug">Official Microsoft Update Patch Engineers. Fix Kernel lag and system slowdown instantly.</p>
+                                </div>
+                                <div className="opacity-40 pointer-events-none">
+                                    <p className="text-[10px] text-slate-500 mb-1">support.microsoft.com</p>
+                                    <h3 className="text-base text-blue-700 font-medium leading-tight">Official Windows Support</h3>
+                                    <p className="text-[10px] text-slate-600 mt-1">"Slow PC? Restart your device..."</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="text-xs text-yellow-400 font-bold mb-4 uppercase tracking-widest text-center animate-pulse bg-yellow-500/5 py-2 rounded-lg border border-yellow-500/20">
-                        ⚠️ PROMPT: Search room for evidence!
+                ) : (
+                    <div className="flex-1 w-full flex flex-col items-center justify-center p-8 gap-8 mt-10">
+                        <div className="grid grid-cols-4 gap-6 w-full px-4">
+                            <div onClick={handleGoogleClick} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">
+                                    <span className="font-bold"><span className="text-blue-500 text-base">G</span><span className="text-red-500 text-base">o</span><span className="text-yellow-500 text-base">o</span><span className="text-blue-500 text-base">g</span><span className="text-green-500 text-base">l</span><span className="text-red-500 text-base">e</span></span>
+                                </div>
+                                <span className="text-[10px] text-white font-medium">Search</span>
+                            </div>
+                            <div onClick={handleGoogleClick} className="flex flex-col items-center gap-2 cursor-pointer group">
+                                <div className="w-14 h-14 bg-green-500 rounded-2xl flex items-center justify-center text-3xl text-white shadow-sm group-hover:scale-110 transition-transform">📞</div>
+                                <span className="text-[10px] text-white font-medium">Phone</span>
+                            </div>
+                        </div>
                     </div>
+                )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setShowVerifyPanel(true); }}
-                            className="bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-lg transition-all border border-slate-600 shadow-md hover:shadow-lg hover:border-cyan-500/50 pointer-events-auto"
-                        >
-                            🔍 Verify Identity
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); handleAbortSession(); }}
-                            className="bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-widest py-3 rounded-xl transition-all shadow-[0_4px_15px_rgba(220,38,38,0.4)] active:scale-95 hover:shadow-[0_6px_25px_rgba(220,38,38,0.5)] border border-red-500/50 pointer-events-auto"
-                        >
-                            🛑 Abort Session
-                        </button>
-                    </div>
-                </div>
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/20 rounded-full" />
             </div>
         </div>
     );
 
-    const VerifyIdentityPanel = () => {
-        if (!showVerifyPanel) return null;
+    const NotebookUI = () => {
+        const page = notebookPages[notebookPage];
         return (
-            <div className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowVerifyPanel(false)}>
-                <div className="max-w-lg w-full bg-slate-900 border-2 border-cyan-500/30 p-8 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
-                    <div className="text-center mb-6">
-                        <span className="text-cyan-500 text-xs font-bold uppercase tracking-[0.3em] mb-2 block">Caller Identity Report</span>
-                        <h2 className="text-white text-2xl font-black">WHO IS "VIKRAM"?</h2>
+            <div className="absolute inset-0 z-[100] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-8 animate-in fade-in duration-300">
+                <div className="relative w-[800px] h-[550px] bg-[#fdfaf1] rounded-3xl shadow-2xl border-[16px] border-[#5c3a21] overflow-hidden flex transform -rotate-1">
+                    <div className="absolute left-1/2 top-0 bottom-0 w-8 bg-black/5 -translate-x-1/2 z-10" />
+
+                    {/* Left Page */}
+                    <div className="flex-1 p-10 border-r border-black/5 flex flex-col">
+                        <h3 className="font-mono text-stone-300 text-[10px] uppercase font-black mb-4">Page {notebookPage + 1} of {notebookPages.length}</h3>
+                        <div className="text-center mb-6">
+                            <span className="text-5xl">{page.icon}</span>
+                        </div>
+                        <h4 className="font-serif font-black text-stone-800 text-xl mb-4">{page.title}</h4>
+                        <p className="font-serif text-sm text-stone-600 leading-relaxed mb-6">{page.content}</p>
+
+                        {page.numbers && (
+                            <div className="space-y-3 mt-2">
+                                {page.numbers.map((n, i) => (
+                                    <div key={i} className="flex items-center gap-3">
+                                        <p className="font-serif text-[10px] uppercase text-stone-500 font-bold w-32">{n.label}:</p>
+                                        {n.pinnable ? (
+                                            <p
+                                                onClick={() => handlePinNumber(n.number)}
+                                                className={`font-serif text-xl font-black tracking-tight cursor-pointer transition-colors p-2 rounded-md ${pinnedNumber === n.number ? 'text-emerald-700 bg-emerald-100' : 'text-stone-900 hover:bg-amber-100 hover:text-amber-800'}`}
+                                            >
+                                                {n.number}
+                                            </p>
+                                        ) : (
+                                            <p className="font-serif text-xl font-black text-stone-900 tracking-tight">{n.number}</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {page.hint && (
+                            <div className="mt-auto p-3 bg-amber-50 rounded-lg border border-amber-200">
+                                <p className="text-amber-700 text-xs italic">💡 {page.hint}</p>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="space-y-3 mb-6">
-                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Caller Name</span>
-                            <span className="text-white font-black">"Vikram" — SBI Senior Tech Support</span>
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Call Source</span>
-                            <span className="text-red-400 font-black">1800-000-2233 (Google Sponsored Ad)</span>
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Real SBI Helpline</span>
-                            <span className="text-emerald-400 font-black">1800-425-3800 (from sbi.co.in)</span>
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Requesting</span>
-                            <span className="text-red-400 font-black">AnyDesk remote access to your device</span>
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-xl border border-white/5">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block mb-1">Download Source</span>
-                            <span className="text-red-400 font-black">anydesk-sbi-fix.net (NOT official anydesk.com)</span>
-                        </div>
+                    {/* Right Page — Navigation */}
+                    <div className="flex-1 p-10 flex flex-col items-center justify-center text-center">
+                        {pinnedNumber ? (
+                            <div className="animate-in zoom-in duration-500">
+                                <div className="bg-emerald-50 p-6 border-t-8 border-emerald-600 shadow-xl transform rotate-2">
+                                    <h4 className="text-emerald-700 font-black uppercase text-xs mb-3">📌 Number Pinned</h4>
+                                    <p className="text-stone-700 text-sm font-serif leading-relaxed mb-4">
+                                        Official number <span className="font-black text-emerald-800">{pinnedNumber}</span> pinned!
+                                    </p>
+                                    <p className="text-stone-500 text-xs">Close the notebook and open your phone to compare numbers.</p>
+                                </div>
+                            </div>
+                        ) : notebookPage < notebookPages.length - 1 ? (
+                            <div
+                                onClick={() => setNotebookPage(prev => prev + 1)}
+                                className="w-full h-full bg-amber-50 rounded-xl border-2 border-dashed border-amber-200 flex flex-col items-center justify-center cursor-pointer hover:bg-amber-100 transition-all group"
+                            >
+                                <span className="text-5xl mb-4 group-hover:translate-x-2 transition-transform">→</span>
+                                <p className="text-stone-400 font-black uppercase tracking-tighter text-[10px]">Next Page</p>
+                                <p className="text-stone-500 text-xs italic mt-2">Click to turn the page</p>
+                            </div>
+                        ) : (
+                            <div className="w-full h-full bg-amber-50 rounded-xl border-2 border-dashed border-amber-200 flex flex-col items-center justify-center">
+                                <span className="text-5xl mb-4">📌</span>
+                                <p className="text-stone-400 font-black uppercase tracking-tighter text-[10px]">Pin a number</p>
+                                <p className="text-stone-500 text-xs italic mt-2 w-3/4">Click a helpline number on the left to pin it for verification.</p>
+                            </div>
+                        )}
                     </div>
 
-                    <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl mb-6">
-                        <p className="text-red-200 text-sm leading-relaxed">⚠️ Banks NEVER ask to remotely access your device. "Vikram" is not a real SBI employee. His number came from a paid Google Ad, not the official SBI website.</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <button onClick={() => { setShowVerifyPanel(false); handleHangUp(); }} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl text-sm transition-all">
-                            🛡️ Hang Up Call
-                        </button>
-                        <button onClick={() => setShowVerifyPanel(false)} className="bg-slate-800 hover:bg-slate-700 text-white font-black py-3 rounded-xl text-sm transition-all border border-white/10">
-                            Back
-                        </button>
-                    </div>
+                    <button onClick={() => setActiveZoom(null)} className="absolute top-6 right-8 text-stone-400 hover:text-stone-900 text-2xl font-light">×</button>
                 </div>
             </div>
         );
     };
-
-    const MiniChallengeUI = () => (
-        <div className="absolute inset-0 z-[70] bg-slate-950 flex items-center justify-center p-4">
-            <div className="max-w-2xl w-full bg-slate-900 border border-cyan-500/30 p-12 rounded-2xl shadow-[0_0_100px_rgba(34,211,238,0.1)]">
-                <div className="text-center mb-10">
-                    <span className="text-cyan-500 text-xs font-bold uppercase tracking-[0.3em] mb-4 block">Identity Verification Protocol</span>
-                    <h2 className="text-white text-4xl font-black mb-4">CALLER ID TEST</h2>
-                    <p className="text-slate-400 leading-relaxed">
-                        Identify the <span className="text-emerald-400 font-bold underline decoration-2 underline-offset-4">official SBI Helpline</span> from the records below.
-                        Incorrect selection will compromise your session speed.
-                    </p>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                    {[
-                        { id: 'A', num: '1800-000-2233', source: 'Google Sponsored Ad' },
-                        { id: 'B', num: '1800-425-3800', source: 'sbi.co.in / Thatha\'s Note' },
-                        { id: 'C', num: '1800-111-1090', source: 'WhatsApp Forward' }
-                    ].map(opt => (
-                        <button
-                            key={opt.id}
-                            onClick={() => handleMiniChallenge(opt.id)}
-                            className={`w-full p-6 bg-slate-800 border-2 rounded-xl text-left transition-all group ${callerIdChoice === opt.id
-                                ? (opt.id === 'B' ? 'border-emerald-500 bg-emerald-900/10' : 'border-red-500 bg-red-900/10')
-                                : 'border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800/80'
-                                }`}
-                        >
-                            <div className="flex justify-between items-center mb-2">
-                                <span className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${callerIdChoice === opt.id ? 'bg-white text-slate-900' : 'bg-slate-700 text-slate-400 group-hover:bg-cyan-500 group-hover:text-white'
-                                    }`}>
-                                    {opt.id}
-                                </span>
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{opt.source}</span>
-                            </div>
-                            <div className="text-2xl font-mono font-bold text-white tracking-wider">{opt.num}</div>
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
 
     const renderOutcomeUI = () => (
-        <div key="outcome-ui" className="absolute inset-0 z-[20000] bg-slate-950 flex flex-col items-center justify-start py-12 px-8 overflow-y-auto animate-fade-in pointer-events-auto custom-scrollbar">
-            {outcomeType === 'victory' ? (
-                <div className="max-w-3xl text-center">
-                    <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-[0_0_50px_rgba(16,185,129,0.4)]">🏆</div>
-                    <h1 className="text-6xl font-black text-white mb-6 tracking-tight italic">THATHA'S LEGACY</h1>
-                    <p className="text-xl text-slate-300 leading-relaxed mb-12">
-                        You recognized the signs. By relying on official records rather than sponsored search ads,
-                        you prevented a complete remote takeover of your accounts. The call center was traced to Hyderabad
-                        and shut down because of your report.
+        <div className="absolute inset-0 z-[2000] bg-slate-950 flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
+            {outcomeType === 'scam' ? (
+                <div className="max-w-xl">
+                    <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center text-4xl mx-auto mb-8 animate-pulse">💸</div>
+                    <h1 className="text-5xl font-black text-white mb-6 uppercase">Total Loss</h1>
+                    <p className="text-slate-400 text-lg leading-relaxed mb-10">
+                        By granting AnyDesk access, Vikram took control. Your savings were drained in minutes. Never share remote access with strangers!
                     </p>
-                    <div className="grid grid-cols-3 gap-6 mb-12">
-                        <div className="bg-slate-900 p-6 rounded-2xl border border-emerald-500/30">
-                            <span className="text-slate-500 text-[10px] font-bold uppercase block mb-1">Safety Bonus</span>
-                            <span className="text-3xl font-black text-emerald-400">+100 PTS</span>
-                        </div>
-                        <div className="bg-slate-900 p-6 rounded-2xl border border-indigo-500/30">
-                            <span className="text-slate-500 text-[10px] font-bold uppercase block mb-1">New Rank</span>
-                            <span className="text-3xl font-black text-indigo-400">JUNIOR DETECTIVE</span>
-                        </div>
-                        <div className="bg-slate-900 p-6 rounded-2xl border border-cyan-500/30">
-                            <span className="text-slate-500 text-[10px] font-bold uppercase block mb-1">Assets Saved</span>
-                            <span className="text-3xl font-black text-cyan-400">₹4,20,000</span>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => completeLevel(true, 100, 0)}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-12 py-4 rounded-xl text-lg tracking-widest transition-all shadow-xl shadow-emerald-900/20 active:scale-95 pointer-events-auto"
-                    >
-                        CONTINUE INVESTIGATION
-                    </button>
-                </div>
-            ) : outcomeType === 'abort_victory' ? (
-                <div className="max-w-3xl text-center relative">
-                    {/* Background glow */}
-                    <div className="absolute -inset-20 bg-emerald-500/5 blur-3xl rounded-full pointer-events-none" />
-                    <div className="relative z-10">
-                        <div className="w-28 h-28 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-full flex items-center justify-center text-6xl mx-auto mb-8 shadow-[0_0_60px_rgba(16,185,129,0.5),0_0_120px_rgba(34,211,238,0.2)] animate-bounce">
-                            🛡️
-                        </div>
-                        <div className="inline-block bg-emerald-500/20 border border-emerald-500/40 px-4 py-1.5 rounded-full mb-6">
-                            <span className="text-emerald-400 text-xs font-black uppercase tracking-[0.3em]">Scam Detected & Blocked</span>
-                        </div>
-                        <h1 className="text-5xl font-black text-white mb-4 tracking-tight uppercase" style={{ textShadow: '0 0 40px rgba(16,185,129,0.3)' }}>
-                            YOU SUCCESSFULLY FOUND THAT ANYDESK WAS SCAM!
-                        </h1>
-                        <p className="text-2xl text-emerald-100 leading-relaxed mb-6 font-black italic">
-                            "AnyDesk was a SCAM from Vikram to steal money!"
-                        </p>
-                        <p className="text-lg text-emerald-300/80 leading-relaxed mb-10 max-w-xl mx-auto">
-                            By aborting the session in time, you prevented Vikram from gaining remote access to your device. No bank employee will ever ask for remote access software!
-                        </p>
-
-                        <div className="grid grid-cols-3 gap-5 mb-10">
-                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-emerald-500/30 shadow-[0_4px_20px_rgba(16,185,129,0.1)]">
-                                <span className="text-slate-500 text-[10px] font-bold uppercase block mb-2 tracking-wider">Quick Thinking</span>
-                                <span className="text-3xl font-black text-emerald-400">+80 PTS</span>
-                            </div>
-                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-cyan-500/30 shadow-[0_4px_20px_rgba(34,211,238,0.1)]">
-                                <span className="text-slate-500 text-[10px] font-bold uppercase block mb-2 tracking-wider">Threat Blocked</span>
-                                <span className="text-3xl font-black text-cyan-400">ANYDESK</span>
-                            </div>
-                            <div className="bg-slate-900/80 p-5 rounded-2xl border border-amber-500/30 shadow-[0_4px_20px_rgba(245,158,11,0.1)]">
-                                <span className="text-slate-500 text-[10px] font-bold uppercase block mb-2 tracking-wider">Total Assets Saved</span>
-                                <span className="text-3xl font-black text-amber-400">₹4,20,000</span>
-                            </div>
-                        </div>
-
-                        <div className="bg-emerald-950/30 border border-emerald-500/20 p-5 rounded-xl mb-10 max-w-lg mx-auto">
-                            <p className="text-emerald-200 text-sm leading-relaxed">
-                                🔒 <span className="font-bold">Summary:</span> Vikram tried to use AnyDesk to take control and steal money. By clicking Abort, you successfully saved your entire account balance of <span className="text-emerald-400 font-bold">₹4,20,000</span> from being stolen!
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={() => { console.log('Continue investigation clicked'); completeLevel(true, 80, 0); }}
-                            className="bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black px-14 py-4 rounded-xl text-lg tracking-widest transition-all shadow-[0_8px_30px_rgba(16,185,129,0.3)] active:scale-95 hover:shadow-[0_12px_40px_rgba(16,185,129,0.4)] pointer-events-auto"
-                        >
-                            🎯 CONTINUE INVESTIGATION
-                        </button>
-                    </div>
+                    <button onClick={() => window.location.reload()} className="bg-slate-800 hover:bg-slate-700 text-white font-black px-12 py-4 rounded-xl text-xs uppercase tracking-[0.3em] transition-all border border-slate-700">Try Again</button>
                 </div>
             ) : (
-                <div className="max-w-2xl text-center">
-                    <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-[0_0_50px_rgba(220,38,38,0.4)] animate-pulse">💸</div>
-                    <h1 className="text-6xl font-black text-white mb-6 uppercase tracking-tighter">TOTAL LOSS</h1>
-                    <p className="text-xl text-slate-400 leading-relaxed mb-12">
-                        By granting AnyDesk access, Vikram took full control of your device.
-                        In under 3 minutes, your registered mobile number was changed and your savings
-                        were liquidated into untraceable mule accounts.
+                <div className="max-w-2xl">
+                    <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center text-5xl mx-auto mb-8 shadow-xl">🛡️</div>
+                    <h1 className="text-5xl font-black text-white mb-4 uppercase">Success!</h1>
+                    <p className="text-emerald-400 font-bold mb-6 italic">"You stopped Vikram's scam in time!"</p>
+                    <p className="text-slate-400 text-lg leading-relaxed mb-12">
+                        You verified the fraudulent number against official records and aborted the AnyDesk connection. Your account balance of <span className="text-emerald-400 font-black">₹4,20,000</span> is safe!
                     </p>
-                    <div className="bg-red-950/20 border border-red-900/50 p-6 rounded-xl mb-12">
-                        <p className="text-red-400 font-bold mb-4">Financial Consequences:</p>
-                        <div className="flex justify-between text-2xl font-mono text-red-500 mb-2">
-                            <span>ASSET LIQUIDATION</span>
-                            <span>- ₹4,20,000</span>
-                        </div>
-                        <div className="h-px bg-red-900/50 my-4" />
-                        <div className="flex justify-between text-sm text-red-400/60 uppercase font-black tracking-widest">
-                            <span>Lives Remaining</span>
-                            <span>Loss of 1 Life</span>
-                        </div>
-                    </div>
                     <button
-                        onClick={() => {
-                            adjustAssets(-420000);
-                            adjustLives(-1);
-                            setGameState('walk');
-                            setTimeLeft(45);
-                            setAnydeskProgress(0);
-                        }}
-                        className="bg-slate-800 hover:bg-slate-700 text-white font-black px-12 py-4 rounded-xl text-lg tracking-widest transition-all border border-slate-700 pointer-events-auto"
+                        onClick={() => completeLevel(true, 100, 0)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-16 py-5 rounded-2xl text-lg uppercase tracking-widest transition-all shadow-2xl active:scale-95"
                     >
-                        TRY AGAIN
+                        Finish Level
                     </button>
                 </div>
             )}
         </div>
     );
 
-    const DetectiveBoard = () => {
-        if (!showDetectiveBoard) return null;
-
-        // Filter cluesFound to only include clues that exist in CLUE_DATA
-        const validCluesFound = cluesFound.filter(id => CLUE_DATA.some(c => c.id === id));
-        const clueCount = validCluesFound.length;
-
-        const getPos = (i) => {
-            const grid = [
-                { x: 140, y: 180 }, { x: 380, y: 180 }, { x: 140, y: 340 }, { x: 380, y: 340 }, { x: 260, y: 480 }
-            ];
-            return grid[i % grid.length];
-        };
-
-        return (
-            <div
-                className="fixed inset-y-8 right-8 w-[600px] bg-amber-100 rounded-lg shadow-[-20px_0_50px_rgba(0,0,0,0.8)] z-[9998] p-8 flex flex-col border-[16px] border-[#5c3a21] overflow-hidden"
-                style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`,
-                    backgroundColor: '#e6c280'
-                }}
-            >
-                {/* Draw Red Strings Between Discovered Clues */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                    {validCluesFound.map((clueId, idx) => {
-                        if (idx > 0) {
-                            const clueIdx = CLUE_DATA.findIndex(c => c.id === clueId);
-                            const prevClueIdx = CLUE_DATA.findIndex(c => c.id === validCluesFound[idx - 1]);
-                            if (clueIdx === -1 || prevClueIdx === -1) return null;
-                            const prev = getPos(prevClueIdx);
-                            const curr = getPos(clueIdx);
-                            return <line key={`line-${idx}`} x1={prev.x} y1={prev.y} x2={curr.x} y2={curr.y} stroke="rgba(220,38,38,0.8)" strokeWidth="3" style={{ filter: 'drop-shadow(2px 4px 2px rgba(0,0,0,0.5))' }} />;
-                        }
-                        return null;
-                    })}
-                </svg>
-
-                {/* Header Label */}
-                <div className="flex justify-between items-center mb-4 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-sm shadow-md transform -rotate-2 border border-stone-300 self-start">
-                    <h2 className="text-2xl font-black text-stone-800 uppercase tracking-widest font-mono">
-                        📌 INVESTIGATION BOARD
-                    </h2>
-                    <button className="text-red-600 hover:text-red-800 font-black text-2xl ml-6 transition-colors" onClick={() => setShowDetectiveBoard(false)}>✖</button>
-                </div>
-
-                {/* Clue Polaroids - scattered on board */}
-                {CLUE_DATA.map((clue, idx) => {
-                    const found = validCluesFound.includes(clue.id);
-                    const pos = getPos(idx);
-
-                    return (
-                        <div
-                            key={clue.id}
-                            className={`absolute bg-yellow-50 p-4 shadow-xl w-44 border z-10 flex flex-col transition-all duration-300 ${found ? 'border-yellow-200 opacity-100 shadow-[0_8px_25px_rgba(0,0,0,0.3)]' : 'border-stone-300 opacity-30 grayscale'}`}
-                            style={{
-                                left: pos.x - 88,
-                                top: pos.y - 48,
-                                transform: `rotate(${(idx % 2 === 0 ? -1 : 1) * ((idx * 2) % 6 + 2)}deg)`
-                            }}
-                        >
-                            {/* Red Pin Head */}
-                            <div className={`absolute -top-3 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full shadow-[2px_4px_4px_rgba(0,0,0,0.5)] border flex items-center justify-center ${found ? 'bg-red-600 border-red-800' : 'bg-stone-400 border-stone-500'}`}>
-                                <div className="w-2 h-2 rounded-full bg-white/40 absolute top-0.5 right-1"></div>
-                            </div>
-
-                            <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b-2 border-red-800/20 pb-2 uppercase">{clue.name}</h4>
-                            {found ? (
-                                <>
-                                    <p className="text-[10px] text-stone-700 font-mono leading-tight">{clue.description}</p>
-                                    <span className="text-[10px] text-emerald-600 font-bold mt-2">+{clue.points} PTS</span>
-                                </>
-                            ) : (
-                                <p className="text-[10px] text-stone-500 italic">???</p>
-                            )}
-                        </div>
-                    );
-                })}
-
-                {/* Footer Suspicion Meter */}
-                <div className="absolute bottom-6 left-6 right-6 bg-zinc-900/95 backdrop-blur-sm rounded-xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.8)] z-10 border-2 border-zinc-700">
-                    <h3 className="text-xs text-zinc-400 uppercase font-mono mb-2 flex justify-between tracking-wider">
-                        <span className="flex items-center gap-2">
-                            <span className={`w-1.5 h-1.5 rounded-full ${clueCount >= 3 ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
-                            Threat Intelligence Meter
-                        </span>
-                        <span style={{ color: clueCount >= 3 ? '#22c55e' : '#eab308' }}>{clueCount}/5 CLUES</span>
-                    </h3>
-                    <div className="w-full h-4 bg-zinc-950 rounded-full overflow-hidden shadow-inner">
-                        <div
-                            className="h-full transition-all duration-500 rounded-full"
-                            style={{
-                                width: `${(clueCount / 5) * 100}%`,
-                                background: clueCount >= 3
-                                    ? 'linear-gradient(90deg, #22c55e, #10b981)'
-                                    : 'linear-gradient(90deg, #eab308, #f59e0b)',
-                                boxShadow: clueCount >= 3
-                                    ? '0 0 12px rgba(34,197,94,0.5)'
-                                    : '0 0 8px rgba(234,179,8,0.4)'
-                            }}
-                        ></div>
-                    </div>
-                    {clueCount >= 3 && (
-                        <p className="text-emerald-400 text-[10px] mt-2 font-bold uppercase tracking-widest text-center animate-pulse">AUTHORIZATION TO HANG UP GRANTED</p>
-                    )}
-                </div>
-            </div>
-        );
-    };
-
-    const BrowserTimeoutScreen = () => (
-        <PhoneContainer>
-            <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans w-full">
-                <div className="text-5xl mb-6">🚫</div>
-                <h1 className="text-xl font-bold text-slate-800 mb-2">Connection not private</h1>
-                <p className="text-sm text-slate-600 mb-6">
-                    Attackers might be trying to steal info from <br /><span className="font-bold">retail.onlinesbi.sbi</span>
-                </p>
-                <div className="bg-slate-200/50 p-2 rounded mb-6 font-mono text-[10px] text-slate-500 border-l-2 border-slate-400 w-full text-left overflow-hidden text-clip">
-                    NET::ERR_SSL_PROTOCOL_ERROR
-                </div>
-                <button
-                    onClick={() => setGameState('google')}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg text-sm"
-                >
-                    Search Google for Help
-                </button>
-            </div>
-        </PhoneContainer>
-    );
-
+    // ═══ MAIN RENDER ═══
     return (
-        <div className="w-full h-full flex items-center justify-center bg-[#020617] p-4 overflow-hidden relative">
-            {/* ═══ WORLD CONTENT (ROOM) ═══ */}
-            <div
-                className="relative bg-[#0f172a] border-x-[16px] border-t-[16px] border-slate-950 shadow-[0_0_120px_rgba(0,0,0,0.8)] overflow-hidden"
-                style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}
-            >
-                {/* ═══ BACKGROUND ART (CSS ONLY) ═══ */}
-                <div className="absolute inset-0 z-0">
-                    {/* Room Background Image */}
+        <div className="w-full h-full flex items-center justify-center bg-zinc-950 font-sans overflow-hidden select-none relative">
+            <div className="w-full h-full relative overflow-hidden">
+                {/* BACKGROUND */}
+                <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
+                    style={{
+                        backgroundImage: "url('/assets/temppho.png')",
+                        transform: activeZoom ? 'scale(1.1) translateY(5%)' : 'scale(1)'
+                    }}
+                />
+
+                {/* UPDATE INSTALLED NOTIFICATION */}
+                {step === 0 && (
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-12 z-20 animate-bounce">
+                        <div className="bg-blue-600 text-white px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 border border-blue-400">
+                            <span className="text-sm">🔄</span> Update Installed. Click to view.
+                        </div>
+                        <div className="w-3 h-3 bg-blue-600 transform rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2 border-r border-b border-blue-400"></div>
+                    </div>
+                )}
+
+                {/* Laggy Cursor */}
+                {step === 1 && (
                     <div
-                        className="absolute inset-0 z-0"
-                        style={{
-                            backgroundImage: "url('/assets/study.png')",
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center'
-                        }}
-                    />
+                        className="pointer-events-none fixed z-[3000] w-6 h-6 flex items-center justify-center animate-spin"
+                        style={{ left: laggedCursorPos.x - 12, top: laggedCursorPos.y - 12, transition: 'none' }}
+                    >
+                        <div className="w-6 h-6 border-[6px] border-blue-500 border-t-transparent rounded-full shadow-lg" />
+                    </div>
+                )}
 
-                    {/* Interactive Elements Layer */}
-                    <div className="absolute z-10" style={{ left: 300, top: 450, width: 400, height: 250 }}>
-                        {/* Smartphone on Desk */}
-                        <div className="absolute left-[200px] top-[60px] -translate-x-1/2 z-20 group flex flex-col items-center">
-                            <div
-                                onClick={(e) => { e.stopPropagation(); handleOpenPhone(); }}
-                                className="w-[45px] h-[85px] bg-[#0f172a] border-[3px] border-[#334155] rounded-lg shadow-2xl relative flex flex-col justify-between items-center p-1 rotate-[12deg] transition-all hover:-translate-y-2 cursor-pointer z-40 hover:ring-2 hover:ring-cyan-500"
-                            >
-                                <div className="w-4 h-1 bg-black rounded-full mt-1"></div>
-                                <div className="w-full h-full bg-slate-800/80 mt-1 mb-1 rounded-sm flex flex-col items-center justify-center border border-slate-600 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                                    <span className="text-red-500/80 text-[10px] font-black animate-pulse">!</span>
+                {/* FULL PC VIEW */}
+                {step === 1 && (
+                    <div className="absolute inset-0 z-[100] bg-slate-900 animate-in fade-in duration-500 overflow-hidden flex flex-col select-none cursor-none">
+                        <div className="absolute inset-0 flex flex-col">
+                            <div className="flex-1 bg-gradient-to-br from-blue-600 to-indigo-900 border-b border-slate-700 p-4">
+                                <div className="space-y-6">
+                                    <div className="flex flex-col items-center w-20 gap-1 opacity-50">
+                                        <div className="w-10 h-10 bg-white/20 rounded shadow-sm"></div>
+                                        <div className="text-white text-[10px] text-center drop-shadow-md">Recycle Bin</div>
+                                    </div>
+                                    <div className="flex flex-col items-center w-20 gap-1 opacity-50">
+                                        <div className="w-10 h-10 bg-blue-400/20 rounded shadow-sm"></div>
+                                        <div className="text-white text-[10px] text-center drop-shadow-md">Browser</div>
+                                    </div>
                                 </div>
-                                <div className="w-3 h-0.5 bg-slate-600 rounded-full mb-1"></div>
                             </div>
-
-                            {/* Sticky Note */}
-                            <div
-                                onClick={(e) => { e.stopPropagation(); handleClueClick('thatha_note'); }}
-                                className={`absolute bottom-0 -left-[40px] w-16 h-16 bg-amber-200 shadow-2xl rotate-[12deg] p-2 cursor-help transition-all hover:scale-110 active:scale-95 z-30 pointer-events-auto flex flex-col items-center border-t-[3px] border-amber-300 ${cluesFound.includes('thatha_note') ? 'ring-2 ring-emerald-500' : 'hover:ring-2 ring-white/50 animate-pulse'}`}
-                            >
-                                <span className="text-[6px] font-black text-slate-800 uppercase tracking-tighter">Support:</span>
-                                <span className="text-[8px] text-indigo-700 font-bold mt-1">1800-425-3800</span>
-                                <div className="absolute top-1 left-0 right-0 h-px bg-slate-900/10" />
+                            <div className="h-12 bg-slate-950 flex items-center px-4 justify-between border-t border-slate-800">
+                                <div className="flex gap-2 items-center">
+                                    <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center font-black text-blue-400 text-lg">⊞</div>
+                                    <div className="w-48 h-8 bg-slate-900 rounded-md border border-slate-800 flex items-center px-3 text-slate-500 text-xs text-opacity-50">Search</div>
+                                </div>
+                                <div className="flex gap-4 items-center text-slate-400 text-xs">
+                                    <span>ENG</span>
+                                    <span>10:45 AM</span>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Forensic Papers / Notebook */}
-                        <div
-                            onClick={(e) => { e.stopPropagation(); handleClueClick('notebook'); }}
-                            className={`absolute left-4 top-[150px] w-24 h-32 bg-slate-50 border border-slate-300 shadow-2xl rotate-[5deg] p-3 text-[7px] font-mono text-slate-600 cursor-help transition-all hover:scale-110 active:scale-95 z-30 pointer-events-auto ${cluesFound.includes('notebook') ? 'ring-2 ring-cyan-500 bg-cyan-50' : 'hover:ring-2 ring-white/50 animate-pulse'}`}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none">
+                            {pcDialogues.map((text, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`text-3xl font-serif italic text-white font-bold drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] transition-all duration-1000 my-4 transform ${idx <= pcDialogueIndex ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}`}
+                                >
+                                    "{text}"
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={() => { setStep(2); showPrompt("Use your smartphone on the desk to search for help."); }}
+                            className={`absolute bottom-20 left-1/2 -translate-x-1/2 z-30 bg-red-600 hover:bg-red-500 text-white font-black px-8 py-4 rounded-xl shadow-2xl transition-all uppercase tracking-widest text-sm cursor-auto ${pcDialogueIndex >= pcDialogues.length - 1 ? 'opacity-100 animate-bounce' : 'opacity-0 pointer-events-none'}`}
                         >
-                            <div className="border-b border-slate-400 mb-2 pb-1 text-slate-900 font-black tracking-widest uppercase text-[7px]">Verification</div>
-                            <div className="space-y-1 text-[5px]">
-                                <p>Bank: SBI Main</p>
-                                <p>User: RAJAN_V</p>
-                                <p>Token: ***_92</p>
+                            Quit PC Screen
+                        </button>
+                    </div>
+                )}
+
+                {/* HOTSPOTS */}
+                {!activeZoom && step !== 12 && step !== 1 && (
+                    <div className="absolute inset-0 z-10">
+                        {/* Monitor */}
+                        <div
+                            onClick={handleMonitorClick}
+                            className={`absolute left-[45%] top-[30%] w-[18%] h-[25%] cursor-pointer group transition-colors rounded-md ${step === 11 ? 'border-2 border-red-500 animate-pulse bg-red-500/10' : step >= 7 ? 'border-2 border-cyan-500/30 hover:bg-cyan-500/10' : 'border-2 border-transparent hover:border-cyan-500/30 hover:bg-cyan-500/10'}`}
+                        >
+                            {step === 11 ? (
+                                <span className="absolute inset-0 flex items-center justify-center text-white font-black text-sm uppercase tracking-widest bg-red-500/30 backdrop-blur-sm animate-pulse">🛑 Click to Abort</span>
+                            ) : step >= 2 ? (
+                                <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white font-black text-lg uppercase tracking-widest bg-cyan-500/20 backdrop-blur-sm">System Status</span>
+                            ) : null}
+                        </div>
+
+                        {/* Phone */}
+                        <div
+                            onClick={handlePhoneClick}
+                            className={`absolute left-[20%] top-[75%] w-[10%] h-[18%] cursor-pointer group rounded-xl ${step === 2 || step === 9 ? 'border-2 border-emerald-400 animate-pulse' : ''}`}
+                        >
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="bg-white text-black text-[10px] font-black px-2 py-1 rounded shadow-lg uppercase tracking-widest">Smartphone</span>
                             </div>
-                            <div className="absolute bottom-2 right-2 text-emerald-600 font-black rotate-[-15deg] border border-emerald-600 px-1 rounded-sm opacity-60 text-[5px]">SECURED</div>
+                        </div>
+
+                        {/* Notebook */}
+                        <div
+                            onClick={handleNotebookClick}
+                            className={`absolute right-[15%] top-[60%] w-[12%] h-[20%] cursor-pointer group rounded-sm ${step === 7 ? 'border-2 border-amber-400 animate-pulse' : ''}`}
+                        >
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-1 rounded shadow-lg uppercase tracking-widest">Records</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                <Player x={playerPos.x} y={playerPos.y} />
-            </div>
+                {/* SYSTEM STATUS ZOOM */}
+                {activeZoom === 'laptop-left' && (
+                    <div className="absolute inset-0 z-50 bg-slate-950/60 backdrop-blur-md flex items-center justify-center p-20 animate-in zoom-in-95 duration-300">
+                        <div className="w-[650px] bg-slate-900 border-[10px] border-slate-800 rounded-3xl shadow-2xl flex flex-col p-8">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-cyan-400 font-black uppercase text-sm tracking-widest">System Monitor</h2>
+                                <button onClick={() => setActiveZoom(null)} className="text-slate-500 hover:text-white text-3xl">×</button>
+                            </div>
+                            <div className="space-y-6">
+                                <div className="bg-black/40 p-5 border border-white/5 rounded-2xl">
+                                    <div className="flex justify-between text-[10px] uppercase font-bold text-slate-500 mb-3">
+                                        <span>Connection: AnyDesk</span>
+                                        <span className={step >= 7 && step < 12 ? 'text-red-500 animate-pulse' : 'text-slate-600'}>
+                                            {step >= 7 && step < 12 ? 'Active Transfer' : 'Inactive'}
+                                        </span>
+                                    </div>
+                                    <div className="h-4 bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                                        <div className="h-full bg-red-600 transition-all duration-1000" style={{ width: `${anydeskProgress}%` }} />
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 mt-3 font-mono">Target: {step >= 7 && step < 12 ? 'anydesk-fix.ml' : 'None'}</p>
+                                </div>
 
-            {/* ═══ UI OVERLAYS (STATE MACHINE) ═══ */}
-            {isPhoneOpen && gameState === 'browser_timeout' && <BrowserTimeoutScreen />}
-            {isPhoneOpen && gameState === 'google' && <GoogleSearchUI />}
-            {isPhoneOpen && (gameState === 'phone_call' || gameState === 'anydesk_countdown') && <PhoneCallUI />}
-            {gameState === 'anydesk_countdown' && renderCountdownUI()}
-            <VerifyIdentityPanel />
-            {gameState === 'mini_challenge' && <MiniChallengeUI />}
-            {gameState === 'outcome' && renderOutcomeUI()}
+                                {step >= 7 && step < 12 && (
+                                    <div className="space-y-4">
+                                        {step >= 11 && pinnedNumber ? (
+                                            <>
+                                                <div className="bg-black/30 p-4 rounded-2xl border border-white/5">
+                                                    <p className="text-[10px] uppercase font-bold text-slate-500 mb-3">Number Verification</p>
+                                                    <div className="flex items-center justify-between gap-4">
+                                                        <div className="flex-1 text-center p-3 bg-red-950/50 rounded-xl border border-red-500/30">
+                                                            <p className="text-[9px] uppercase text-red-400 font-bold mb-1">Caller's Number</p>
+                                                            <p className="text-red-400 font-mono font-black text-lg">1800-000-2233</p>
+                                                        </div>
+                                                        <span className="text-2xl text-slate-600">≠</span>
+                                                        <div className="flex-1 text-center p-3 bg-emerald-950/50 rounded-xl border border-emerald-500/30">
+                                                            <p className="text-[9px] uppercase text-emerald-400 font-bold mb-1">Official Record</p>
+                                                            <p className="text-emerald-400 font-mono font-black text-lg">{pinnedNumber}</p>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-red-400 text-[10px] font-bold uppercase mt-3 text-center animate-pulse">⚠️ SCAM CONFIRMED</p>
+                                                </div>
+                                                <button
+                                                    onClick={handleAbortSession}
+                                                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl shadow-xl transition-all active:scale-95 uppercase tracking-widest text-sm"
+                                                    disabled={outroStep > 0}
+                                                >
+                                                    {outroStep >= 1 ? "🛑 SESSION ABORTED" : "🛑 Force Abort Connection"}
+                                                </button>
+                                                {outroStep === 1 && (
+                                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 bg-red-600/90 text-white p-6 z-[60] animate-in zoom-in-95 duration-300 backdrop-blur-md shadow-[0_0_100px_rgba(220,38,38,0.5)]">
+                                                        <h3 className="text-3xl font-black text-center tracking-[0.2em] uppercase italic">CONNECTION ABORTED</h3>
+                                                        <p className="text-center font-mono text-xs mt-2 font-bold tracking-widest">THREAT NEUTRALIZED - REMOTE ACCESS TERMINATED</p>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="bg-amber-950/30 p-5 rounded-2xl border border-amber-500/20 text-center">
+                                                <p className="text-amber-400 font-black text-xs uppercase tracking-widest mb-2">🔒 Verification Required</p>
+                                                <p className="text-slate-400 text-xs leading-relaxed">
+                                                    {step < 9
+                                                        ? <>Check the <span className="text-amber-300 font-bold">Records notebook</span> on the desk and find the official number.</>
+                                                        : step < 11
+                                                            ? <>Verify the number on your <span className="text-amber-300 font-bold">phone</span> first, then hang up the call.</>
+                                                            : <>Complete verification before aborting.</>
+                                                    }
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
-            {/* ═══ DETECTIVE BOARD & TOGGLE ═══ */}
-            <DetectiveBoard />
+                {/* NOTEBOOK */}
+                {activeZoom === 'notebook' && <NotebookUI />}
 
-            {gameState !== 'outcome' && (
-                <button
-                    onClick={() => setShowDetectiveBoard(!showDetectiveBoard)}
-                    className="fixed bottom-8 left-8 bg-zinc-900 border-2 border-zinc-700 hover:border-amber-500 text-amber-500 rounded-full w-16 h-16 flex items-center justify-center text-3xl shadow-[0_10px_20px_rgba(0,0,0,0.5)] z-[150] transition-all hover:scale-110 group"
-                >
-                    🔍
-                    {cluesFound.length > 0 && !showDetectiveBoard && (
-                        <div className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-black w-6 h-6 rounded-full flex items-center justify-center animate-bounce shadow-lg">
-                            {cluesFound.length}
+                {/* UI OVERLAYS */}
+                {isPhoneOpen && <PhoneUI />}
+                {step === 12 && renderOutcomeUI()}
+
+                {/* HUD */}
+                <div className="absolute top-8 left-8 z-20 flex gap-4">
+                    {pinnedNumber && (
+                        <div className="bg-emerald-500 text-white px-6 py-3 rounded-xl shadow-xl flex items-center gap-4">
+                            <span className="font-black text-xs uppercase tracking-widest">📌 Pinned</span>
+                            <span className="font-mono text-xl font-black tracking-tight">{pinnedNumber}</span>
                         </div>
                     )}
-                </button>
-            )}
+                    {step >= 7 && step < 12 && (
+                        <div className="bg-slate-900 border-2 border-red-500 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-4">
+                            <span className="text-red-500 font-black text-xs uppercase tracking-widest animate-pulse">AnyDesk</span>
+                            <span className="text-white font-mono text-xl font-black">00:{timeLeft.toString().padStart(2, '0')}</span>
+                        </div>
+                    )}
+                </div>
 
-            {/* ═══ INTERACTION PROMPTS ═══ */}
-            {
-                interactionActive && gameState === 'walk' && !isPhoneOpen && (
-                    <div className="fixed bottom-32 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-cyan-500 p-4 rounded-xl flex items-center gap-4 animate-bounce z-[200] shadow-[0_0_30px_rgba(34,211,238,0.3)]">
-                        <span className="w-10 h-10 bg-cyan-500 rounded-lg flex items-center justify-center font-black text-white shadow-lg shadow-cyan-500/50">E</span>
-                        <span className="text-white font-black tracking-widest text-sm uppercase">Check Smartphone</span>
-                    </div>
-                )
-            }
-            {
-                gameState !== 'walk' && gameState !== 'outcome' && gameState !== 'mini_challenge' && !isPhoneOpen && (
-                    <div
-                        onClick={handleOpenPhone}
-                        className="fixed bottom-8 right-8 bg-slate-900 border-2 border-slate-600 hover:border-cyan-500 p-4 rounded-2xl flex items-center gap-3 cursor-pointer z-[150] transition-all hover:scale-105 shadow-2xl group"
-                    >
-                        <span className="text-3xl drop-shadow-lg group-hover:animate-pulse">📱</span>
-                        <div className="flex flex-col">
-                            <span className="text-cyan-400 font-black tracking-widest text-xs uppercase cursor-pointer">Open Phone</span>
-                            <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Active Session</span>
+                {/* PROMPT TOAST */}
+                {prompt && (
+                    <div className="absolute inset-x-0 bottom-12 flex justify-center z-[1500] pointer-events-none animate-in slide-in-from-bottom duration-500">
+                        <div className="bg-slate-900/95 border border-slate-700 text-white px-8 py-4 rounded-2xl shadow-2xl max-w-xl text-center">
+                            <p className="text-sm font-medium leading-relaxed">{prompt}</p>
                         </div>
                     </div>
-                )
-            }
+                )}
 
-            {/* ═══ FEEDBACK TOASTS ═══ */}
-            {
-                feedbackMsg && (
-                    <div className={`fixed top-12 left-1/2 -translate-x-1/2 py-4 px-10 rounded-full shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[300] transition-all duration-500 animate-[slideDown_0.4s_ease-out] font-black tracking-widest text-xs uppercase flex items-center gap-3 border-2 ${feedbackMsg.color === 'red' ? 'bg-red-950/90 border-red-500 text-red-100' :
-                        feedbackMsg.color === 'emerald' ? 'bg-emerald-950/90 border-emerald-500 text-emerald-100' :
-                            'bg-cyan-950/90 border-cyan-500 text-cyan-100'
-                        }`}>
-                        <div className={`w-2 h-2 rounded-full animate-pulse ${feedbackMsg.color === 'red' ? 'bg-red-500' : feedbackMsg.color === 'emerald' ? 'bg-emerald-500' : 'bg-cyan-500'}`} />
-                        {feedbackMsg.text}
+                {/* FEEDBACK */}
+                {feedbackMsg && (
+                    <div className="absolute inset-x-0 top-32 flex justify-center z-[1000] pointer-events-none">
+                        <div className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl animate-in slide-in-from-top duration-300 border-b-4 ${feedbackMsg.color === 'red' ? 'bg-red-600 border-red-800' : feedbackMsg.color === 'orange' ? 'bg-orange-500 border-orange-700' : feedbackMsg.color === 'emerald' ? 'bg-emerald-600 border-emerald-800' : 'bg-cyan-600 border-cyan-800'} text-white`}>
+                            {feedbackMsg.text}
+                        </div>
                     </div>
-                )
-            }
-        </div >
+                )}
+
+                {/* CINEMATIC OUTRO OVERLAY */}
+                {outroStep >= 2 && (
+                    <div className={`absolute inset-0 z-[10000] bg-black flex flex-col items-center justify-center transition-opacity duration-1000 ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+                        {outroStep === 2 && (
+                            <div className="w-full h-full relative flex items-center justify-center">
+                                {/* Background Image dimmed */}
+                                <div
+                                    className="absolute inset-0 bg-cover bg-center brightness-[0.2]"
+                                    style={{ backgroundImage: "url('/assets/temppho.png')" }}
+                                />
+
+                                <div className="relative z-20 text-center px-12 max-w-5xl">
+                                    <div className="relative h-32 flex items-center justify-center">
+                                        {[
+                                            "There are scams everywhere... invisible hooks in every corner of the web. Be careful.",
+                                            "I should just restart my PC, maybe that will fix the lag.",
+                                            "Also, I'm hungry.",
+                                            "I should go out for some snacks or something."
+                                        ].map((line, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={`absolute inset-0 flex items-center justify-center text-4xl font-serif italic text-white font-bold drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] transition-all duration-1000 text-center ${idx === outroDialogueIdx ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}`}
+                                            >
+                                                "{line}"
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {outroStep === 3 && (
+                            <div className="w-full h-full bg-stone-950 flex flex-col items-center justify-center animate-fadeIn relative overflow-hidden text-center p-8">
+                                {/* Scanning line effects */}
+                                <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-50 bg-[length:100%_2px,3px_100%]" />
+                                <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-cyan-500/10 to-transparent animate-scanLine pointer-events-none" />
+
+                                <div className="flex flex-col items-center relative z-10">
+                                    <div className="absolute -inset-20 bg-cyan-500/5 blur-[100px] rounded-full animate-pulse" />
+
+                                    <div className="relative mb-12">
+                                        <h2 className="text-white text-5xl md:text-6xl font-black tracking-[0.4em] uppercase relative z-10 drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                                            Level 6: Tech Support Fraud
+                                        </h2>
+                                        <div className="absolute top-1/2 left-[-10%] w-[120%] h-2 md:h-3 bg-red-600 shadow-[0_0_30px_rgba(220,38,38,0.8)] z-20 skew-y-[-1deg] animate-strikeThrough origin-left" />
+                                    </div>
+
+                                    <div className="text-7xl md:text-9xl font-black italic tracking-[0.15em] uppercase relative">
+                                        <div className="bg-clip-text text-transparent bg-gradient-to-b from-emerald-300 via-emerald-500 to-emerald-700 animate-surge relative z-10">
+                                            COMPLETED
+                                        </div>
+                                        {/* Chromatic layers */}
+                                        <div className="absolute inset-0 text-cyan-400 opacity-40 translate-x-1 -z-10 animate-aberration">COMPLETED</div>
+                                        <div className="absolute inset-0 text-red-500 opacity-40 -translate-x-1 -z-10 animate-aberration-alt">COMPLETED</div>
+                                    </div>
+
+                                    <div className="mt-16 flex flex-col items-center gap-6">
+                                        <div className="h-px w-64 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+                                        <div className="text-[10px] font-mono text-zinc-500 tracking-[1em] uppercase opacity-70 animate-pulse">
+                                            Forensics Deep Scan // Status: 100% Verified
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => completeLevel(true, 100, 0)}
+                                        className="mt-20 group relative overflow-hidden bg-white/5 hover:bg-white/10 text-white font-black px-12 py-5 rounded-2xl text-xs uppercase tracking-[0.3em] transition-all border border-white/10 hover:border-white/20 hover:scale-105 active:scale-95 shadow-2xl"
+                                    >
+                                        <span className="relative z-10">Proceed to Next Mission</span>
+                                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Global Fade Overlay */}
+                <div className={`fixed inset-0 z-[20000] bg-black pointer-events-none transition-opacity duration-1000 ${isFadingOut ? 'opacity-100' : 'opacity-0'}`} />
+
+                {/* CINEMATIC TITLE CARD PHASE */}
+                {gameState === 'title_card' && (
+                    <div className="absolute inset-0 bg-black z-[9000] flex flex-col items-center justify-center animate-cinematic-sequence overflow-hidden">
+                        <div className="flex flex-col items-center relative">
+                            {/* Dramatic pulse rings */}
+                            <div className="absolute inset-0 bg-red-500/20 rounded-full blur-3xl animate-ping scale-[2.5] opacity-50" />
+
+                            <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mb-8 animate-width" />
+
+                            <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative opacity-0" style={{ animation: 'fadeIn 1s forwards, surge 3.5s infinite' }}>
+                                <span className="relative z-10">Level 6</span>
+                                {/* Chromatic aberration layers */}
+                                <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-aberration">Level 6</span>
+                                <span className="absolute inset-0 text-cyan-400 opacity-60 -translate-x-1 -z-10 animate-aberration-alt">Level 6</span>
+                            </h2>
+
+                            <h3 className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase opacity-0 font-bold" style={{ animation: 'fadeIn 1s forwards 1.2s' }}>
+                                Tech Support Fraud
+                            </h3>
+
+                            <div className="h-px w-32 bg-gradient-to-r from-transparent via-red-500 to-transparent mt-12 animate-width" />
+
+                            {/* Tension metadata */}
+                            <div className="mt-8 text-[8px] font-mono text-zinc-800 tracking-widest uppercase animate-pulse">
+                                INITIALISING REMOTE ACCESS... [33%] [66%] [99%]
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <style dangerouslySetInnerHTML={{
+                    __html: `
+                .animate-cinematic-sequence { animation: cinematic-sequence 3.5s forwards; }
+                .animate-width { animation: width 1.5s ease-in-out forwards; }
+                .animate-aberration { animation: aberration 1.5s infinite; }
+                .animate-aberration-alt { animation: aberration-alt 1.5s infinite; }
+
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes width { from { width: 0; opacity: 0; } to { width: 12rem; opacity: 0.8; } }
+                @keyframes surge {
+                    0%, 100% { transform: scale(1); filter: brightness(1); }
+                    50% { transform: scale(1.08); filter: brightness(1.3); drop-shadow: 0 0 40px rgba(255,255,255,0.4); }
+                }
+                @keyframes cinematic-sequence {
+                    0% { opacity: 0; }
+                    10% { opacity: 1; }
+                    90% { opacity: 1; }
+                    100% { opacity: 0; }
+                }
+                @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
+                @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes aberration {
+                    0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                    25% { transform: translate(-4px, 2px); opacity: 0.8; }
+                    50% { transform: translate(4px, -2px); opacity: 0.6; }
+                    75% { transform: translate(-2px, -4px); opacity: 0.8; }
+                }
+                @keyframes aberration-alt {
+                    0%, 100% { transform: translate(0, 0); opacity: 0.6; }
+                    25% { transform: translate(4px, -2px); opacity: 0.8; }
+                    50% { transform: translate(-4px, 2px); opacity: 0.6; }
+                    75% { transform: translate(2px, 4px); opacity: 0.8; }
+                }
+            ` }} />
+            </div>
+        </div>
     );
 };
 
 export default Level6;
-
