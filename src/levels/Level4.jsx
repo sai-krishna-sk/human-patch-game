@@ -33,7 +33,7 @@ const MINI_GAME_APPS = [
 ];
 
 const Level4 = () => {
-    const { completeLevel, adjustAssets, adjustLives } = useGameState();
+    const { completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
     const [playerPos, setPlayerPos] = useState({ x: 500, y: 350 }); // Spawn slightly next to the desk
     const [livingRoomPlayerPos, setLivingRoomPlayerPos] = useState({ x: 1450, y: 550 }); // Spawns near RIGHT door (from study)
     const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 600, y: 700 }); // Starts at bottom door in bedroom
@@ -227,6 +227,7 @@ const Level4 = () => {
             return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
         }
         if (gameState === 'title_card') {
+            playTitleCardSound();
             const t3 = setTimeout(() => {
                 triggerTransition('phone_pickup_pov', 500);
             }, 4000);

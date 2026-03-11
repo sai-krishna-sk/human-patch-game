@@ -674,7 +674,7 @@ const PlantSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) => 
 };
 
 const Level2 = () => {
-    const { assets, completeLevel, adjustAssets } = useGameState();
+    const { assets, completeLevel, adjustAssets, playTitleCardSound } = useGameState();
     // STATE MACHINE: pov_intro -> room_intro -> living_room -> room (active) -> alert -> terminal -> outcome
     const [gameState, setGameState] = useState('pov_intro');
     const [playerPos, setPlayerPos] = useState({ x: 800, y: 700 });
@@ -743,7 +743,7 @@ const Level2 = () => {
 
     useEffect(() => {
         if (gameState === 'title_card') {
-            playSynthSound('cinematic_surge');
+            playTitleCardSound();
             const timer = setTimeout(() => {
                 triggerTransition('room', { x: 800, y: 920 });
             }, 3500);

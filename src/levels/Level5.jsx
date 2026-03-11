@@ -51,7 +51,7 @@ const MINI_GAME_QRS = [
 const MARKET_BKG = "data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7z' fill='%2364748b' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E";
 
 const Level5 = () => {
-    const { completeLevel, adjustAssets, adjustLives } = useGameState();
+    const { completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
     const [playerPos, setPlayerPos] = useState({ x: 200, y: 600 });
     const [keys, setKeys] = useState({});
     const [gameState, setGameState] = useState('waking_up');
@@ -156,32 +156,7 @@ const Level5 = () => {
     useEffect(() => {
         if (gameState === 'title_card') {
             // Play cinematic surge sound
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (ctx.state === 'suspended') ctx.resume();
-
-                const masterGain = ctx.createGain();
-                masterGain.connect(ctx.destination);
-                masterGain.gain.setValueAtTime(0, ctx.currentTime);
-                masterGain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
-                masterGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3);
-
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'sawtooth';
-                osc1.frequency.setValueAtTime(50, ctx.currentTime);
-                osc1.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 2);
-                osc1.connect(masterGain);
-
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(40, ctx.currentTime);
-                osc2.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 3);
-                osc2.connect(masterGain);
-
-                osc1.start(); osc2.start();
-                osc1.stop(ctx.currentTime + 3);
-                osc2.stop(ctx.currentTime + 3);
-            } catch (err) { console.error("Audio error", err); }
+            playTitleCardSound();
 
             const timer = setTimeout(() => {
                 setGardenPlayerPos({ x: 800, y: 100 });
@@ -189,7 +164,7 @@ const Level5 = () => {
             }, 4000);
             return () => clearTimeout(timer);
         }
-    }, [gameState]);
+    }, [gameState, playTitleCardSound]);
 
     useEffect(() => {
         const dk = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));

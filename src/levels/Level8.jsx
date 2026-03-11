@@ -57,7 +57,7 @@ const CLUE_DATA = [
 ];
 
 const Level8 = () => {
-  const { completeLevel, adjustAssets, adjustLives } = useGameState();
+  const { completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
 
   // ═══ STATE ═══
   const [gameState, setGameState] = useState('garden'); // garden, living-room, whatsapp, website, trust-score, outcome
@@ -304,12 +304,13 @@ const Level8 = () => {
   // Handle Title Card Transition
   useEffect(() => {
     if (gameState === 'title-card') {
+      playTitleCardSound();
       const timer = setTimeout(() => {
         triggerTransition('website');
       }, 4000);
       return () => clearTimeout(timer);
     }
-  }, [gameState]);
+  }, [gameState, playTitleCardSound]);
 
   // ═══ COMPONENTS ═══
 
@@ -629,9 +630,6 @@ const Level8 = () => {
                 onClick={() => {
                   setShowWhatsApp(false);
                   setGameState('title-card');
-                  setTimeout(() => {
-                      setGameState('website');
-                  }, 3000);
                 }}
               >
                 <div className="w-full h-[140px] bg-[#d1d7db] relative flex items-center justify-center overflow-hidden">

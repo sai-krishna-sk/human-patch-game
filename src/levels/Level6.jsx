@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
 
 const Level6 = () => {
-    const { completeLevel } = useGameState();
+    const { completeLevel, playTitleCardSound } = useGameState();
 
     // ═══ FLOW STEP — strict linear progression ═══
     // 0: briefing (click PC)
@@ -95,6 +95,7 @@ const Level6 = () => {
 
     const startCall = () => {
         setGameState('title_card');
+        playTitleCardSound();
 
         // Wait for title card animation (3.5s) before connecting
         setTimeout(() => {

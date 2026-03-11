@@ -21,7 +21,7 @@ const NETWORKS = [
 ];
 
 const Level7 = () => {
-    const { completeLevel, adjustAssets, adjustLives } = useGameState();
+    const { completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
 
     const [gameState, setGameState] = useState('pov_intro');
     const [cluesFound, setCluesFound] = useState([]);
@@ -347,12 +347,13 @@ const Level7 = () => {
     // Title Card Effect
     useEffect(() => {
         if (gameState === 'level_title_card') {
+            playTitleCardSound();
             const timer = setTimeout(() => {
                 triggerTransition('cafe_topdown');
             }, 4000);
             return () => clearTimeout(timer);
         }
-    }, [gameState]);
+    }, [gameState, playTitleCardSound]);
 
     // Eating Effect
     useEffect(() => {

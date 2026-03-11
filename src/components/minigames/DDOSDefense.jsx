@@ -37,14 +37,169 @@ const INITIAL_INTEGRITY = 100;
 const getPathPixels = () => PATH_NODES.map(n => ({ x: n.x * CELL_SIZE + CELL_SIZE / 2, y: n.y * CELL_SIZE + CELL_SIZE / 2 }));
 const PATH_PIXELS = getPathPixels();
 
+const QUIZ_DATA = [
+    {
+        knowledge: "A Distributed Denial of Service (DDoS) attack attempts to make an online service unavailable by overwhelming it with traffic from multiple sources.",
+        question: "What is the primary goal of a DDoS attack?",
+        options: ["Steal passwords", "Overwhelm a service", "Install malware", "Encrypt files"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Botnets are networks of hijacked computer devices used to carry out various scams and cyberattacks, commonly DDoS attacks.",
+        question: "What is a network of hijacked devices called in a DDoS attack?",
+        options: ["Phishing Net", "Ransomware", "Botnet", "Trojan"],
+        correctIndex: 2
+    },
+    {
+        knowledge: "A Firewall monitors and controls incoming and outgoing network traffic based on predetermined security rules, acting as a barrier.",
+        question: "What does a firewall base its traffic control decisions on?",
+        options: ["Random chance", "Predetermined security rules", "User passwords", "Internet speed"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Rate limiting is used to control the amount of incoming and outgoing traffic to or from a network. It helps prevent API abuse and DDoS attacks.",
+        question: "How does rate limiting help against attacks?",
+        options: ["Speeds up connection", "Controls traffic amount", "Decrypts packets", "Blocks all users"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "A Web Application Firewall (WAF) helps protect web applications by filtering and monitoring HTTP traffic between a web application and the Internet.",
+        question: "What kind of traffic does a WAF primarily monitor?",
+        options: ["HTTP traffic", "Bluetooth signals", "Physical mail", "Voice calls"],
+        correctIndex: 0
+    },
+    {
+        knowledge: "Volumetric attacks aim to consume the bandwidth either within the target network/service, or between the target network/service and the rest of the Internet.",
+        question: "What resource do volumetric attacks aim to consume?",
+        options: ["CPU power", "Storage space", "Screen resolution", "Bandwidth"],
+        correctIndex: 3
+    },
+    {
+        knowledge: "Protocol attacks, also known as state-exhaustion attacks, cause a service disruption by consuming actual server resources, or those of intermediate communication equipment like firewalls.",
+        question: "Which components are targeted in state-exhaustion attacks?",
+        options: ["User endpoints", "Server resources and firewalls", "Database backups", "Cooling fans"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Application layer attacks (Layer 7) aim to exhaust the resources of the application itself rather than the network, making them harder to detect.",
+        question: "Why are application layer attacks often hard to detect?",
+        options: ["They are invisible", "They use normal-looking requests", "They occur at night", "They are too fast"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "A zero-day exploit is a cyber attack that occurs on the same day a weakness is discovered in software, meaning developers have zero days to fix it.",
+        question: "What characterizes a zero-day exploit?",
+        options: ["It takes zero days to plan", "Developers have zero days to fix it before attack", "It causes zero damage", "It affects zero users"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Anycast network routing can scatter DDoS traffic across a distributed network of servers, absorbing the attack and keeping the service online.",
+        question: "How does Anycast routing help mitigate DDoS attacks?",
+        options: ["By encrypting traffic", "By distributing traffic across servers", "By changing passwords", "By banning IP addresses"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Ping of Death is a type of denial of service attack in which an attacker attempts to crash, destabilize, or freeze the targeted computer or service by sending malformed or oversized packets.",
+        question: "What does a Ping of Death attack send to a target?",
+        options: ["Small requests", "Malformed or oversized packets", "Phishing emails", "Fake access tokens"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "SYN Floods exploit the TCP handshake process by sending a succession of SYN requests to a target's system in an attempt to consume enough server resources to make the system unresponsive to legitimate traffic.",
+        question: "Which protocol's handshake is exploited in a SYN Flood?",
+        options: ["UDP", "ICMP", "TCP", "HTTP"],
+        correctIndex: 2
+    },
+    {
+        knowledge: "An HTTP flood attack is a type of Layer 7 application attack that utilizes standard valid GET or POST requests to overwhelm a web server or application.",
+        question: "What type of requests are used in an HTTP flood?",
+        options: ["Invalid ICMP packets", "Valid GET or POST requests", "Encrypted SSH requests", "DNS queries"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Blackhole routing is a countermeasure where a network administrator or ISP routes all traffic (good and bad) intended for the targeted IP address to a null route (a 'black hole').",
+        question: "What is the downside of blackhole routing?",
+        options: ["It routes away legitimate traffic as well", "It is illegal", "It costs too much", "It speeds up the attack"],
+        correctIndex: 0
+    },
+    {
+        knowledge: "A CAPTCHA is often used during DDoS mitigation to differentiate between human users and automated bots that might be participating in a Layer 7 attack.",
+        question: "What is the purpose of a CAPTCHA in DDoS mitigation?",
+        options: ["To slow down the internet", "To block all traffic", "To differentiate humans from bots", "To test user intelligence"],
+        correctIndex: 2
+    },
+    {
+        knowledge: "DNS Amplification attacks use publicly accessible open DNS servers to flood a target system with DNS response traffic, essentially 'amplifying' the attacker's bandwidth.",
+        question: "Which servers are abused in a DNS Amplification attack?",
+        options: ["Closed database servers", "Open DNS servers", "Email servers", "Local print servers"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Intrusion Detection Systems (IDS) monitor network traffic for suspicious activity and issue alerts when such activity is discovered.",
+        question: "What is the primary function of an IDS?",
+        options: ["To block traffic", "To monitor and alert on suspicious activity", "To format hard drives", "To route traffic faster"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "BGP (Border Gateway Protocol) is often involved in both mitigating DDoS attacks (by routing null traffic) and sometimes causing them if routes are hijacked.",
+        question: "What protocol is used to route internet traffic between autonomous systems?",
+        options: ["HTTP", "FTP", "BGP", "SMTP"],
+        correctIndex: 2
+    },
+    {
+        knowledge: "Spoofing involves changing the source IP address of the attacking packets so that it looks like they are coming from a different, often trusted, source.",
+        question: "Why do attackers use IP spoofing?",
+        options: ["To increase packet speed", "To hide their true identity or location", "To compress data", "To improve their own security"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Cloud-based DDoS protection services filter traffic through their massive scrubbing centers before it reaches the customer's origin server.",
+        question: "Where do cloud-based protection services typically filter traffic?",
+        options: ["In scrubbing centers", "On the user's laptop", "In the local ISP switch", "Inside the attacker's network"],
+        correctIndex: 0
+    },
+    {
+        knowledge: "Over-provisioning is a passive defense strategy where a company buys more bandwidth than it usually needs, allowing it to absorb small to medium volumetric attacks.",
+        question: "What is the strategy of buying extra bandwidth called?",
+        options: ["Under-provisioning", "Over-provisioning", "Bandwidth throttling", "Data capping"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "Slowloris is a highly-targeted attack that allows a single machine to take down another machine's web server with minimal bandwidth and side effects on unrelated services.",
+        question: "What makes Slowloris unique compared to volumetric attacks?",
+        options: ["It requires massive bandwidth", "It requires minimal bandwidth", "It only targets databases", "It uses physical hardware damage"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "IoT (Internet of Things) devices, like smart cameras and refrigerators, are often targeted by malware (like Mirai) to form massive botnets because they typically have weak default security.",
+        question: "Why are IoT devices frequent targets for botnet recruitment?",
+        options: ["They have very strong CPUs", "They typically have weak default security", "They are never connected to the internet", "They move around a lot"],
+        correctIndex: 1
+    },
+    {
+        knowledge: "The best defense against modern, multi-vector DDoS attacks is a hybrid approach, combining on-premise appliances for quick detection with cloud-based scrubbing for massive volume.",
+        question: "What does a hybrid DDoS defense approach combine?",
+        options: ["Two different ISP connections", "Antivirus and Firewalls", "On-premise appliances and cloud scrubbing", "Mac and Windows servers"],
+        correctIndex: 2
+    }
+];
+
 const DDOSDefense = ({ onBack }) => {
-    const [gameState, setGameState] = useState('start'); // start, playing, paused, won, over
+    const [gameState, setGameState] = useState('start'); // start, playing, paused, won, over, quiz
     const [bandwidth, setBandwidth] = useState(INITIAL_BANDWIDTH);
     const [integrity, setIntegrity] = useState(INITIAL_INTEGRITY);
     const [wave, setWave] = useState(1);
     const [selectedTower, setSelectedTower] = useState(null);
     const [hoverCell, setHoverCell] = useState(null);
     const [gameSpeed, setGameSpeed] = useState(1); // 0.5x, 1x, 2x, 4x
+    const [quizIndex, setQuizIndex] = useState(0);
+    const [quizAnswered, setQuizAnswered] = useState(null); // null, correct, wrong
+    const [waveComposition, setWaveComposition] = useState({
+        BOTNET: 0,
+        VOLUMETRIC: 0,
+        ZERODAY: 0,
+        BOSS: 0
+    });
 
     const requestRef = useRef();
     const [renderTrigger, setRenderTrigger] = useState(0);
@@ -147,7 +302,16 @@ const DDOSDefense = ({ onBack }) => {
             spawnsRemaining: spawns,
             spawnTimer: 60
         };
-        setWave(w => w + 1);
+
+        // Calculate composition for display
+        const composition = { BOTNET: 0, VOLUMETRIC: 0, ZERODAY: 0, BOSS: 0 };
+        spawns.forEach(s => {
+            if (s.id === 'BOTNET') composition.BOTNET++;
+            else if (s.id === 'VOLUMETRIC') composition.VOLUMETRIC++;
+            else if (s.id === 'ZERODAY') composition.ZERODAY++;
+            else if (s.id === 'BOSS') composition.BOSS++;
+        });
+        setWaveComposition(composition);
     };
 
     const handleDamage = (amt) => {
@@ -156,6 +320,16 @@ const DDOSDefense = ({ onBack }) => {
             if (next <= 0) setGameState('over');
             return next;
         });
+    };
+
+    const handleQuizAnswer = (idx) => {
+        setQuizAnswered(idx);
+        const completedWave = wave - 1;
+        const currentData = QUIZ_DATA[quizIndex];
+        if (idx === currentData.correctIndex) {
+            const reward = Math.floor((completedWave - 1) / 5) * 5 + 5;
+            setBandwidth(b => b + reward);
+        }
     };
 
     const gameLoop = useCallback(() => {
@@ -225,6 +399,15 @@ const DDOSDefense = ({ onBack }) => {
                     }
                     if (waveStateRef.current.spawnsRemaining.length === 0 && enemiesRef.current.length === 0) {
                         waveStateRef.current.active = false; // Wave cleared
+                        const currentWave = wave;
+                        if (currentWave >= 25) {
+                            setGameState('won');
+                        } else {
+                            setGameState('quiz');
+                            setQuizIndex(currentWave - 1);
+                            setQuizAnswered(null);
+                            setWave(w => w + 1);
+                        }
                     }
                 }
 
@@ -387,7 +570,40 @@ const DDOSDefense = ({ onBack }) => {
     };
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/50 to-cyan-50/30 p-6 animate-fade-in relative z-0">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-[#f4f7fb] p-6 animate-fade-in relative z-0 overflow-hidden font-sans">
+            {/* Premium Dynamic Background */}
+            <div className="absolute inset-0 z-[-1] pointer-events-none overflow-hidden">
+                {/* Soft ambient gradients */}
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-blue-200/40 rounded-full blur-[120px] mix-blend-multiply animate-[pulse_10s_ease-in-out_infinite]"></div>
+                <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-cyan-200/40 rounded-full blur-[100px] mix-blend-multiply animate-[pulse_12s_ease-in-out_infinite_reverse]"></div>
+                
+                {/* Tech Grid Pattern */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#cbd5e1_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e1_1px,transparent_1px)] bg-[size:3vw_3vw] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)] opacity-40"></div>
+                
+                {/* Animated Scanner Lines */}
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_10px_rgba(34,211,238,0.5)] animate-[scan_6s_ease-in-out_infinite] opacity-30"></div>
+                <div className="absolute top-0 left-[20%] w-[2px] h-full bg-gradient-to-b from-transparent via-indigo-400 to-transparent animate-[scanVertical_8s_ease-in-out_infinite] opacity-20"></div>
+                
+                {/* Floating Tech Elements */}
+                <div className="absolute top-[15%] left-[10%] w-24 h-24 border border-slate-300/50 rounded-full animate-[spin_20s_linear_infinite] flex items-center justify-center">
+                    <div className="w-16 h-16 border border-slate-300/30 rounded-full border-dashed animate-[spin_15s_linear_infinite_reverse]"></div>
+                </div>
+                <div className="absolute bottom-[20%] right-[15%] w-32 h-32 border border-slate-300/40 rounded-full animate-[spin_25s_linear_infinite_reverse] flex items-center justify-center">
+                    <div className="w-20 h-20 border border-slate-300/20 rounded-full border-dashed animate-[spin_18s_linear_infinite]"></div>
+                </div>
+                
+                {/* Data Nodes */}
+                <div className="absolute top-[30%] right-[25%] flex gap-2 opacity-40">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse delay-75"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse delay-150"></div>
+                </div>
+                <div className="absolute bottom-[25%] left-[25%] flex flex-col gap-2 opacity-30">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-ping"></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-ping delay-100"></div>
+                </div>
+            </div>
+
             {/* Header / HUD */}
             <div className="w-full max-w-5xl flex justify-between items-center mb-6 z-10">
                 <div>
@@ -423,14 +639,14 @@ const DDOSDefense = ({ onBack }) => {
 
                 <button
                     onClick={onBack}
-                    className="px-6 py-2 bg-slate-600 hover:bg-slate-700 rounded text-white transition-all font-mono text-xs uppercase shadow-sm"
+                    className="px-6 py-2 bg-slate-700 hover:bg-slate-800 rounded-lg text-white transition-all font-mono text-xs uppercase shadow-md"
                 >
                     Abandon Link
                 </button>
             </div>
 
             {/* Main Game Area */}
-            <div className="flex gap-6 w-full max-w-5xl relative">
+            <div className="flex flex-wrap lg:flex-nowrap gap-6 w-full max-w-7xl relative justify-center items-start">
 
                 {/* Tower Selection Menu */}
                 <div className="w-64 flex flex-col gap-4">
@@ -461,40 +677,11 @@ const DDOSDefense = ({ onBack }) => {
                             })}
                         </div>
                     </div>
-
-                    <div className="flex-1 bg-slate-100/80 border border-slate-200 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center backdrop-blur-sm relative">
-                        {!waveStateRef.current.active ? (
-                            <button
-                                onClick={startNextWave}
-                                className="w-full py-4 bg-indigo-500 text-slate-900 rounded-lg font-black uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]"
-                            >
-                                Send Next Wave
-                            </button>
-                        ) : (
-                            <div className="text-slate-500 font-mono text-sm uppercase animate-pulse mb-8">
-                                Wave {wave - 1} Active...<br />
-                                <span className="text-xs text-slate-400 mt-2 block">Monitoring Traffic</span>
-                            </div>
-                        )}
-
-                        {/* Speed Controls */}
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 px-4">
-                            {[0.5, 1, 2, 4].map(speed => (
-                                <button
-                                    key={speed}
-                                    onClick={() => setGameSpeed(speed)}
-                                    className={`flex-1 py-1 rounded border border-slate-300 text-xs font-mono font-bold transition-all ${gameSpeed === speed ? 'bg-indigo-500/30 text-indigo-300 border-indigo-500' : 'bg-slate-200/50 text-slate-500 hover:text-slate-900'}`}
-                                >
-                                    {speed}x
-                                </button>
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Game Board */}
                 <div
-                    className="relative bg-slate-50 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+                    className="relative bg-white/60 backdrop-blur-xl border border-slate-300 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(15,23,42,0.1)] backdrop-filter"
                     style={{ width: GRID_W * CELL_SIZE, height: GRID_H * CELL_SIZE }}
                     onMouseMove={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -508,29 +695,31 @@ const DDOSDefense = ({ onBack }) => {
                     }}
                 >
                     {/* Grid Background */}
-                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)]" style={{ backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px` }}></div>
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#cbd5e1_1px,transparent_1px),linear-gradient(to_bottom,#cbd5e1_1px,transparent_1px)] opacity-50" style={{ backgroundSize: `${CELL_SIZE}px ${CELL_SIZE}px` }}></div>
 
                     {/* Path Visuals */}
                     <svg className="absolute inset-0 w-full h-full pointer-events-none">
                         <polyline
                             points={PATH_PIXELS.map(p => `${p.x},${p.y}`).join(' ')}
                             fill="none"
-                            stroke="#0f172a"
+                            stroke="#1e293b"
                             strokeWidth={CELL_SIZE - 4}
                             strokeLinecap="round"
                             strokeLinejoin="round"
+                            className="drop-shadow-sm"
                         />
                         <polyline
                             points={PATH_PIXELS.map(p => `${p.x},${p.y}`).join(' ')}
                             fill="none"
-                            stroke="#1e293b"
+                            stroke="#06b6d4"
                             strokeWidth="2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeDasharray="10 10"
-                            className="animate-[dash_20s_linear_infinite]"
+                            className="animate-[dash_20s_linear_infinite] opacity-70"
                         />
                     </svg>
+
 
                     {/* Server Goal / Core */}
                     <div className="absolute z-10 flex flex-col items-center justify-center animate-pulse"
@@ -545,15 +734,15 @@ const DDOSDefense = ({ onBack }) => {
                             className={`absolute flex items-center justify-center border-2 border-dashed z-20 transition-colors ${isPathCell(hoverCell.x, hoverCell.y) || towersRef.current.some(t => t.gx === hoverCell.x && t.gy === hoverCell.y) ? 'bg-red-500/20 border-red-500' : 'bg-emerald-500/20 border-emerald-500'}`}
                             style={{ left: hoverCell.x * CELL_SIZE, top: hoverCell.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
                         >
-                            <div
-                                className="absolute rounded-full border border-white/20 bg-white/5 pointer-events-none"
-                                style={{
-                                    width: TOWER_TYPES[selectedTower].range * 2,
-                                    height: TOWER_TYPES[selectedTower].range * 2,
-                                    transform: 'translate(-50%, -50%)',
-                                    left: '50%', top: '50%'
-                                }}
-                            ></div>
+                                <div
+                                    className="absolute rounded-full border border-indigo-500/40 bg-indigo-500/10 pointer-events-none"
+                                    style={{
+                                        width: TOWER_TYPES[selectedTower].range * 2,
+                                        height: TOWER_TYPES[selectedTower].range * 2,
+                                        transform: 'translate(-50%, -50%)',
+                                        left: '50%', top: '50%'
+                                    }}
+                                ></div>
                         </div>
                     )}
 
@@ -611,9 +800,151 @@ const DDOSDefense = ({ onBack }) => {
                     )}
                 </div>
 
+                {/* Right Sidebar (Threat Analysis + Controls) */}
+                <div className="w-60 flex flex-col gap-4 animate-fade-in hidden lg:flex">
+                    {/* Threat Analysis Panel */}
+                    <div className="bg-white/40 backdrop-blur-md border border-slate-300 rounded-xl p-4 shadow-xl pointer-events-none">
+                        <div className="flex items-center gap-2 mb-3 border-b border-slate-300/50 pb-2">
+                            <span className="text-red-500 animate-pulse text-sm">📡</span>
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Threat Analysis</h4>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {[
+                                { id: 'BOTNET', label: 'Botnet Pings', color: 'bg-red-400', count: waveComposition.BOTNET },
+                                { id: 'VOLUMETRIC', label: 'DDoS Floods', color: 'bg-orange-400', count: waveComposition.VOLUMETRIC },
+                                { id: 'ZERODAY', label: '0-Day Exploits', color: 'bg-purple-400', count: waveComposition.ZERODAY },
+                                { id: 'BOSS', label: 'Ransomware', color: 'bg-red-600', count: waveComposition.BOSS }
+                            ].map(item => (
+                                <div key={item.id} className={`flex flex-col gap-1 transition-opacity duration-500 ${item.count > 0 ? 'opacity-100' : 'opacity-20'}`}>
+                                    <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-600">
+                                        <span>{item.label}</span>
+                                        <span>{item.count}</span>
+                                    </div>
+                                    <div className="w-full h-1 bg-slate-200/50 rounded-full overflow-hidden border border-slate-300/20">
+                                        <div 
+                                            className={`h-full ${item.color} transition-all duration-1000 ease-out`}
+                                            style={{ width: item.count > 0 ? '100%' : '0%' }}
+                                        ></div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 pt-2 border-t border-slate-300/30">
+                            <div className="flex justify-between items-center text-[9px] font-mono text-slate-400 uppercase">
+                                <span>Risk Level</span>
+                                <span className={wave > 15 ? 'text-red-500' : wave > 10 ? 'text-orange-500' : wave > 5 ? 'text-yellow-600' : 'text-emerald-500'}>
+                                    {wave > 15 ? 'Critical' : wave > 10 ? 'High' : wave > 5 ? 'Moderate' : 'Low'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Controls Panel */}
+                    <div className="bg-white/40 backdrop-blur-md border border-slate-300 rounded-xl p-4 shadow-xl flex flex-col gap-3">
+                        {!waveStateRef.current.active ? (
+                            <button
+                                onClick={startNextWave}
+                                className="w-full py-3 bg-indigo-500 text-slate-900 rounded-lg font-black uppercase tracking-[0.1em] text-xs hover:bg-indigo-400 transition-all shadow-[0_4px_12px_rgba(99,102,241,0.2)]"
+                            >
+                                Initiate Wave {wave}
+                            </button>
+                        ) : (
+                            <div className="py-3 px-4 bg-slate-100/50 border border-slate-200 rounded-lg text-center">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">Wave Active</span>
+                            </div>
+                        )}
+
+                        <div className="flex gap-1">
+                            {[0.5, 1, 2, 4].map(speed => (
+                                <button
+                                    key={speed}
+                                    onClick={() => setGameSpeed(speed)}
+                                    className={`flex-1 py-1.5 rounded-md border text-[10px] font-mono font-bold transition-all ${gameSpeed === speed ? 'bg-indigo-500 text-white border-indigo-600' : 'bg-white/50 text-slate-500 border-slate-200 hover:border-slate-300'}`}
+                                >
+                                    {speed}x
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             {/* Overlays */}
+            {gameState === 'quiz' && (
+                <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center z-50 backdrop-blur-md p-6">
+                    <div className="bg-white p-8 rounded-2xl flex flex-col items-start w-full max-w-2xl shadow-2xl border-4 border-indigo-500">
+                        <h3 className="text-2xl font-black text-indigo-600 mb-4 uppercase tracking-widest border-b-2 border-slate-100 pb-2 w-full">Wave {wave - 1} Cleared: Security Briefing</h3>
+                        <p className="text-slate-700 text-lg mb-6 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-200 w-full">
+                            {QUIZ_DATA[quizIndex]?.knowledge}
+                        </p>
+                        <div className="w-full mb-6">
+                            <p className="font-bold text-slate-800 mb-4 text-xl">{QUIZ_DATA[quizIndex]?.question}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {QUIZ_DATA[quizIndex]?.options.map((opt, idx) => {
+                                    let btnClass = "p-4 text-left border-2 rounded-xl font-medium transition-all ";
+                                    if (quizAnswered === null) {
+                                        btnClass += "border-slate-200 hover:border-indigo-500 hover:bg-indigo-50 text-slate-700 cursor-pointer";
+                                    } else {
+                                        if (idx === QUIZ_DATA[quizIndex].correctIndex) {
+                                            btnClass += "border-emerald-500 bg-emerald-100 text-emerald-800";
+                                        } else if (quizAnswered === idx) {
+                                            btnClass += "border-red-500 bg-red-100 text-red-800";
+                                        } else {
+                                            btnClass += "border-slate-200 bg-slate-50 text-slate-400 opacity-50";
+                                        }
+                                    }
+                                    return (
+                                        <button
+                                            key={idx}
+                                            disabled={quizAnswered !== null}
+                                            onClick={() => handleQuizAnswer(idx)}
+                                            className={btnClass}
+                                        >
+                                            {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        {quizAnswered !== null && (
+                            <div className={`w-full p-4 rounded-xl mb-6 ${quizAnswered === QUIZ_DATA[quizIndex].correctIndex ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                                <p className="font-bold">
+                                    {quizAnswered === QUIZ_DATA[quizIndex].correctIndex 
+                                        ? `Correct! +$${Math.floor(((wave - 1) - 1) / 5) * 5 + 5} Bandwidth added.` 
+                                        : `Incorrect. The correct answer was: ${QUIZ_DATA[quizIndex].options[QUIZ_DATA[quizIndex].correctIndex]}`}
+                                </p>
+                            </div>
+                        )}
+                        {quizAnswered !== null && (
+                            <button
+                                onClick={() => setGameState('playing')}
+                                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold uppercase tracking-widest transition-all"
+                            >
+                                Continue Defense
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {gameState === 'won' && (
+                <div className="absolute inset-0 bg-emerald-950/90 flex flex-col items-center justify-center z-50 backdrop-blur-md p-6">
+                    <div className="bg-emerald-900/40 border border-emerald-500/50 p-8 rounded-2xl flex flex-col items-center text-center max-w-lg shadow-[0_0_50px_rgba(16,185,129,0.3)]">
+                        <span className="text-6xl mb-4 animate-bounce">🏆</span>
+                        <h3 className="text-3xl font-black text-emerald-400 mb-2 uppercase">Network Secured</h3>
+                        <p className="text-emerald-100 mb-6">You successfully defended the core infrastructure through all 25 waves!</p>
+                        <p className="text-slate-300 font-mono mb-8 bg-slate-900/50 p-3 rounded-lg border border-emerald-500/30">Final System Integrity: {Math.max(0, Math.floor(integrity))}%</p>
+                        <button
+                            onClick={onBack}
+                            className="px-8 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all uppercase tracking-widest font-bold font-mono text-sm shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                        >
+                            Return to Base
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {gameState === 'start' && (
                 <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-50 backdrop-blur-md">
                     <div className="bg-white border-2 border-cyan-500/30 p-10 rounded-3xl flex flex-col items-center text-center max-w-lg shadow-[0_0_50px_rgba(34,211,238,0.2)]">

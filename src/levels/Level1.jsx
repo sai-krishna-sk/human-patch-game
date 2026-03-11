@@ -3,7 +3,7 @@ import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
 
 const Level1 = () => {
-    const { assets, completeLevel, adjustAssets } = useGameState();
+    const { assets, completeLevel, adjustAssets, playTitleCardSound } = useGameState();
     // STATE MACHINE: intro_pov -> phone_intro → active_call → final_decision → game_over/victory → level_complete
     const [gameState, setGameState] = useState('intro_pov');
     const [canInteract, setCanInteract] = useState(false);
@@ -40,6 +40,10 @@ const Level1 = () => {
     const [showPhoneNoti, setShowPhoneNoti] = useState(false);
     const [visibleNotiCount, setVisibleNotiCount] = useState(0);
     const [showCallNotification, setShowCallNotification] = useState(false);
+
+    // CALL DURATIONS AND QUEUED REPLY
+    const [callDuration, setCallDuration] = useState(0);
+    const [pendingReply, setPendingReply] = useState(null);
 
     // TUTORIAL STATE
     const [tutorialStep, setTutorialStep] = useState(0); // 0: none, 1: dragging, 2: board analysis
@@ -568,6 +572,16 @@ const Level1 = () => {
 
     useEffect(() => {
         let interval;
+        if (['active_call', 'scammer_reveal', 'final_decision'].includes(gameState)) {
+            interval = setInterval(() => {
+                setCallDuration(prev => prev + 1);
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [gameState]);
+
+    useEffect(() => {
+        let interval;
         if (isTimerRunning && timer > 0 && gameState === 'active_call' && !isDetectiveModeOpen) {
             interval = setInterval(() => {
                 setTimer(prev => {
@@ -607,6 +621,14 @@ const Level1 = () => {
     };
 
     const handleContinue = () => {
+        if (pendingReply) {
+            setChatHistory(prev => [...prev, { type: 'reply', text: pendingReply.text }]);
+            startTyping(pendingReply.text);
+            if (pendingReply.audio) playDialogueAudio(pendingReply.audio);
+            setPendingReply(null);
+            return;
+        }
+
         const nextIdx = dialogueIndex + 1;
         if (nextIdx >= dialogueSequence.length) return;
         const nextLine = dialogueSequence[nextIdx];
@@ -629,33 +651,24 @@ const Level1 = () => {
         }
         setChatHistory(prev => [...prev, { type: 'player', text: option.text }]);
 
-        if (option.playerAudio) {
-            playDialogueAudio(option.playerAudio);
-            // Wait for player audio to finish before playing scammer reply
-            const tempAudio = new Audio(option.playerAudio);
-            tempAudio.onloadedmetadata = () => {
-                setTimeout(() => {
-                    if (option.scammerReply) {
-                        setChatHistory(prev => [...prev, { type: 'reply', text: option.scammerReply }]);
-                        startTyping(option.scammerReply);
-                        if (option.audio) playDialogueAudio(option.audio);
-                    } else {
-                        advanceDialogue();
-                    }
-                }, tempAudio.duration * 1000 + 300); // duration + small buffer
-            };
-        } else if (option.scammerReply) {
-            setChatHistory(prev => [...prev, { type: 'reply', text: option.scammerReply }]);
-            startTyping(option.scammerReply);
-            if (option.audio) playDialogueAudio(option.audio);
+        if (option.playerAudio) playDialogueAudio(option.playerAudio);
+
+        setIsTypingDone(true);
+        setTypingTarget('');
+
+        if (option.scammerReply) {
+            setPendingReply({
+                text: option.scammerReply,
+                audio: option.audio
+            });
         } else {
-            advanceDialogue();
+            setPendingReply(null);
         }
     };
 
     useEffect(() => {
         if (gameState === 'cinematic_call_intro') {
-            playSynthSound('cinematic_surge');
+            playTitleCardSound();
 
             // Random glitch loop
             const glitchInterval = setInterval(() => {
@@ -749,9 +762,6 @@ const Level1 = () => {
         <div className="w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden relative">
             <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #000 40px, #000 80px)' }}></div>
             <div className="text-white font-mono text-[10px] absolute top-8 left-8 opacity-40 uppercase tracking-[0.5em] pointer-events-none">POV_SESSION_01 // LEVEL 1</div>
-            <p className="text-red-500 font-bold fixed top-8 right-8 animate-pulse text-xs tracking-widest z-[1000]">
-                {isTimerRunning && `⚠️ CALL IN PROGRESS: ${formatTime(timer)}`}
-            </p>
 
             {gameState === 'intro_pov' && (
                 <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden relative">
@@ -964,7 +974,9 @@ const Level1 = () => {
                         <div className="w-full bg-zinc-800 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-zinc-700 z-10">
                             <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">📞</div>
                             <h2 className="text-xl font-bold text-white tracking-widest">UNKNOWN CALLER</h2>
-                            <div className="text-green-400 font-mono text-lg animate-pulse">{isTimerRunning ? formatTime(timer) : '00:00'}</div>
+                            <div className={`font-mono text-lg animate-pulse ${isTimerRunning ? 'text-red-500 font-bold' : 'text-green-400'}`}>
+                                {isTimerRunning ? `⚠️ TIME LEFT: ${formatTime(timer)}` : formatTime(callDuration)}
+                            </div>
                         </div>
                         <div className="flex gap-1 h-12 items-center mt-6">
                             {[...Array(15)].map((_, i) => (
@@ -1007,7 +1019,7 @@ const Level1 = () => {
                                                                 <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 z-[600] animate-bounce pointer-events-none">
                                                                     <div className="bg-cyan-500 text-white text-[10px] font-bold py-2 p-3 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.5)] border border-cyan-300 relative">
                                                                         <div className="uppercase tracking-[0.1em] mb-1">🔍 Forensic Lead</div>
-                                                                        Drag this to the left!
+                                                                        Drag this to the right!
                                                                         <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-cyan-500 rotate-45 border-r border-b border-cyan-300"></div>
                                                                     </div>
                                                                 </div>
@@ -1043,7 +1055,7 @@ const Level1 = () => {
                                     {dialogueSequence[dialogueIndex].options.map((opt, i) => <button key={i} onClick={() => handleOptionClick(opt)} className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-xl transition-all border-2 border-blue-400 hover:scale-105 active:scale-95 text-sm">"{opt.text}"</button>)}
                                 </div>
                             )}
-                            {isTypingDone && !showingOptions && gameState === 'active_call' && (
+                            {isTypingDone && !isAudioPlaying && !showingOptions && gameState === 'active_call' && (
                                 <button className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors" onClick={handleContinue}>[ Continue... ]</button>
                             )}
                             <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />

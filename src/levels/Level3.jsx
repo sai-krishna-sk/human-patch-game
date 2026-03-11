@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGameState } from '../context/GameStateContext';
 
 const Level3 = () => {
-    const { assets, completeLevel, adjustAssets, adjustLives } = useGameState();
+    const { assets, completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
 
     // STATE MACHINE: intro_pov → laptop_ui → inbox → email_view → mini_game → final_decision → scam_outcome / victory_outcome
     const [gameState, setGameState] = useState('intro_pov');
@@ -171,13 +171,14 @@ SecureMail Support Team`,
 
     useEffect(() => {
         if (gameState === 'intro_cinematic') {
+            playTitleCardSound();
             const t1 = setTimeout(() => {
                 triggerTransition('email_view', 500);
                 setIntroCinematicState(true);
             }, 4000);
             return () => clearTimeout(t1);
         }
-    }, [gameState]);
+    }, [gameState, playTitleCardSound]);
 
     useEffect(() => {
         if (gameState === 'outro_pov') {

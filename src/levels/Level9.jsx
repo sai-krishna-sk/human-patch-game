@@ -49,7 +49,7 @@ const StatusBar = ({ dark = false }) => (
 const SOCIAL_MEDIA_BKG = "data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7z' fill='%2364748b' fill-opacity='0.05' fill-rule='evenodd'/%3E%3C/svg%3E";
 
 const Level9 = () => {
-    const { completeLevel, adjustAssets, adjustLives } = useGameState();
+    const { completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
     const [livingRoomPlayerPos, setLivingRoomPlayerPos] = useState({ x: 740, y: 550 });
     const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 600, y: 700 });
     const [keys, setKeys] = useState({});
@@ -192,12 +192,13 @@ const Level9 = () => {
             return () => { clearTimeout(t1); clearTimeout(t2); };
         }
         if (gameState === 'title_card') {
+            playTitleCardSound();
             const t3 = setTimeout(() => {
                 triggerTransition('social_media_feed', 500);
             }, 5500);
             return () => clearTimeout(t3);
         }
-    }, [gameState]);
+    }, [gameState, playTitleCardSound]);
 
     // Auto-answer call and handle final sleep timing
     useEffect(() => {
