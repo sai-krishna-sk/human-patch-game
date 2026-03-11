@@ -57,6 +57,43 @@ const Level4 = () => {
     const [outroStep, setOutroStep] = useState(0);
     const [outroSuccess, setOutroSuccess] = useState(true);
 
+    // MINI GAME STATE
+    const [miniGameOver, setMiniGameOver] = useState(false);
+    const [miniGameMsg, setMiniGameMsg] = useState('');
+    const [unassignedApps, setUnassignedApps] = useState(MINI_GAME_APPS);
+    const [safeBucket, setSafeBucket] = useState([]);
+    const [maliciousBucket, setMaliciousBucket] = useState([]);
+
+    const handleDragStart = (e, app) => {
+        e.dataTransfer.setData('appId', app.id);
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = (e, type) => {
+        const appId = e.dataTransfer.getData('appId');
+        const app = unassignedApps.find(a => a.id === parseInt(appId));
+        if (!app) return;
+
+        setUnassignedApps(prev => prev.filter(a => a.id !== app.id));
+        if (type === 'safe') setSafeBucket(prev => [...prev, app]);
+        else setMaliciousBucket(prev => [...prev, app]);
+    };
+
+    const checkMiniGame = () => {
+        const wrongSafe = safeBucket.some(a => !a.safe);
+        const wrongMalicious = maliciousBucket.some(a => a.safe);
+
+        if (wrongSafe || wrongMalicious) {
+            setMiniGameMsg('Some apps were sorted incorrectly. Be more careful!');
+        } else {
+            setMiniGameMsg('Perfect sorting! You clearly know how to spot fakes!');
+        }
+        setMiniGameOver(true);
+    };
+
     const triggerTransition = (newState, delay = 500) => {
         setIsTransitioning(true);
         setTimeout(() => {
@@ -183,7 +220,11 @@ const Level4 = () => {
         if (gameState === 'sleep_pov') {
             const t1 = setTimeout(() => setShowText(true), 2000);
             const t2 = setTimeout(() => setDimScreen(true), 4500);
-            return () => { clearTimeout(t1); clearTimeout(t2); };
+            // Fallback transition
+            const t3 = setTimeout(() => {
+                if (gameState === 'sleep_pov') triggerTransition('title_card');
+            }, 8000);
+            return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
         }
         if (gameState === 'title_card') {
             const t3 = setTimeout(() => {
@@ -227,7 +268,7 @@ const Level4 = () => {
 
     if (gameState === 'study_pov') {
         return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-fadeIn">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/temppho.png")' }}>
@@ -246,7 +287,7 @@ const Level4 = () => {
         );
     }
 
-    if (gameState === 'study_walk') {
+    if (gameState === 'study_walk' || gameState === 'walk') {
         return (
             <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
                 {/* GLOBAL TRANSITION FADE */}
@@ -406,7 +447,7 @@ const Level4 = () => {
 
     if (gameState === 'sleep_pov') {
         return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-fadeIn">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
@@ -455,7 +496,7 @@ const Level4 = () => {
 
     if (gameState === 'phone_pickup_pov') {
         return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence flex flex-col items-center justify-center">
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-fadeIn flex flex-col items-center justify-center">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
@@ -1042,7 +1083,7 @@ const Level4 = () => {
 
     if (gameState === 'outro_pov_1') {
         return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-fadeIn">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")', filter: 'brightness(0.5)' }}>
@@ -1062,7 +1103,7 @@ const Level4 = () => {
 
     if (gameState === 'outro_pov_2') {
         return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-fadeIn">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")' }}>

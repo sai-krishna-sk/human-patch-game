@@ -59,6 +59,8 @@ code,
 @keyframes width { from { width: 0; opacity: 0; } to { width: 8rem; opacity: 0.8; } }
 @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
 @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideUpDialogue { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes cinematic-sequence {
     0% { opacity: 0; }
     15% { opacity: 1; }
@@ -73,5 +75,6 @@ code,
 .animate-aberration-alt { animation: aberration-alt 0.15s infinite; }
 .animate-scanLine { animation: scanLine 8s linear infinite; }
 .animate-strikeThrough { animation: strikeThrough 1.5s ease-out forwards; }
+.animate-slideUp { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-cinematic-sequence { animation: cinematic-sequence 4s ease-in-out forwards; }
 
