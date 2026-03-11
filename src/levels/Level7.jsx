@@ -184,7 +184,7 @@ const Level7 = () => {
                     ny = Math.max(800, Math.min(ny, extHeight - PLAYER_SIZE - 50)); // Restrict walking to sidewalk
 
                     const carZone = { x: 200, y: 850, w: 400, h: 200 };
-                    const cafeDoorZone = { x: 1400, y: 700, w: 200, h: 100 };
+                    const cafeDoorZone = { x: 1400, y: 800, w: 200, h: 150 };
 
                     let target = null;
                     if (checkCollision(nx, ny, carZone)) target = 'exterior_car';
@@ -729,7 +729,7 @@ const Level7 = () => {
                     }}
                 >
                     <img src="/assets/cafe.png" alt="Cafe Exterior" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
-                    <Player x={cafeExteriorPlayerPos.x} y={cafeExteriorPlayerPos.y} />
+                    {isCarExited && <Player x={cafeExteriorPlayerPos.x} y={cafeExteriorPlayerPos.y} />}
                 </div>
             </div>
         );

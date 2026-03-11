@@ -354,11 +354,11 @@ const FileFortress = ({ onBack }) => {
 
     const renderIntro = () => (
         <div className="flex flex-col items-center justify-center p-12 text-center max-w-2xl animate-fade-in h-[75vh]">
-            <div className="w-24 h-24 bg-cyan-500/10 rounded-[2.5rem] flex items-center justify-center mb-8 border border-cyan-500/20 shadow-[0_0_50px_rgba(6,182,212,0.15)]">
+            <div className="w-24 h-24 bg-cyan-500/15 rounded-[2.5rem] flex items-center justify-center mb-8 border border-cyan-400/40 shadow-[0_0_50px_rgba(6,182,212,0.15)]">
                 <span className="text-5xl">🛡️</span>
             </div>
-            <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-6 underline decoration-cyan-500 underline-offset-8">File Fortress</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg font-mono">
+            <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tighter mb-6 underline decoration-cyan-500 underline-offset-8">File Fortress</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg font-mono">
                 [ AEGIS_TERMINAL_V2.0 ]
                 <br /><br />
                 Desktop attachments can contain hidden threats.
@@ -369,10 +369,10 @@ const FileFortress = ({ onBack }) => {
                 Choose <span className="text-emerald-400 font-bold">OPEN</span> if the file is safe.
             </p>
             <div className="flex gap-4">
-                <button onClick={onBack} className="px-10 py-4 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs border border-slate-800 active:scale-95">
+                <button onClick={onBack} className="px-10 py-4 bg-white hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs border border-slate-200 active:scale-95">
                     ABORT
                 </button>
-                <button onClick={startGame} className="px-14 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all uppercase tracking-[0.2em] text-xs border border-cyan-400 active:scale-95">
+                <button onClick={startGame} className="px-14 py-4 bg-cyan-600 hover:bg-cyan-500 text-slate-900 font-black rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all uppercase tracking-[0.2em] text-xs border border-cyan-400 active:scale-95">
                     START PROTOCOL
                 </button>
             </div>
@@ -382,24 +382,24 @@ const FileFortress = ({ onBack }) => {
     const renderPlaying = () => (
         <div className="w-full h-full flex flex-col animate-fade-in font-sans text-slate-900">
             {/* Top Stats Bar */}
-            <div className="shrink-0 w-full bg-slate-900 border-b border-slate-800 px-8 py-3 flex items-center justify-between z-50">
+            <div className="shrink-0 w-full bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between z-50">
                 <div className="flex items-center gap-8">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">FILES</span>
-                        <span className="text-sm font-bold text-white">{currentIndex + 1} / {EMAILS.length}</span>
+                        <span className="text-sm font-bold text-slate-900">{currentIndex + 1} / {EMAILS.length}</span>
                     </div>
-                    <div className="w-px h-6 bg-slate-800" />
+                    <div className="w-px h-6 bg-slate-200" />
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">TIME</span>
                         <span className="text-sm font-bold text-cyan-400 font-mono tracking-tighter">{formatTime(elapsed)}</span>
                     </div>
-                    <div className="w-px h-6 bg-slate-800" />
+                    <div className="w-px h-6 bg-slate-200" />
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">SCORE</span>
-                        <span className="text-sm font-black text-white">{score.toLocaleString()}</span>
+                        <span className="text-sm font-black text-slate-900">{score.toLocaleString()}</span>
                     </div>
                 </div>
-                <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
+                <div className="text-[10px] text-slate-500 uppercase font-black tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
                     SENTRY_ACTIVE
                 </div>
             </div>
@@ -442,7 +442,7 @@ const FileFortress = ({ onBack }) => {
 
                             {/* Sender Info */}
                             <div className="flex items-start gap-3.5 px-8 py-4">
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 mt-1" style={{ backgroundColor: currentEmail.brandColor || '#555' }}>
+                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-slate-900 text-sm font-bold shrink-0 mt-1" style={{ backgroundColor: currentEmail.brandColor || '#555' }}>
                                     {currentEmail.brand[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
@@ -470,7 +470,7 @@ const FileFortress = ({ onBack }) => {
 
                             {/* Feedback overlay */}
                             {feedback && (
-                                <div className={`absolute inset-0 flex items-center justify-center z-[100] backdrop-blur-sm transition-all ${feedback === 'correct' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                                <div className={`absolute inset-0 flex items-center justify-center z-[100] backdrop-blur-sm transition-all ${feedback === 'correct' ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-red-400 to-rose-500'}`}>
                                     <div className="text-center p-8 rounded-2xl bg-white shadow-2xl scale-110">
                                         <span className="text-8xl block mb-3 animate-bounce">{feedback === 'correct' ? '✅' : '❌'}</span>
                                         <span className={`text-4xl font-black uppercase tracking-wider ${feedback === 'correct' ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -484,10 +484,10 @@ const FileFortress = ({ onBack }) => {
                 </div>
 
                 {/* Right Verdict Sidebar */}
-                <div className="shrink-0 w-72 bg-slate-950 border-l border-slate-800 flex flex-col items-center justify-center gap-6 p-8 z-40 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+                <div className="shrink-0 w-72 bg-gradient-to-b from-blue-50 to-indigo-50 border-l border-blue-200/50 flex flex-col items-center justify-center gap-6 p-8 z-40 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
                     <div className="text-center mb-4">
-                        <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest block mb-2">Verdict Panel</span>
-                        <h3 className="text-white font-bold text-sm tracking-tight px-4 leading-relaxed">Is this attachment safe to execute?</h3>
+                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2">Verdict Panel</span>
+                        <h3 className="text-slate-900 font-bold text-sm tracking-tight px-4 leading-relaxed">Is this attachment safe to execute?</h3>
                     </div>
 
                     <button
@@ -497,8 +497,8 @@ const FileFortress = ({ onBack }) => {
                     >
                         <span className="text-5xl group-hover:scale-110 transition-transform">🔍</span>
                         <div className="text-center">
-                            <span className="font-black text-amber-500 group-hover:text-white uppercase tracking-[0.2em] text-sm">Scan Security</span>
-                            <p className="text-[9px] text-slate-600 group-hover:text-amber-200 mt-1 uppercase font-black">Identify Threat</p>
+                            <span className="font-black text-amber-500 group-hover:text-slate-900 uppercase tracking-[0.2em] text-sm">Scan Security</span>
+                            <p className="text-[9px] text-slate-400 group-hover:text-amber-200 mt-1 uppercase font-black">Identify Threat</p>
                         </div>
                     </button>
 
@@ -509,13 +509,13 @@ const FileFortress = ({ onBack }) => {
                     >
                         <span className="text-5xl group-hover:scale-110 transition-transform">✅</span>
                         <div className="text-center">
-                            <span className="font-black text-emerald-500 group-hover:text-white uppercase tracking-[0.2em] text-sm">Open File</span>
-                            <p className="text-[9px] text-slate-600 group-hover:text-amber-200 mt-1 uppercase font-black">Allow Execution</p>
+                            <span className="font-black text-emerald-500 group-hover:text-slate-900 uppercase tracking-[0.2em] text-sm">Open File</span>
+                            <p className="text-[9px] text-slate-400 group-hover:text-amber-200 mt-1 uppercase font-black">Allow Execution</p>
                         </div>
                     </button>
 
                     <div className="mt-8 border-t border-slate-900 pt-8 w-full">
-                        <p className="text-[10px] text-slate-700 italic text-center px-4 leading-relaxed">Note: Choose Scan if you detect malicious markers. Choose Open if the file is verified.</p>
+                        <p className="text-[10px] text-slate-500 italic text-center px-4 leading-relaxed">Note: Choose Scan if you detect malicious markers. Choose Open if the file is verified.</p>
                     </div>
                 </div>
             </div>
@@ -548,7 +548,7 @@ const FileFortress = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Protocol Complete — File Integrity Audit</p>
                 </div>
 
@@ -559,8 +559,8 @@ const FileFortress = ({ onBack }) => {
                         { label: 'Time Taken', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Inspected', value: `${correctCount}/${EMAILS.length}`, color: 'text-indigo-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -578,12 +578,12 @@ const FileFortress = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0">
                                     {item.email.attachment.isMalicious ? '☣️' : '📄'}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.email.attachment.name}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.email.attachment.name}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {item.email.attachment.isMalicious ? 'THREAT' : 'SAFE'}
                                         </span>
@@ -594,22 +594,22 @@ const FileFortress = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.isCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Malware Analysis</span>
-                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-cyan-500 pl-4 py-1">
+                                    <p className="text-xs text-slate-500 leading-relaxed italic border-l-2 border-cyan-500 pl-4 py-1">
                                         "{item.email.attachment.explanation || 'No detailed analysis available.'}"
                                     </p>
                                     <div className="flex items-start gap-2 text-xs text-cyan-400/80 mt-3 font-mono">
                                         <span className="text-cyan-500 font-bold">Indicator:</span>
                                         <span>{item.email.attachment.clue}</span>
                                     </div>
-                                    <div className="text-[10px] text-slate-600 mt-2">
-                                        Sender: <span className="text-slate-400">{item.email.from.address}</span>
+                                    <div className="text-[10px] text-slate-400 mt-2">
+                                        Sender: <span className="text-slate-500">{item.email.from.address}</span>
                                     </div>
                                 </div>
                             )}
@@ -618,10 +618,10 @@ const FileFortress = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={startGame} className="px-12 py-4 bg-cyan-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 transition-all hover:text-cyan-600 shadow-lg text-sm">
+                    <button onClick={startGame} className="px-12 py-4 bg-cyan-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 transition-all hover:text-cyan-600 shadow-lg text-sm">
                         RETRY AUDIT
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO LAB
                     </button>
                 </div>

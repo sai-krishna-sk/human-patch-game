@@ -457,7 +457,7 @@ const CryptoChase = ({ onBack }) => {
     };
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 p-6 animate-fade-in relative z-0">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/50 to-cyan-50/30 p-6 animate-fade-in relative z-0">
             {/* Header / HUD */}
             <div className="w-full max-w-4xl flex justify-between items-center mb-6 z-10">
                 <div>
@@ -468,17 +468,17 @@ const CryptoChase = ({ onBack }) => {
                     <p className="text-slate-500 font-mono text-xs uppercase tracking-widest mt-1">Ascend & Evade</p>
                 </div>
 
-                <div className="flex items-center gap-6 bg-slate-900/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
+                <div className="flex items-center gap-6 bg-white/90 backdrop-blur-md border-slate-200 px-6 py-2 rounded-full border border-slate-300 shadow-[0_0_20px_rgba(34,211,238,0.08)]">
                     <div className="text-emerald-400 font-mono text-xl w-24 text-right tabular-nums tracking-wider">
                         {Math.floor(Math.max(0, -playerRef.current.y + 550))}m
                     </div>
-                    <div className="h-6 w-px bg-slate-700 mx-2"></div>
+                    <div className="h-6 w-px bg-slate-300 mx-2"></div>
                     <div className="flex gap-2 text-red-500 text-xl">
                         {[...Array(3)].map((_, i) => (
                             <span key={i} className={`transition-all duration-300 ${i < lives ? 'opacity-100 scale-100 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'opacity-20 scale-75 grayscale'}`}>❤️</span>
                         ))}
                     </div>
-                    <div className="h-6 w-px bg-slate-700 mx-2"></div>
+                    <div className="h-6 w-px bg-slate-300 mx-2"></div>
                     <div className="flex gap-2 text-cyan-400 text-xl items-center">
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className={`w-5 h-5 transition-all duration-500 ${i < shieldsCollected ? 'opacity-100 scale-110 drop-shadow-[0_0_10px_rgba(34,211,238,1)]' : 'opacity-20 scale-90 grayscale saturate-0'}`}>
@@ -490,17 +490,17 @@ const CryptoChase = ({ onBack }) => {
 
                 <button
                     onClick={onBack}
-                    className="px-6 py-2 border border-slate-700 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-all font-mono text-xs uppercase shadow-sm"
+                    className="px-6 py-2 bg-slate-600 hover:bg-slate-700 rounded text-white transition-all font-mono text-xs uppercase shadow-sm"
                 >
                     Abandon Link
                 </button>
             </div>
 
             {/* Game Area Container */}
-            <div className="w-full max-w-[800px] h-[500px] bg-slate-950 border border-slate-800 rounded-2xl relative overflow-hidden flex flex-col items-center justify-center shadow-[0_0_60px_rgba(16,185,129,0.15)] ring-2 ring-emerald-500/20">
+            <div className="w-full max-w-[800px] h-[500px] bg-white border border-blue-200/50 rounded-2xl relative overflow-hidden flex flex-col items-center justify-center shadow-[0_0_60px_rgba(16,185,129,0.08)] ring-2 ring-emerald-500/20">
 
                 {/* Visual Background (Cyber Grid parallax & Server Towers) */}
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.15),transparent_70%)] pointer-events-none"></div>
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(16,185,129,0.08),transparent_70%)] pointer-events-none"></div>
 
                 <div
                     className="absolute inset-0 opacity-20 pointer-events-none"
@@ -571,7 +571,7 @@ const CryptoChase = ({ onBack }) => {
                         {platformsRef.current.map((plat, i) => (
                             <div
                                 key={`plat-${i}`}
-                                className={`absolute overflow-hidden ${plat.type === 'ground' ? 'bg-slate-900 border-t-4 border-slate-600' : 'bg-slate-800/80 border-t-[3px] border-emerald-400 shadow-[0_15px_30px_rgba(0,0,0,0.8)] backdrop-blur-md rounded-b-md'}`}
+                                className={`absolute overflow-hidden ${plat.type === 'ground' ? 'bg-white border-t-4 border-slate-300' : 'bg-slate-200/80 border-t-[3px] border-emerald-400 shadow-[0_15px_30px_rgba(0,0,0,0.8)] backdrop-blur-md rounded-b-md'}`}
                                 style={{
                                     left: `${plat.x}px`,
                                     top: `${plat.y}px`,
@@ -584,7 +584,7 @@ const CryptoChase = ({ onBack }) => {
                                     <div className="relative w-full h-full opacity-60">
                                         <div className="absolute top-0 w-full h-1 bg-emerald-400/30"></div>
                                         {/* Rack lines */}
-                                        <div className="absolute top-1 left-2 w-[calc(100%-16px)] h-full border-x border-slate-600 flex justify-between px-1 bg-slate-900/50">
+                                        <div className="absolute top-1 left-2 w-[calc(100%-16px)] h-full border-x border-slate-300 flex justify-between px-1 bg-slate-100/80">
                                             {/* Blinking datalights */}
                                             {[...Array(Math.floor(plat.w / 30))].map((_, j) => (
                                                 <div key={j} className="h-2 w-2 mt-1 rounded-sm bg-emerald-500 animate-pulse" style={{ animationDelay: `${j * 0.2}s`, animationDuration: '0.8s' }}></div>
@@ -639,17 +639,17 @@ const CryptoChase = ({ onBack }) => {
 
                 {/* Overlays (Fixed to screen) */}
                 {gameState === 'start' && (
-                    <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center z-40 backdrop-blur-md">
-                        <div className="bg-slate-900/90 border-2 border-emerald-500/30 p-10 rounded-3xl flex flex-col items-center text-center shadow-[0_0_100px_rgba(16,185,129,0.2)] max-w-lg relative overflow-hidden">
+                    <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-40 backdrop-blur-md">
+                        <div className="bg-white/90 border-2 border-emerald-500/30 p-10 rounded-3xl flex flex-col items-center text-center shadow-[0_0_100px_rgba(16,185,129,0.2)] max-w-lg relative overflow-hidden">
                             <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-400 to-emerald-500/0"></div>
 
                             <div className="w-24 h-24 mb-6">
                                 <PlayerDroneSVG isGrounded={false} vx={0} />
                             </div>
 
-                            <h3 className="text-4xl font-black text-white mb-3 uppercase tracking-tight">Ascend the Data Tower</h3>
-                            <p className="text-slate-300 mb-8 leading-relaxed text-lg">
-                                The lower servers have been infected. Pilot your Data Node using <span className="text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-500/30">W A S D</span>. Jump between platforms, evade the malware, and recover all 5 <span className="text-cyan-400 font-bold">Defense Protocols 🛡️</span>.
+                            <h3 className="text-4xl font-black text-slate-900 mb-3 uppercase tracking-tight">Ascend the Data Tower</h3>
+                            <p className="text-slate-400 mb-8 leading-relaxed text-lg">
+                                The lower servers have been infected. Pilot your Data Node using <span className="text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/40">W A S D</span>. Jump between platforms, evade the malware, and recover all 5 <span className="text-cyan-400 font-bold">Defense Protocols 🛡️</span>.
                             </p>
                             <button
                                 onClick={startGame}
@@ -662,8 +662,8 @@ const CryptoChase = ({ onBack }) => {
                 )}
 
                 {gameState === 'paused' && currentTip && (
-                    <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center z-50 p-4 backdrop-blur-md">
-                        <div className="bg-slate-900 border-2 border-cyan-500/50 p-6 rounded-2xl max-w-xl shadow-[0_0_100px_rgba(34,211,238,0.3)] animate-fade-in relative overflow-y-auto max-h-[90%] w-full">
+                    <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center z-50 p-4 backdrop-blur-md">
+                        <div className="bg-white border-2 border-cyan-500/50 p-6 rounded-2xl max-w-xl shadow-[0_0_100px_rgba(34,211,238,0.3)] animate-fade-in relative overflow-y-auto max-h-[90%] w-full">
                             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-cyan-400 via-indigo-500 to-cyan-400 bg-[length:200%_auto] animate-gradient-x"></div>
 
                             <div className="flex flex-col items-center mb-6">
@@ -671,10 +671,10 @@ const CryptoChase = ({ onBack }) => {
                                     <ShieldIconSVG />
                                 </div>
                                 <h3 className="text-sm font-bold text-cyan-400 mb-1 tracking-widest uppercase">Protocol Acquired</h3>
-                                <h2 className="text-3xl font-black text-white tracking-tight">{currentTip.title}</h2>
+                                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{currentTip.title}</h2>
                             </div>
 
-                            <p className="text-slate-200 mb-8 leading-relaxed text-lg border-l-4 border-cyan-500 pl-6 bg-cyan-500/10 p-5 rounded-r-lg font-medium">
+                            <p className="text-slate-600 mb-8 leading-relaxed text-lg border-l-4 border-cyan-500 pl-6 bg-cyan-500/15 p-5 rounded-r-lg font-medium">
                                 {currentTip.text}
                             </p>
 
@@ -697,12 +697,12 @@ const CryptoChase = ({ onBack }) => {
                                 <RansomwareIconSVG />
                             </div>
                             <h3 className="text-6xl font-black text-red-500 mb-6 uppercase tracking-tighter mix-blend-screen drop-shadow-md">System Compromised</h3>
-                            <p className="text-red-200/90 mb-10 font-mono text-xl bg-red-950/80 p-5 w-full border-l-4 border-red-500 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] text-left rounded-r">
+                            <p className="text-red-700 mb-10 font-mono text-xl bg-red-950/80 p-5 w-full border-l-4 border-red-500 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] text-left rounded-r">
                                 {'>'} CRITICAL_ERR_0XF<br />{'>'} Malware payload executed.<br />{'>'} Drone chassis destroyed.
                             </p>
                             <button
                                 onClick={startGame}
-                                className="px-12 py-4 bg-red-950 text-red-400 hover:bg-red-500 hover:text-white border-2 border-red-500 rounded-xl font-black text-lg uppercase tracking-widest transition-all hover:shadow-[0_0_40px_rgba(239,68,68,0.6)]"
+                                className="px-12 py-4 bg-red-950 text-red-400 hover:bg-red-500 hover:text-slate-900 border-2 border-red-500 rounded-xl font-black text-lg uppercase tracking-widest transition-all hover:shadow-[0_0_40px_rgba(239,68,68,0.6)]"
                             >
                                 Re-Deploy Node
                             </button>
@@ -712,12 +712,12 @@ const CryptoChase = ({ onBack }) => {
 
                 {gameState === 'won' && (
                     <div className="absolute inset-0 bg-emerald-950/95 flex flex-col items-center justify-center z-50 backdrop-blur-md">
-                        <div className="flex flex-col items-center text-center bg-emerald-900/20 border border-emerald-500/30 p-10 rounded-3xl max-w-xl">
+                        <div className="flex flex-col items-center text-center bg-emerald-900/20 border border-emerald-400/40 p-10 rounded-3xl max-w-xl">
                             <div className="w-32 h-32 mb-6 animate-bounce">
                                 <ShieldIconSVG />
                             </div>
                             <h3 className="text-6xl font-black text-emerald-400 mb-6 uppercase tracking-tighter drop-shadow-lg">Tower Secured</h3>
-                            <p className="text-emerald-100 mb-10 text-xl font-medium leading-relaxed bg-emerald-900/50 p-6 rounded-xl border border-emerald-500/20 shadow-inner">
+                            <p className="text-emerald-700 mb-10 text-xl font-medium leading-relaxed bg-emerald-900/50 p-6 rounded-xl border border-emerald-400/40 shadow-inner">
                                 Excellent routing execution. You have reached the summit and successfully recovered all active defense protocols.
                             </p>
                             <button
@@ -731,9 +731,9 @@ const CryptoChase = ({ onBack }) => {
                 )}
             </div>
 
-            <div className="mt-6 text-slate-400 font-mono text-sm text-center flex gap-6">
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-bold px-2 py-1 bg-slate-900 rounded border border-slate-700 block shadow-inner">W A S D</span> Sub-routine: Move</p>
-                <p className="flex items-center gap-2"><span className="text-emerald-400 font-bold px-2 py-1 bg-slate-900 rounded border border-slate-700 block shadow-inner">ARROWS</span> Sub-routine: Alt Move</p>
+            <div className="mt-6 text-slate-500 font-mono text-sm text-center flex gap-6">
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-bold px-2 py-1 bg-white rounded border border-slate-300 block shadow-inner">W A S D</span> Sub-routine: Move</p>
+                <p className="flex items-center gap-2"><span className="text-emerald-400 font-bold px-2 py-1 bg-white rounded border border-slate-300 block shadow-inner">ARROWS</span> Sub-routine: Alt Move</p>
             </div>
         </div>
     );

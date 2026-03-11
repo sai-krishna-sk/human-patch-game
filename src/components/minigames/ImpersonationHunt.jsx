@@ -183,8 +183,8 @@ const ImpersonationHunt = ({ onBack }) => {
             <div className="w-24 h-24 bg-purple-500/10 rounded-3xl flex items-center justify-center mb-8 border border-purple-500/20 shadow-[0_0_30px_rgba(168,85,247,0.2)]">
                 <span className="text-5xl">🕵️</span>
             </div>
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-6">Impersonation Hunt</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg">
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-6">Impersonation Hunt</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg">
                 The social sphere is full of shadows. Analyze the Instagram profiles presented.
                 <br /><br />
                 Use the buttons to classify:
@@ -194,13 +194,13 @@ const ImpersonationHunt = ({ onBack }) => {
             <div className="flex gap-4">
                 <button
                     onClick={onBack}
-                    className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-all uppercase tracking-widest text-xs"
+                    className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-slate-900 font-bold rounded-lg transition-all uppercase tracking-widest text-xs"
                 >
                     Return
                 </button>
                 <button
                     onClick={startGame}
-                    className="px-12 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg shadow-lg shadow-purple-900/20 transition-all uppercase tracking-widest text-sm"
+                    className="px-12 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-slate-900 font-bold rounded-lg shadow-lg shadow-purple-900/20 transition-all uppercase tracking-widest text-sm"
                 >
                     Start Investigation
                 </button>
@@ -218,7 +218,7 @@ const ImpersonationHunt = ({ onBack }) => {
                     <button
                         onClick={() => handleVerdict(false)}
                         disabled={!!feedback}
-                        className={`group w-40 h-40 rounded-3xl border-4 flex flex-col items-center justify-center transition-all ${!!feedback ? 'opacity-20 grayscale' : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500 hover:scale-105 shadow-lg shadow-emerald-500/10'
+                        className={`group w-40 h-40 rounded-3xl border-4 flex flex-col items-center justify-center transition-all ${!!feedback ? 'opacity-20 grayscale' : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15 hover:border-emerald-500 hover:scale-105 shadow-lg shadow-emerald-500/10'
                             }`}
                     >
                         <span className="text-4xl mb-2">✅</span>
@@ -243,8 +243,8 @@ const ImpersonationHunt = ({ onBack }) => {
                         <div className="w-full h-full bg-black rounded-[3.2rem] overflow-hidden relative border-[4px] border-[#0a0a0a]">
                             {/* Status Bar */}
                             <div className="absolute top-0 left-0 right-0 h-12 px-10 flex items-center justify-between text-[11px] font-bold z-[60] mix-blend-difference">
-                                <span className="text-white/90">{new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
-                                <div className="flex gap-2 items-center text-white/90">
+                                <span className="text-slate-900/90">{new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
+                                <div className="flex gap-2 items-center text-slate-900/90">
                                     <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M12 21l-12-18h24z" /></svg>
                                     <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor"><path d="M2.5 7h19v10h-19z M21.5 10h1v4h-1z" /></svg>
                                 </div>
@@ -260,20 +260,20 @@ const ImpersonationHunt = ({ onBack }) => {
                                 {/* IG Header */}
                                 <div className="flex items-center justify-between px-4 h-14 border-b border-white/[0.08]">
                                     <div className="flex items-center gap-6">
-                                        <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
+                                        <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-white font-bold text-sm tracking-tight">{profile.username}</span>
+                                                <span className="text-slate-900 font-bold text-sm tracking-tight">{profile.username}</span>
                                                 {profile.isVerified && (
                                                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-[#0095f6]" fill="currentColor"><path d="M12.001 2.002c-5.522 0-9.999 4.477-9.999 9.999s4.477 9.999 9.999 9.999 9.999-4.477 9.999-9.999-4.477-9.999-9.999-9.999zm4.594 8.197l-5.59 5.59a.807.807 0 01-1.144 0L7.408 13.34c-.314-.314-.314-.827 0-1.141.314-.313.827-.313 1.141 0l2.353 2.353 5.019-5.019c.314-.314.827-.314 1.141 0 .314.314.314.827 0 1.15z" /></svg>
                                                 )}
                                             </div>
-                                            <span className="text-[10px] text-white/50 font-medium font-sans">Official Account</span>
+                                            <span className="text-[10px] text-slate-900/50 font-medium font-sans">Official Account</span>
                                         </div>
                                     </div>
                                     <div className="flex gap-4">
-                                        <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                                        <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
+                                        <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                                        <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
                                     </div>
                                 </div>
 
@@ -285,27 +285,27 @@ const ImpersonationHunt = ({ onBack }) => {
                                             <div className="relative flex-shrink-0">
                                                 <div className="w-20 h-20 rounded-full p-[2.5px] bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
                                                     <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden border-[2.5px] border-black">
-                                                        <div className="w-full h-full rounded-full flex items-center justify-center text-3xl font-black text-white" style={{ backgroundColor: profile.brandColor }}>
+                                                        <div className="w-full h-full rounded-full flex items-center justify-center text-3xl font-black text-slate-900" style={{ backgroundColor: profile.brandColor }}>
                                                             {profile.pfpText}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#0095f6] rounded-full border-[3px] border-black flex items-center justify-center text-sm font-bold text-white shadow-lg">
+                                                <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#0095f6] rounded-full border-[3px] border-black flex items-center justify-center text-sm font-bold text-slate-900 shadow-lg">
                                                     +
                                                 </div>
                                             </div>
 
                                             <div className="flex-1 flex justify-between text-center px-1">
                                                 <div className="flex flex-col items-center">
-                                                    <div className="font-black text-[14px] text-white tracking-tight">{profile.posts}</div>
+                                                    <div className="font-black text-[14px] text-slate-900 tracking-tight">{profile.posts}</div>
                                                     <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Posts</div>
                                                 </div>
                                                 <div className="flex flex-col items-center">
-                                                    <div className="font-black text-[14px] text-white tracking-tight">{profile.followers}</div>
+                                                    <div className="font-black text-[14px] text-slate-900 tracking-tight">{profile.followers}</div>
                                                     <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Followers</div>
                                                 </div>
                                                 <div className="flex flex-col items-center">
-                                                    <div className="font-black text-[14px] text-white tracking-tight">{profile.following}</div>
+                                                    <div className="font-black text-[14px] text-slate-900 tracking-tight">{profile.following}</div>
                                                     <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Following</div>
                                                 </div>
                                             </div>
@@ -313,16 +313,16 @@ const ImpersonationHunt = ({ onBack }) => {
 
                                         {/* Identity */}
                                         <div className="px-4 mb-6">
-                                            <h2 className="font-black text-[13px] text-white leading-tight mb-0.5">{profile.displayName}</h2>
-                                            <p className="text-[13px] text-slate-200 leading-snug whitespace-pre-line font-medium mb-3 pr-2">
+                                            <h2 className="font-black text-[13px] text-slate-900 leading-tight mb-0.5">{profile.displayName}</h2>
+                                            <p className="text-[13px] text-slate-600 leading-snug whitespace-pre-line font-medium mb-3 pr-2">
                                                 {profile.bio}
                                             </p>
 
                                             {/* Action Buttons Realistic */}
                                             <div className="flex gap-2">
                                                 <button className="flex-1 bg-white text-black font-black h-8 rounded-lg text-xs hover:bg-slate-200 transition-colors">Follow</button>
-                                                <button className="flex-1 bg-white/10 text-white font-black h-8 rounded-lg text-xs hover:bg-white/20 transition-colors">Message</button>
-                                                <button className="w-8 bg-white/10 text-white font-black h-8 rounded-lg text-xs flex items-center justify-center hover:bg-white/20 transition-colors">👤</button>
+                                                <button className="flex-1 bg-white/10 text-slate-900 font-black h-8 rounded-lg text-xs hover:bg-white/20 transition-colors">Message</button>
+                                                <button className="w-8 bg-white/10 text-slate-900 font-black h-8 rounded-lg text-xs flex items-center justify-center hover:bg-white/20 transition-colors">👤</button>
                                             </div>
                                         </div>
 
@@ -340,10 +340,10 @@ const ImpersonationHunt = ({ onBack }) => {
 
                                 {/* Bottom Nav */}
                                 <div className="h-14 border-t border-white/[0.08] flex items-center justify-around px-4 bg-black pb-2">
-                                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white" stroke="currentColor" strokeWidth="2" fill="currentColor"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-                                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white/40" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                    <div className="w-6 h-6 border-2 border-white/40 rounded-md flex items-center justify-center text-[18px] text-white/40 leading-none pb-0.5">+</div>
-                                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-white/40" stroke="currentColor" strokeWidth="2"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900" stroke="currentColor" strokeWidth="2" fill="currentColor"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900/40" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                    <div className="w-6 h-6 border-2 border-white/40 rounded-md flex items-center justify-center text-[18px] text-slate-900/40 leading-none pb-0.5">+</div>
+                                    <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900/40" stroke="currentColor" strokeWidth="2"><path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     <div className="w-6 h-6 rounded-full bg-white/20 border border-white/40" />
                                 </div>
                             </div>
@@ -351,7 +351,7 @@ const ImpersonationHunt = ({ onBack }) => {
 
                         {/* Result Overlay */}
                         {feedback && (
-                            <div className={`absolute inset-[10px] rounded-[3.2rem] flex items-center justify-center z-[110] backdrop-blur-2xl transition-all duration-500 ${feedback === 'correct' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                            <div className={`absolute inset-[10px] rounded-[3.2rem] flex items-center justify-center z-[110] backdrop-blur-2xl transition-all duration-500 ${feedback === 'correct' ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-red-400 to-rose-500'}`}>
                                 <div className="text-center p-8 bg-[#0a0a0a]/95 rounded-[3rem] border border-white/10 shadow-3xl transform animate-pop-in max-w-[280px]">
                                     <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl shadow-2xl ${feedback === 'correct' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                         {feedback === 'correct' ? '🛡️' : '🚨'}
@@ -360,7 +360,7 @@ const ImpersonationHunt = ({ onBack }) => {
                                         {feedback === 'correct' ? 'SECURED' : 'BREACHED'}
                                     </h3>
                                     <div className="w-12 h-1 bg-white/10 mx-auto mb-6 rounded-full" />
-                                    <p className="text-[12px] text-white font-medium leading-[1.6] italic">
+                                    <p className="text-[12px] text-slate-900 font-medium leading-[1.6] italic">
                                         {profile.explanation}
                                     </p>
                                 </div>
@@ -425,7 +425,7 @@ const ImpersonationHunt = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Case Closed — Forensic Intelligence Summary</p>
                 </div>
 
@@ -436,8 +436,8 @@ const ImpersonationHunt = ({ onBack }) => {
                         { label: 'Time Spent', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Max Combo', value: `×${maxCombo}`, color: 'text-indigo-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -455,12 +455,12 @@ const ImpersonationHunt = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0" style={{ color: item.brandColor }}>
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0" style={{ color: item.brandColor }}>
                                     {item.pfpText}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">@{item.username}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">@{item.username}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isFake ? 'bg-purple-500/20 text-purple-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                             {item.isFake ? 'FAKE' : 'REAL'}
                                         </span>
@@ -471,24 +471,24 @@ const ImpersonationHunt = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.userCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.userCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Forensic Breakdown</span>
-                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-purple-500 pl-4 py-1">
+                                    <p className="text-xs text-slate-500 leading-relaxed italic border-l-2 border-purple-500 pl-4 py-1">
                                         "{item.explanation}"
                                     </p>
                                     <div className="grid grid-cols-2 gap-4 mt-3">
                                         <div>
-                                            <span className="text-[9px] text-slate-600 uppercase font-black block">Followers</span>
-                                            <span className="text-xs text-slate-300 font-mono">{item.followers}</span>
+                                            <span className="text-[9px] text-slate-400 uppercase font-black block">Followers</span>
+                                            <span className="text-xs text-slate-400 font-mono">{item.followers}</span>
                                         </div>
                                         <div>
-                                            <span className="text-[9px] text-slate-600 uppercase font-black block">Status</span>
-                                            <span className="text-xs text-slate-300 font-mono">{item.isVerified ? 'Verified Account' : 'Unverified'}</span>
+                                            <span className="text-[9px] text-slate-400 uppercase font-black block">Status</span>
+                                            <span className="text-xs text-slate-400 font-mono">{item.isVerified ? 'Verified Account' : 'Unverified'}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -498,10 +498,10 @@ const ImpersonationHunt = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={startGame} className="px-12 py-4 bg-purple-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-purple-600 shadow-lg text-sm">
+                    <button onClick={startGame} className="px-12 py-4 bg-purple-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-purple-600 shadow-lg text-sm">
                         RE-OPEN CASE
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO HUB
                     </button>
                 </div>

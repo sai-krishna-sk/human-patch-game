@@ -12,7 +12,7 @@ const levelNames = {
     8: 'The Ghost Store',
     9: 'Ghost Profile',
     10: 'The Voice That Wasn\'t',
-    11: 'The Invisible Hook',
+    11: 'I am so lonely',
     12: 'Zero Day',
     13: 'APT Attack',
     14: 'Final Boss'

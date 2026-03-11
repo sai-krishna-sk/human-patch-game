@@ -562,15 +562,15 @@ const BotnetSurvivors = ({ onBack }) => {
     };
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 p-6 animate-fade-in relative">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/50 to-cyan-50/30 p-6 animate-fade-in relative">
             {/* HUD Top */}
             <div className="w-full max-w-[900px] flex justify-between items-center mb-4 z-10">
                 <div className="flex flex-col">
-                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
                         <span className="text-cyan-400">CORE SERVER</span>
-                        <span className="text-slate-600 text-xs px-2 py-0.5 border border-slate-800 rounded">v{level}.0</span>
+                        <span className="text-slate-400 text-xs px-2 py-0.5 border border-slate-200 rounded">v{level}.0</span>
                     </h2>
-                    <div className="w-48 h-2 bg-slate-900 rounded-full mt-2 overflow-hidden border border-slate-800">
+                    <div className="w-48 h-2 bg-white rounded-full mt-2 overflow-hidden border border-slate-200">
                         <div
                             className="h-full bg-cyan-400 transition-all duration-300 shadow-[0_0_10px_#22d3ee]"
                             style={{ width: `${(xp / XP_NEEDED(level)) * 100}%` }}
@@ -579,7 +579,7 @@ const BotnetSurvivors = ({ onBack }) => {
                 </div>
 
                 <div className="flex flex-col items-center">
-                    <div className="text-white font-mono text-3xl font-black tracking-tighter">
+                    <div className="text-slate-900 font-mono text-3xl font-black tracking-tighter">
                         {Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}
                     </div>
                     <div className="text-[10px] text-slate-500 uppercase tracking-widest">Digital Storm Duration</div>
@@ -590,13 +590,13 @@ const BotnetSurvivors = ({ onBack }) => {
                         <div className="text-slate-500 text-[10px] uppercase tracking-widest italic">System Integrity</div>
                         <div className="text-2xl font-black text-emerald-400 tabular-nums">{Math.ceil(health)}%</div>
                     </div>
-                    <button onClick={onBack} className="px-4 py-2 border border-slate-800 text-slate-500 hover:text-white rounded text-xs transition-colors">BACK</button>
+                    <button onClick={onBack} className="px-4 py-2 border border-slate-200 text-slate-500 hover:text-slate-900 rounded text-xs transition-colors">BACK</button>
                 </div>
             </div>
 
             {/* Game Canvas */}
             <div
-                className="relative bg-slate-950 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5 cursor-crosshair"
+                className="relative bg-slate-50 border border-slate-900 rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5 cursor-crosshair"
                 style={{ width: GAME_W, height: GAME_H }}
                 onMouseMove={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -697,7 +697,7 @@ const BotnetSurvivors = ({ onBack }) => {
                                 <PacketSVG type={e.type} />
                                 {/* Enemy HP Bar */}
                                 {e.hp < e.maxHp && (
-                                    <div className="absolute top-[-10px] left-0 w-full h-1 bg-slate-900 rounded-full overflow-hidden">
+                                    <div className="absolute top-[-10px] left-0 w-full h-1 bg-white rounded-full overflow-hidden">
                                         <div className="h-full bg-red-500" style={{ width: `${(e.hp / e.maxHp) * 100}%` }} />
                                     </div>
                                 )}
@@ -740,17 +740,17 @@ const BotnetSurvivors = ({ onBack }) => {
 
                 {/* Overlays */}
                 {gameState === 'start' && (
-                    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center p-12 text-center animate-fade-in">
+                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center p-12 text-center animate-fade-in">
                         <div className="w-24 h-24 mb-6">
                             <ServerSVG healthPercent={100} shieldLevel={0} />
                         </div>
-                        <h3 className="text-4xl font-black text-white uppercase tracking-tighter mb-4">Botnet Survivors</h3>
-                        <p className="text-slate-400 max-w-md mb-8 leading-relaxed">
+                        <h3 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4">Botnet Survivors</h3>
+                        <p className="text-slate-500 max-w-md mb-8 leading-relaxed">
                             You are the core server under a global DDoS attack. Thousands of malicious packets are swarming your endpoint. Use <span className="text-cyan-400 font-bold">WASD</span> to maneuver. Survive the 3-minute storm through layered defense.
                         </p>
                         <button
                             onClick={startGame}
-                            className="px-12 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xl rounded-xl uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(8,145,178,0.4)]"
+                            className="px-12 py-4 bg-cyan-600 hover:bg-cyan-500 text-slate-900 font-black text-xl rounded-xl uppercase tracking-widest transition-all shadow-[0_0_30px_rgba(8,145,178,0.4)]"
                         >
                             Deploy Infrastructure
                         </button>
@@ -758,8 +758,8 @@ const BotnetSurvivors = ({ onBack }) => {
                 )}
 
                 {gameState === 'levelup' && (
-                    <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center z-50 animate-fade-in">
-                        <h3 className="text-3xl font-black text-white mb-2 uppercase italic">Level Up</h3>
+                    <div className="absolute inset-0 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center z-50 animate-fade-in">
+                        <h3 className="text-3xl font-black text-slate-900 mb-2 uppercase italic">Level Up</h3>
                         <p className="text-cyan-400 text-xs font-mono mb-10 tracking-[0.3em] uppercase">Choose Security Protocol Enhancement</p>
 
                         <div className="flex gap-4">
@@ -767,14 +767,14 @@ const BotnetSurvivors = ({ onBack }) => {
                                 <div
                                     key={u.id}
                                     onClick={() => pickUpgrade(u.id)}
-                                    className="w-[200px] p-5 bg-slate-900 border border-slate-800 rounded-2xl hover:border-cyan-500/50 hover:bg-slate-800 transition-all group cursor-pointer text-center relative overflow-hidden"
+                                    className="w-[200px] p-5 bg-white border border-slate-200 rounded-2xl hover:border-cyan-500/50 hover:bg-slate-200 transition-all group cursor-pointer text-center relative overflow-hidden"
                                 >
                                     <div className="text-5xl mb-4 group-hover:scale-110 transition-transform">{u.icon}</div>
                                     <h4 className={`font-black uppercase tracking-tight mb-2 ${u.color}`}>{u.name}</h4>
                                     <p className="text-slate-500 text-xs mb-4 leading-relaxed">{u.description}</p>
                                     <div className="flex justify-center gap-1">
                                         {[...Array(u.maxLevel)].map((_, i) => (
-                                            <div key={i} className={`w-3 h-1.5 rounded-sm ${i < upgrades[u.id] ? 'bg-cyan-400' : 'bg-slate-700'}`} />
+                                            <div key={i} className={`w-3 h-1.5 rounded-sm ${i < upgrades[u.id] ? 'bg-cyan-400' : 'bg-slate-300'}`} />
                                         ))}
                                     </div>
                                     <div className="mt-4 text-[10px] font-mono text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity uppercase">Initialize →</div>
@@ -791,25 +791,25 @@ const BotnetSurvivors = ({ onBack }) => {
                     <div className="absolute inset-0 bg-red-950/95 backdrop-blur-md flex flex-col items-center justify-center p-12 text-center animate-fade-in">
                         <span className="text-7xl mb-6 grayscale opacity-50">💀</span>
                         <h3 className="text-5xl font-black text-red-500 uppercase tracking-tighter mb-2">Endpoint Compromised</h3>
-                        <p className="text-red-200/50 font-mono text-sm mb-10">CORE_FILE_SERVER_IS_OFFLINE</p>
-                        <div className="grid grid-cols-2 gap-8 mb-10 bg-black/30 p-6 rounded-2xl border border-red-500/20">
+                        <p className="text-red-400 font-mono text-sm mb-10">CORE_FILE_SERVER_IS_OFFLINE</p>
+                        <div className="grid grid-cols-2 gap-8 mb-10 bg-black/30 p-6 rounded-2xl border border-red-400/40">
                             <div>
                                 <div className="text-[10px] uppercase tracking-widest text-slate-500">Duration</div>
-                                <div className="text-2xl font-black text-white">{Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}</div>
+                                <div className="text-2xl font-black text-slate-900">{Math.floor(time / 60)}:{(time % 60).toString().padStart(2, '0')}</div>
                             </div>
                             <div>
                                 <div className="text-[10px] uppercase tracking-widest text-slate-500">Rank</div>
-                                <div className="text-2xl font-black text-white">{level}</div>
+                                <div className="text-2xl font-black text-slate-900">{level}</div>
                             </div>
                         </div>
                         <button
                             onClick={startGame}
-                            className="px-10 py-3 bg-red-900 text-white border border-red-500 rounded-lg hover:bg-red-800 transition-all font-black"
+                            className="px-10 py-3 bg-red-900 text-slate-900 border border-red-500 rounded-lg hover:bg-red-800 transition-all font-black"
                         >
                             REBOOT INFRASTRUCTURE
                         </button>
 
-                        <div className="mt-8 w-full max-w-lg bg-slate-900/50 border border-red-500/20 rounded-xl p-4 text-left">
+                        <div className="mt-8 w-full max-w-lg bg-slate-100/80 border border-red-400/40 rounded-xl p-4 text-left">
                             <h4 className="text-red-400 font-bold uppercase text-[10px] tracking-widest mb-3">Defensive Posture Analysis</h4>
                             <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2 custom-scrollbar">
                                 {Object.entries(upgrades).filter(([id, lvl]) => lvl > 0).map(([id, lvl]) => {
@@ -822,8 +822,8 @@ const BotnetSurvivors = ({ onBack }) => {
                                     if (!tip) return null;
                                     return (
                                         <div key={id} className="border-l-2 border-red-500/30 pl-3">
-                                            <div className="text-white font-bold text-[11px] uppercase">{tip.title}</div>
-                                            <div className="text-slate-400 text-[10px] leading-relaxed mt-0.5">{tip.text}</div>
+                                            <div className="text-slate-900 font-bold text-[11px] uppercase">{tip.title}</div>
+                                            <div className="text-slate-500 text-[10px] leading-relaxed mt-0.5">{tip.text}</div>
                                         </div>
                                     );
                                 })}
@@ -838,7 +838,7 @@ const BotnetSurvivors = ({ onBack }) => {
                             <ServerSVG healthPercent={100} shieldLevel={1} />
                         </div>
                         <h3 className="text-5xl font-black text-emerald-400 uppercase tracking-tighter mb-4">Threat Neutralized</h3>
-                        <p className="text-white text-xl font-medium leading-relaxed max-w-lg mb-10">
+                        <p className="text-slate-900 text-xl font-medium leading-relaxed max-w-lg mb-10">
                             You successfully defended the core server against the botnet swarm using a <span className="text-cyan-400">Defense in Depth</span> strategy.
                         </p>
                         <button
@@ -848,7 +848,7 @@ const BotnetSurvivors = ({ onBack }) => {
                             RETRIEVE MISSION LOGS
                         </button>
 
-                        <div className="mt-8 w-full max-w-lg bg-slate-900/50 border border-emerald-500/20 rounded-xl p-4 text-left">
+                        <div className="mt-8 w-full max-w-lg bg-slate-100/80 border border-emerald-400/40 rounded-xl p-4 text-left">
                             <h4 className="text-emerald-400 font-bold uppercase text-[10px] tracking-widest mb-3">Success Criteria: Layered Defense Summary</h4>
                             <div className="space-y-3 overflow-y-auto max-h-[200px] pr-2 custom-scrollbar">
                                 {Object.entries(upgrades).filter(([id, lvl]) => lvl > 0).map(([id, lvl]) => {
@@ -861,8 +861,8 @@ const BotnetSurvivors = ({ onBack }) => {
                                     if (!tip) return null;
                                     return (
                                         <div key={id} className="border-l-2 border-emerald-500/30 pl-3">
-                                            <div className="text-white font-bold text-[11px] uppercase">{tip.title}</div>
-                                            <div className="text-slate-400 text-[10px] leading-relaxed mt-0.5">{tip.text}</div>
+                                            <div className="text-slate-900 font-bold text-[11px] uppercase">{tip.title}</div>
+                                            <div className="text-slate-500 text-[10px] leading-relaxed mt-0.5">{tip.text}</div>
                                         </div>
                                     );
                                 })}
@@ -875,15 +875,15 @@ const BotnetSurvivors = ({ onBack }) => {
             {/* Controls Info */}
             <div className="mt-8 flex gap-12 text-slate-500 font-mono text-[10px] uppercase tracking-[0.2em]">
                 <div className="flex items-center gap-3">
-                    <span className="bg-slate-900 px-3 py-1 border border-slate-800 rounded text-cyan-400 font-bold">WASD / ARROWS</span>
+                    <span className="bg-white px-3 py-1 border border-slate-200 rounded text-cyan-400 font-bold">WASD / ARROWS</span>
                     <span>Navigate Endpoint</span>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="bg-slate-900 px-3 py-1 border border-slate-800 rounded text-emerald-400 font-bold">AUTO</span>
+                    <span className="bg-white px-3 py-1 border border-slate-200 rounded text-emerald-400 font-bold">AUTO</span>
                     <span>Deep Packet Mitigation</span>
                 </div>
                 <div className="flex items-center gap-3 text-cyan-400">
-                    <span className="bg-slate-900 px-3 py-1 border border-slate-800 rounded font-bold uppercase">Mouse Left</span>
+                    <span className="bg-white px-3 py-1 border border-slate-200 rounded font-bold uppercase">Mouse Left</span>
                     <span>Manual Combat (Shredder)</span>
                 </div>
             </div>

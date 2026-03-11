@@ -134,7 +134,7 @@ const APPS = [
 ];
 
 const StatusBar = ({ dark = false }) => (
-    <div className={`flex justify-between items-center px-8 py-3 w-full absolute top-0 z-[100] ${dark ? 'text-white' : 'text-slate-900'}`}>
+    <div className={`flex justify-between items-center px-8 py-3 w-full absolute top-0 z-[100] ${dark ? 'text-slate-900' : 'text-slate-900'}`}>
         <div className="flex items-center gap-2">
             <span className="text-[13px] font-bold">10:42</span>
             <span className="text-[10px] font-medium opacity-70">AM</span>
@@ -213,11 +213,11 @@ const AppArmor = ({ onBack }) => {
 
     const renderIntro = () => (
         <div className="flex flex-col items-center justify-center p-12 text-center max-w-2xl animate-fade-in h-[75vh]">
-            <div className="w-24 h-24 bg-cyan-500/10 rounded-full flex items-center justify-center mb-8 border border-cyan-500/20 shadow-[0_0_30px_rgba(34,211,238,0.2)]">
+            <div className="w-24 h-24 bg-cyan-500/15 rounded-full flex items-center justify-center mb-8 border border-cyan-400/40 shadow-[0_0_30px_rgba(34,211,238,0.2)]">
                 <span className="text-5xl">🛡️</span>
             </div>
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-6 underline decoration-cyan-500 underline-offset-8">App Armor</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg font-mono">
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-6 underline decoration-cyan-500 underline-offset-8">App Armor</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg font-mono">
                 [ ANALYSIS_REQUIRED ]
                 <br /><br />
                 The Play Store sector is infested with data-stealing clones.
@@ -226,10 +226,10 @@ const AppArmor = ({ onBack }) => {
                 <span className="text-emerald-400 font-bold uppercase tracking-widest">[ INSTALL ]</span> or <span className="text-red-400 font-bold uppercase tracking-widest">[ AVOID ]</span>.
             </p>
             <div className="flex gap-4">
-                <button onClick={onBack} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-all uppercase tracking-widest text-xs border border-slate-700">
+                <button onClick={onBack} className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-slate-900 font-bold rounded-lg transition-all uppercase tracking-widest text-xs border border-slate-300">
                     Abort
                 </button>
-                <button onClick={() => setGameState('playing')} className="px-12 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-lg shadow-[0_0_20px_rgba(8,145,178,0.3)] transition-all uppercase tracking-widest text-sm border border-cyan-400">
+                <button onClick={() => setGameState('playing')} className="px-12 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-900 font-black rounded-lg shadow-[0_0_20px_rgba(8,145,178,0.3)] transition-all uppercase tracking-widest text-sm border border-cyan-400">
                     Initialize Scan
                 </button>
             </div>
@@ -312,7 +312,7 @@ const AppArmor = ({ onBack }) => {
                                     {currentApp.permissions.map((p, i) => (
                                         <div key={i} className={`p-4 rounded-2xl border flex items-center gap-4 transition-all ${p.status === 'danger' ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-gray-50 border-gray-100'
                                             }`}>
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm ${p.status === 'danger' ? 'bg-red-500 text-white' : 'bg-gray-400 text-white'
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm ${p.status === 'danger' ? 'bg-red-500 text-slate-900' : 'bg-gray-400 text-slate-900'
                                                 }`}>
                                                 {p.status === 'danger' ? '⚠️' : '✓'}
                                             </div>
@@ -357,7 +357,7 @@ const AppArmor = ({ onBack }) => {
                         <button
                             onClick={() => handleDecision('install')}
                             disabled={!!feedback}
-                            className="flex-1 bg-emerald-600 text-white font-black py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-95 disabled:opacity-30 disabled:grayscale uppercase tracking-widest text-xs"
+                            className="flex-1 bg-emerald-600 text-slate-900 font-black py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-[0_10px_20px_rgba(16,185,129,0.3)] active:scale-95 disabled:opacity-30 disabled:grayscale uppercase tracking-widest text-xs"
                         >
                             INSTALL
                         </button>
@@ -371,7 +371,7 @@ const AppArmor = ({ onBack }) => {
                                 <div className="text-6xl mb-2">
                                     {feedback.status === 'correct' ? '✅' : '❌'}
                                 </div>
-                                <span className="text-white font-black uppercase tracking-widest text-sm">
+                                <span className="text-slate-900 font-black uppercase tracking-widest text-sm">
                                     {feedback.status === 'correct' ? 'CORRECT' : 'WRONG'}
                                 </span>
                             </div>
@@ -382,7 +382,7 @@ const AppArmor = ({ onBack }) => {
 
             {/* Sidebar Stats */}
             <div className="ml-12 w-80 flex flex-col gap-6 font-mono pointer-events-auto">
-                <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl relative">
+                <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-2xl relative">
                     <span className="text-[10px] text-cyan-500 font-black uppercase tracking-[0.3em] block mb-2">Agent Progress</span>
                     <div className="flex justify-between items-end mb-6">
                         <div>
@@ -393,22 +393,22 @@ const AppArmor = ({ onBack }) => {
                             </div>
                         </div>
                         <div className="text-right">
-                            <p className="text-2xl font-black text-white">{currentIndex + 1}<span className="text-slate-700 text-lg">/{APPS.length}</span></p>
+                            <p className="text-2xl font-black text-slate-900">{currentIndex + 1}<span className="text-slate-500 text-lg">/{APPS.length}</span></p>
                         </div>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
                         <div className="h-full bg-cyan-500 transition-all duration-700"
                             style={{ width: `${((currentIndex + 1) / APPS.length) * 100}%` }} />
                     </div>
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl text-center">
+                <div className="bg-white border border-slate-200 p-8 rounded-3xl shadow-2xl text-center">
                     <span className="text-[10px] text-cyan-500/50 uppercase tracking-[0.3em] block mb-2 font-black">Score</span>
                     <div className="text-5xl font-black text-cyan-400 tracking-tighter">{score.toLocaleString()}</div>
                 </div>
 
                 <div className="bg-indigo-950/20 border border-indigo-500/20 p-8 rounded-3xl border-dashed">
-                    <p className="text-[11px] text-slate-400 font-medium leading-relaxed italic">
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic">
                         The full forensic breakdown will be available in the session report after all evaluations are complete.
                     </p>
                 </div>
@@ -443,7 +443,7 @@ const AppArmor = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Audit Complete — Security Evaluation Report</p>
                 </div>
 
@@ -454,8 +454,8 @@ const AppArmor = ({ onBack }) => {
                         { label: 'Time', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Lives Left', value: lives, color: lives > 0 ? 'text-indigo-400' : 'text-rose-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -473,12 +473,12 @@ const AppArmor = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0">
                                     {item.app.icon}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.app.name}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.app.name}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.app.isMalicious ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                             {item.app.isMalicious ? 'THREAT' : 'SAFE'}
                                         </span>
@@ -489,27 +489,27 @@ const AppArmor = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.isCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Forensic Logic</span>
                                     {item.app.isMalicious ? (
                                         <ul className="space-y-1 mt-2">
                                             {item.app.redFlags.map((flag, fi) => (
-                                                <li key={fi} className="text-xs text-slate-400 flex items-start gap-2">
+                                                <li key={fi} className="text-xs text-slate-500 flex items-start gap-2">
                                                     <span className="text-red-500">•</span>
                                                     <span>{flag}</span>
                                                 </li>
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-xs text-slate-400 italic">Verified developer and standard permission set.</p>
+                                        <p className="text-xs text-slate-500 italic">Verified developer and standard permission set.</p>
                                     )}
-                                    <div className="text-[10px] text-slate-600 mt-2 font-mono">
-                                        Developer: <span className="text-slate-400">{item.app.developer}</span>
+                                    <div className="text-[10px] text-slate-400 mt-2 font-mono">
+                                        Developer: <span className="text-slate-500">{item.app.developer}</span>
                                     </div>
                                 </div>
                             )}
@@ -526,10 +526,10 @@ const AppArmor = ({ onBack }) => {
                         setHistory([]);
                         setElapsed(0);
                         setExpandedResult(null);
-                    }} className="px-12 py-4 bg-emerald-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-emerald-600 shadow-lg text-sm">
+                    }} className="px-12 py-4 bg-emerald-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-emerald-600 shadow-lg text-sm">
                         RETRY AUDIT
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO LAB
                     </button>
                 </div>

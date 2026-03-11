@@ -182,11 +182,11 @@ const URLAssassin = ({ onBack }) => {
 
     const renderIntro = () => (
         <div className="flex flex-col items-center justify-center p-12 text-center max-w-2xl animate-fade-in h-[70vh]">
-            <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-8 border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+            <div className="w-24 h-24 bg-gradient-to-br from-red-400 to-rose-500 rounded-full flex items-center justify-center mb-8 border border-red-400/40 shadow-[0_0_30px_rgba(239,68,68,0.2)]">
                 <span className="text-5xl">🎯</span>
             </div>
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-6">URL Assassin</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg">
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-6">URL Assassin</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg">
                 Identify malicious patterns in the browser's address bar.
                 <br /><br />
                 - If the URL is <span className="text-red-400 font-bold uppercase">Phishing</span>, click the suspicious character or part.
@@ -196,13 +196,13 @@ const URLAssassin = ({ onBack }) => {
             <div className="flex gap-4">
                 <button
                     onClick={onBack}
-                    className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-all uppercase tracking-widest text-xs"
+                    className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-slate-900 font-bold rounded-lg transition-all uppercase tracking-widest text-xs"
                 >
                     Cancel
                 </button>
                 <button
                     onClick={startGame}
-                    className="px-12 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow-lg shadow-red-900/20 transition-all uppercase tracking-widest text-sm"
+                    className="px-12 py-3 bg-red-600 hover:bg-red-500 text-slate-900 font-bold rounded-lg shadow-lg shadow-red-900/20 transition-all uppercase tracking-widest text-sm"
                 >
                     Start Training
                 </button>
@@ -217,17 +217,17 @@ const URLAssassin = ({ onBack }) => {
         return (
             <div className="w-full flex flex-col items-center animate-fade-in relative pt-12">
                 {/* Stats Header */}
-                <div className="flex items-center gap-12 mb-16 bg-slate-900/80 backdrop-blur border border-slate-800 px-8 py-4 rounded-2xl">
+                <div className="flex items-center gap-12 mb-16 bg-white/90 backdrop-blur-md border border-blue-200/60 px-8 py-4 rounded-2xl">
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Target</span>
-                        <span className="text-xl font-bold text-white">{currentIndex + 1} <span className="text-slate-600">/ {shuffledUrls.length}</span></span>
+                        <span className="text-xl font-bold text-slate-900">{currentIndex + 1} <span className="text-slate-400">/ {shuffledUrls.length}</span></span>
                     </div>
-                    <div className="w-px h-8 bg-slate-800" />
+                    <div className="w-px h-8 bg-slate-200" />
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Score</span>
                         <span className="text-xl font-bold text-cyan-400 tracking-tight">{score.toLocaleString()}</span>
                     </div>
-                    <div className="w-px h-8 bg-slate-800" />
+                    <div className="w-px h-8 bg-slate-200" />
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest block mb-1">Combo</span>
                         <span className="text-xl font-black text-amber-400 uppercase tracking-wider">×{combo}</span>
@@ -243,7 +243,7 @@ const URLAssassin = ({ onBack }) => {
                             <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
                             <div className="w-3 h-3 rounded-full bg-[#28c840]" />
                         </div>
-                        <div className="flex gap-3 text-slate-400 ml-4 font-bold">
+                        <div className="flex gap-3 text-slate-500 ml-4 font-bold">
                             <span className="cursor-not-allowed">◀</span>
                             <span className="cursor-not-allowed">▶</span>
                             <span className="cursor-default">↻</span>
@@ -251,7 +251,7 @@ const URLAssassin = ({ onBack }) => {
                         {/* Address Bar */}
                         <div className="flex-1 bg-white h-14 rounded-full px-6 flex items-center gap-4 border shadow-inner">
                             <span className="text-emerald-500 text-lg">🔒</span>
-                            <div className="flex-1 flex overflow-hidden font-sans text-[22px] text-slate-700 tracking-tight lg:tracking-normal select-none">
+                            <div className="flex-1 flex overflow-hidden font-sans text-[22px] text-slate-500 tracking-tight lg:tracking-normal select-none">
                                 {chars.map((char, idx) => (
                                     <span
                                         key={idx}
@@ -267,14 +267,14 @@ const URLAssassin = ({ onBack }) => {
                                     </span>
                                 ))}
                             </div>
-                            <span className="text-slate-300 text-sm">☆</span>
+                            <span className="text-slate-400 text-sm">☆</span>
                         </div>
-                        <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold text-white uppercase">User</div>
+                        <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center text-xs font-bold text-slate-900 uppercase">User</div>
                     </div>
 
                     {/* Page Content Placeholder */}
                     <div className="h-[280px] bg-white flex flex-col items-center justify-center p-12 text-center">
-                        <div className="w-16 h-16 rounded-2xl mb-6 shadow-sm flex items-center justify-center text-white text-3xl font-bold" style={{ backgroundColor: urlObj.isPhish ? '#cbd5e1' : '#10b981' }}>
+                        <div className="w-16 h-16 rounded-2xl mb-6 shadow-sm flex items-center justify-center text-slate-900 text-3xl font-bold" style={{ backgroundColor: urlObj.isPhish ? '#cbd5e1' : '#10b981' }}>
                             {urlObj.brand[0]}
                         </div>
                         <h3 className="text-2xl font-bold text-slate-800 mb-2">{urlObj.brand} Authentication</h3>
@@ -282,13 +282,13 @@ const URLAssassin = ({ onBack }) => {
 
                         {/* Feedback Overlay Message */}
                         {feedback && (
-                            <div className={`mt-6 font-bold uppercase tracking-[0.2em] text-sm py-2 px-6 rounded-lg ${feedback.status === 'correct' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                            <div className={`mt-6 font-bold uppercase tracking-[0.2em] text-sm py-2 px-6 rounded-lg ${feedback.status === 'correct' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-gradient-to-br from-red-400 to-rose-500 text-red-500'}`}>
                                 {feedback.status === 'correct' ? 'TARGET NEUTRALIZED' : 'ASSASSINATION FAILED'}
                             </div>
                         )}
 
                         {feedback && (
-                            <div className="mt-4 text-xs text-slate-400 font-medium px-8 italic">
+                            <div className="mt-4 text-xs text-slate-500 font-medium px-8 italic">
                                 {urlObj.explanation}
                             </div>
                         )}
@@ -300,7 +300,7 @@ const URLAssassin = ({ onBack }) => {
                     <button
                         onClick={() => handleVerdict(false)}
                         disabled={!!feedback}
-                        className={`group flex items-center gap-4 px-12 py-6 rounded-2xl border-2 transition-all font-black uppercase tracking-[0.2em] text-base overflow-hidden relative ${!!feedback ? 'opacity-30 grayscale cursor-not-allowed' : 'border-emerald-500/40 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500 shadow-xl shadow-emerald-500/10'
+                        className={`group flex items-center gap-4 px-12 py-6 rounded-2xl border-2 transition-all font-black uppercase tracking-[0.2em] text-base overflow-hidden relative ${!!feedback ? 'opacity-30 grayscale cursor-not-allowed' : 'border-emerald-500/40 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/15 hover:border-emerald-500 shadow-xl shadow-emerald-500/10'
                             }`}
                     >
                         <span className="relative z-10">Mark as Secure</span>
@@ -309,7 +309,7 @@ const URLAssassin = ({ onBack }) => {
                 </div>
 
                 {/* Task hint */}
-                <div className="mt-12 text-slate-500 text-center font-mono text-[10px] uppercase tracking-widest max-w-md bg-slate-900/40 p-3 rounded-lg border border-slate-800">
+                <div className="mt-12 text-slate-500 text-center font-mono text-[10px] uppercase tracking-widest max-w-md bg-blue-50/80 p-3 rounded-lg border border-blue-200/40">
                     Click the <span className="text-red-400 font-bold">suspicious character</span> in the URL bar if you suspect a PHISH. <br />If the URL is authentic, click <span className="text-emerald-400 font-bold">MARK AS SECURE</span>.
                 </div>
             </div>
@@ -337,7 +337,7 @@ const URLAssassin = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Training Complete — Target Engagement Report</p>
                 </div>
 
@@ -348,8 +348,8 @@ const URLAssassin = ({ onBack }) => {
                         { label: 'Time Taken', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Max Combo', value: `×${maxCombo}`, color: 'text-indigo-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -367,12 +367,12 @@ const URLAssassin = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0">
                                     {item.brand[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.brand} Engagement</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.brand} Engagement</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isPhish ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                             {item.isPhish ? 'PHISH' : 'LEGIT'}
                                         </span>
@@ -383,14 +383,14 @@ const URLAssassin = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.userCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.userCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Ballistics Report</span>
-                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-red-500 pl-4 py-1">
+                                    <p className="text-xs text-slate-500 leading-relaxed italic border-l-2 border-red-500 pl-4 py-1">
                                         "{item.explanation}"
                                     </p>
                                     <div className="flex items-start gap-2 text-xs text-red-400/80 mt-3 font-mono">
@@ -404,10 +404,10 @@ const URLAssassin = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={startGame} className="px-12 py-4 bg-red-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-red-600 shadow-lg text-sm">
+                    <button onClick={startGame} className="px-12 py-4 bg-red-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-red-600 shadow-lg text-sm">
                         RE-RUN SIM
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO LAB
                     </button>
                 </div>

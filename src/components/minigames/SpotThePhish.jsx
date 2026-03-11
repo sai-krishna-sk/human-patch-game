@@ -561,54 +561,54 @@ const SpotThePhish = ({ onBack }) => {
     const renderIntro = () => (
         <div className="flex flex-col items-center gap-8 max-w-2xl text-center px-6 animate-fade-in">
             <div className="relative">
-                <div className="w-28 h-28 bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 rounded-3xl flex items-center justify-center border border-emerald-500/30 shadow-[0_0_60px_rgba(16,185,129,0.15)]">
+                <div className="w-28 h-28 bg-gradient-to-br from-emerald-400 to-cyan-500 rounded-3xl flex items-center justify-center border border-emerald-400/40 shadow-[0_0_60px_rgba(16,185,129,0.08)]">
                     <span className="text-6xl">📧</span>
                 </div>
-                <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-black animate-bounce shadow-lg">
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-slate-900 text-xs font-black animate-bounce shadow-lg">
                     {EMAILS.length}
                 </div>
             </div>
 
             <div>
-                <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-2">Spot The Phish</h2>
+                <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tighter mb-2">Spot The Phish</h2>
                 <p className="text-cyan-400 font-mono text-xs uppercase tracking-[0.3em]">Inbox Threat Analysis Protocol</p>
             </div>
 
-            <p className="text-slate-400 leading-relaxed max-w-lg text-sm">
+            <p className="text-slate-500 leading-relaxed max-w-lg text-sm">
                 Your inbox is under attack. Carefully analyze each email — check the sender domain, tone, links, and attachments.
-                Classify all <span className="text-white font-bold">{EMAILS.length} emails</span>. We'll track how long it takes you.
+                Classify all <span className="text-slate-900 font-bold">{EMAILS.length} emails</span>. We'll track how long it takes you.
             </p>
 
-            <div className="w-full max-w-md bg-slate-900/50 border border-slate-800 rounded-xl p-6 text-left space-y-4">
+            <div className="w-full max-w-md bg-white border border-blue-200/50 rounded-xl p-6 shadow-sm text-left space-y-4">
                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">HOW TO PLAY</h3>
                 <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 bg-red-500/10 rounded-lg flex items-center justify-center border border-red-500/20 shrink-0"><span className="text-lg">🚫</span></div>
+                    <div className="w-12 h-12 bg-gradient-to-br from-red-400 to-rose-500 rounded-lg flex items-center justify-center border border-red-400/40 shrink-0"><span className="text-lg">🚫</span></div>
                     <div>
-                        <span className="text-white font-bold text-sm">Click "PHISHING"</span>
+                        <span className="text-slate-900 font-bold text-sm">Click "PHISHING"</span>
                         <span className="text-slate-500 text-xs block">If you think the email is fake or malicious</span>
                     </div>
                 </div>
                 <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 bg-emerald-500/10 rounded-lg flex items-center justify-center border border-emerald-500/20 shrink-0"><span className="text-lg">✅</span></div>
+                    <div className="w-12 h-12 bg-emerald-500/15 rounded-lg flex items-center justify-center border border-emerald-400/40 shrink-0"><span className="text-lg">✅</span></div>
                     <div>
-                        <span className="text-white font-bold text-sm">Click "LEGITIMATE"</span>
+                        <span className="text-slate-900 font-bold text-sm">Click "LEGITIMATE"</span>
                         <span className="text-slate-500 text-xs block">If you think the email is real and safe</span>
                     </div>
                 </div>
                 <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 bg-cyan-500/10 rounded-lg flex items-center justify-center border border-cyan-500/20 shrink-0"><span className="text-lg">🔍</span></div>
+                    <div className="w-12 h-12 bg-cyan-500/15 rounded-lg flex items-center justify-center border border-cyan-400/40 shrink-0"><span className="text-lg">🔍</span></div>
                     <div>
-                        <span className="text-white font-bold text-sm">Analyze Everything</span>
+                        <span className="text-slate-900 font-bold text-sm">Analyze Everything</span>
                         <span className="text-slate-500 text-xs block">Domain, urgency, attachments, links, tone</span>
                     </div>
                 </div>
             </div>
 
             <div className="flex gap-4 mt-4">
-                <button onClick={startGame} className="px-14 py-4 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 rounded-xl text-white font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 text-sm">
+                <button onClick={startGame} className="px-14 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-lg shadow-emerald-500/30 rounded-xl text-slate-900 font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 text-sm">
                     START DRILL
                 </button>
-                <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                     EXIT
                 </button>
             </div>
@@ -622,36 +622,36 @@ const SpotThePhish = ({ onBack }) => {
         return (
             <div className="w-full h-full flex flex-col" style={{ maxWidth: '100vw' }}>
                 {/* ── Top Stats Bar ── */}
-                <div className="shrink-0 w-full bg-slate-900/95 border-b border-slate-800 px-8 py-3 flex items-center justify-between backdrop-blur-md z-20">
+                <div className="shrink-0 w-full bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200/50 border-b border-slate-200 px-8 py-3 flex items-center justify-between backdrop-blur-md z-20">
                     <div className="flex items-center gap-8">
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest">Inbox</span>
-                            <span className="text-sm font-bold text-white">{currentIndex + 1}<span className="text-slate-600"> / {shuffledEmails.length}</span></span>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Inbox</span>
+                            <span className="text-sm font-bold text-slate-900">{currentIndex + 1}<span className="text-slate-400"> / {shuffledEmails.length}</span></span>
                         </div>
-                        <div className="w-px h-6 bg-slate-800" />
+                        <div className="w-px h-6 bg-slate-200" />
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest">Time</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Time</span>
                             <span className="text-sm font-bold text-cyan-400 tabular-nums font-mono">{formatTime(elapsed)}</span>
                         </div>
-                        <div className="w-px h-6 bg-slate-800" />
+                        <div className="w-px h-6 bg-slate-200" />
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest">Score</span>
-                            <span className="text-sm font-black text-white tabular-nums">{score.toLocaleString()}</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Score</span>
+                            <span className="text-sm font-black text-slate-900 tabular-nums">{score.toLocaleString()}</span>
                         </div>
-                        <div className="w-px h-6 bg-slate-800" />
+                        <div className="w-px h-6 bg-slate-200" />
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest">Combo</span>
-                            <span className={`text-sm font-black ${combo > 0 ? 'text-amber-400' : 'text-slate-600'}`}>×{combo}</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Combo</span>
+                            <span className={`text-sm font-black ${combo > 0 ? 'text-amber-400' : 'text-slate-400'}`}>×{combo}</span>
                         </div>
                     </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border ${email.difficulty === 'hard' ? 'text-red-400 border-red-500/30 bg-red-500/10' :
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border ${email.difficulty === 'hard' ? 'text-red-400 border-red-500/30 bg-gradient-to-br from-red-400 to-rose-500' :
                         email.difficulty === 'medium' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
-                            'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                            'text-emerald-400 border-emerald-500/30 bg-emerald-500/15'
                         }`}>{email.difficulty}</span>
                 </div>
 
                 {/* ── Progress Bar ── */}
-                <div className="shrink-0 w-full h-1 bg-slate-900">
+                <div className="shrink-0 w-full h-1 bg-white">
                     <div className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 transition-all duration-500" style={{ width: `${((currentIndex) / shuffledEmails.length) * 100}%` }} />
                 </div>
 
@@ -692,7 +692,7 @@ const SpotThePhish = ({ onBack }) => {
 
                                 {/* Sender row */}
                                 <div className="flex items-start gap-3.5 px-8 py-3">
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 mt-1" style={{ backgroundColor: email.brandColor }}>
+                                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-slate-900 text-sm font-bold shrink-0 mt-1" style={{ backgroundColor: email.brandColor }}>
                                         {email.brand[0]}
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -758,7 +758,7 @@ const SpotThePhish = ({ onBack }) => {
                                 {/* Feedback overlay */}
                                 {feedback && (
                                     <div className={`absolute inset-0 flex items-center justify-center z-30 backdrop-blur-sm transition-all ${feedback === 'correct' ? 'bg-emerald-500/25' : 'bg-red-500/25'}`}>
-                                        <div className="text-center p-8 rounded-2xl" style={{ backgroundColor: feedback === 'correct' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)' }}>
+                                        <div className="text-center p-8 rounded-2xl" style={{ backgroundColor: feedback === 'correct' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.15)' }}>
                                             <span className="text-8xl block mb-3">{feedback === 'correct' ? '✅' : '❌'}</span>
                                             <span className={`text-4xl font-black uppercase tracking-wider ${feedback === 'correct' ? 'text-emerald-400' : 'text-red-400'}`}>
                                                 {feedback === 'correct' ? 'CORRECT!' : 'WRONG!'}
@@ -771,10 +771,10 @@ const SpotThePhish = ({ onBack }) => {
                     </div>
 
                     {/* Right-side verdict panel */}
-                    <div className="shrink-0 w-[280px] bg-slate-950 border-l border-slate-800 flex flex-col items-center justify-center gap-6 p-6">
+                    <div className="shrink-0 w-[280px] bg-gradient-to-b from-blue-50 to-indigo-50 border-l border-blue-200/50 flex flex-col items-center justify-center gap-6 p-6">
                         <div className="text-center mb-4">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest block mb-2">Your Verdict</span>
-                            <span className="text-slate-400 text-xs">Is this email real or fake?</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2">Your Verdict</span>
+                            <span className="text-slate-500 text-xs">Is this email real or fake?</span>
                         </div>
 
                         <button
@@ -783,8 +783,8 @@ const SpotThePhish = ({ onBack }) => {
                             className="w-full py-6 bg-red-600/10 border-2 border-red-500/30 rounded-2xl group hover:bg-red-600 hover:border-red-500 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
                         >
                             <span className="text-4xl group-hover:scale-110 transition-transform">🚫</span>
-                            <span className="font-black text-red-400 group-hover:text-white uppercase tracking-widest text-sm">Phishing</span>
-                            <span className="text-[10px] text-slate-600 group-hover:text-red-200">This email is fake</span>
+                            <span className="font-black text-red-400 group-hover:text-slate-900 uppercase tracking-widest text-sm">Phishing</span>
+                            <span className="text-[10px] text-slate-400 group-hover:text-red-600">This email is fake</span>
                         </button>
 
                         <button
@@ -793,8 +793,8 @@ const SpotThePhish = ({ onBack }) => {
                             className="w-full py-6 bg-emerald-600/10 border-2 border-emerald-500/30 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-500 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
                         >
                             <span className="text-4xl group-hover:scale-110 transition-transform">✅</span>
-                            <span className="font-black text-emerald-400 group-hover:text-white uppercase tracking-widest text-sm">Legitimate</span>
-                            <span className="text-[10px] text-slate-600 group-hover:text-emerald-200">This email is real</span>
+                            <span className="font-black text-emerald-400 group-hover:text-slate-900 uppercase tracking-widest text-sm">Legitimate</span>
+                            <span className="text-[10px] text-slate-400 group-hover:text-emerald-700">This email is real</span>
                         </button>
                     </div>
                 </div>
@@ -815,7 +815,7 @@ const SpotThePhish = ({ onBack }) => {
                         style={{ borderColor: grade.color, boxShadow: `0 0 50px ${grade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: grade.color }}>{grade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{grade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{grade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Drill Complete — Threat Analysis Report</p>
                 </div>
 
@@ -826,8 +826,8 @@ const SpotThePhish = ({ onBack }) => {
                         { label: 'Time Taken', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Max Combo', value: `×${maxCombo}`, color: 'text-indigo-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -845,12 +845,12 @@ const SpotThePhish = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0" style={{ backgroundColor: item.brandColor }}>
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center text-slate-900 text-xs font-black shrink-0" style={{ backgroundColor: item.brandColor }}>
                                     {item.brand[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.from.name}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.from.name}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isLegit ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {item.isLegit ? 'LEGIT' : 'PHISH'}
                                         </span>
@@ -861,20 +861,20 @@ const SpotThePhish = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.userCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.userCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Key Indicators</span>
                                     {item.clues.map((clue, ci) => (
-                                        <div key={ci} className="flex items-start gap-2 text-xs text-slate-400">
+                                        <div key={ci} className="flex items-start gap-2 text-xs text-slate-500">
                                             <span className={item.isLegit ? 'text-emerald-500' : 'text-red-500'}>→</span>
                                             <span>{clue}</span>
                                         </div>
                                     ))}
-                                    <div className="mt-3 text-[10px] text-slate-600 font-mono">
+                                    <div className="mt-3 text-[10px] text-slate-400 font-mono">
                                         Sender: <span className={`font-bold ${item.isLegit ? 'text-emerald-400' : 'text-red-400'}`}>{item.from.address}</span>
                                     </div>
                                 </div>
@@ -884,10 +884,10 @@ const SpotThePhish = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={resetGame} className="px-12 py-4 bg-gradient-to-r from-white to-slate-200 text-slate-950 font-black uppercase tracking-widest rounded-xl hover:from-cyan-400 hover:to-emerald-400 transition-all shadow-lg text-sm">
+                    <button onClick={resetGame} className="px-12 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30 font-black uppercase tracking-widest rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg text-sm">
                         RETRY DRILL
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO LAB
                     </button>
                 </div>

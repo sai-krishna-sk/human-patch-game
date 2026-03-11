@@ -134,7 +134,7 @@ const WiFiSentry = ({ onBack }) => {
             {[1, 2, 3].map(i => (
                 <div
                     key={i}
-                    className={`w-[2.5px] rounded-full transition-all ${i <= level ? (isLight ? 'bg-cyan-600' : 'bg-cyan-400') : (isLight ? 'bg-gray-200' : 'bg-slate-700')}`}
+                    className={`w-[2.5px] rounded-full transition-all ${i <= level ? (isLight ? 'bg-cyan-600' : 'bg-cyan-400') : (isLight ? 'bg-gray-200' : 'bg-slate-300')}`}
                     style={{ height: `${(i / 3) * 100}%` }}
                 />
             ))}
@@ -143,21 +143,21 @@ const WiFiSentry = ({ onBack }) => {
 
     const renderIntro = () => (
         <div className="flex flex-col items-center justify-center p-12 text-center max-w-2xl animate-fade-in h-[75vh]">
-            <div className="w-24 h-24 bg-cyan-500/10 rounded-[2.5rem] flex items-center justify-center mb-8 border border-cyan-500/20 shadow-[0_0_50px_rgba(6,182,212,0.15)]">
+            <div className="w-24 h-24 bg-cyan-500/15 rounded-[2.5rem] flex items-center justify-center mb-8 border border-cyan-400/40 shadow-[0_0_50px_rgba(6,182,212,0.15)]">
                 <span className="text-5xl">📡</span>
             </div>
-            <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-6 underline decoration-cyan-500 underline-offset-8 italic">WiFi Sentry</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg font-mono">
+            <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tighter mb-6 underline decoration-cyan-500 underline-offset-8 italic">WiFi Sentry</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg font-mono">
                 [ AEGIS_NETWORK_VERIFIER_V1.0 ]
                 <br /><br />
                 Analyze available infrastructure.
                 Determine the threat level and secure the connection.
             </p>
             <div className="flex gap-4">
-                <button onClick={onBack} className="px-10 py-4 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs border border-slate-800 active:scale-95">
+                <button onClick={onBack} className="px-10 py-4 bg-white hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs border border-slate-200 active:scale-95">
                     ABORT
                 </button>
-                <button onClick={startGame} className="px-14 py-4 bg-cyan-600 hover:bg-cyan-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all uppercase tracking-[0.2em] text-xs border border-cyan-400 active:scale-95">
+                <button onClick={startGame} className="px-14 py-4 bg-cyan-600 hover:bg-cyan-500 text-slate-900 font-black rounded-2xl shadow-[0_0_30px_rgba(6,182,212,0.3)] transition-all uppercase tracking-[0.2em] text-xs border border-cyan-400 active:scale-95">
                     START SCAN
                 </button>
             </div>
@@ -167,13 +167,13 @@ const WiFiSentry = ({ onBack }) => {
     const renderPlaying = () => (
         <div className="w-full h-full flex flex-col animate-fade-in font-sans">
             {/* Top Stats Bar */}
-            <div className="shrink-0 w-full bg-slate-900 border-b border-slate-800 px-8 py-3 flex items-center justify-between z-50">
+            <div className="shrink-0 w-full bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between z-50">
                 <div className="flex items-center gap-8">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">NETWORKS</span>
-                        <span className="text-sm font-bold text-white">{currentIndex + 1} / {NETWORKS.length}</span>
+                        <span className="text-sm font-bold text-slate-900">{currentIndex + 1} / {NETWORKS.length}</span>
                     </div>
-                    <div className="w-px h-6 bg-slate-800" />
+                    <div className="w-px h-6 bg-slate-200" />
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">TIME</span>
                         <span className="text-sm font-bold text-cyan-400 font-mono tracking-tighter">{formatTime(elapsed)}</span>
@@ -182,12 +182,12 @@ const WiFiSentry = ({ onBack }) => {
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col items-end">
                         <span className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-0.5">SCORE</span>
-                        <span className="text-lg font-black text-white italic tracking-tighter">{score.toLocaleString()}</span>
+                        <span className="text-lg font-black text-slate-900 italic tracking-tighter">{score.toLocaleString()}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 flex bg-slate-950 overflow-hidden relative">
+            <div className="flex-1 flex bg-slate-50 overflow-hidden relative">
 
                 {/* Main View: Central Phone Mockup (Black Theme Frame, White Theme Content) */}
                 <div className="flex-1 flex items-center justify-center p-4">
@@ -213,7 +213,7 @@ const WiFiSentry = ({ onBack }) => {
                                     </div>
                                 </div>
 
-                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-400 mb-4 px-1">Available Networks</p>
+                                <p className="text-[9px] uppercase font-black tracking-widest text-slate-500 mb-4 px-1">Available Networks</p>
 
                                 <div className="space-y-3">
                                     {NETWORKS.map((net, idx) => (
@@ -233,7 +233,7 @@ const WiFiSentry = ({ onBack }) => {
                                                         <span className="text-sm">📡</span>
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className={`text-xs font-bold ${currentIndex === idx ? 'text-slate-900' : 'text-slate-400'}`}>
+                                                        <span className={`text-xs font-bold ${currentIndex === idx ? 'text-slate-900' : 'text-slate-500'}`}>
                                                             {net.ssid}
                                                         </span>
                                                         <span className="text-[8px] text-gray-400 uppercase font-black tracking-tight">{net.securityType}</span>
@@ -263,7 +263,7 @@ const WiFiSentry = ({ onBack }) => {
 
                             {/* Selection Hint */}
                             <div className="p-4 border-t border-gray-100 bg-gray-50/50 -mx-5 -mb-5">
-                                <div className="flex items-center gap-2 text-[10px] text-slate-400 italic">
+                                <div className="flex items-center gap-2 text-[10px] text-slate-500 italic">
                                     <span>👆</span> Select a network to proceed
                                 </div>
                             </div>
@@ -291,8 +291,8 @@ const WiFiSentry = ({ onBack }) => {
                     {/* Verdict Controls */}
                     <div className="flex-1 flex flex-col p-8 justify-center gap-4 border-b border-slate-900">
                         <div className="text-center mb-4">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest block mb-2 underline decoration-cyan-500">Verdict Panel</span>
-                            <h3 className="text-white font-bold text-xs tracking-tight leading-relaxed">Evaluation Protocol</h3>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2 underline decoration-cyan-500">Verdict Panel</span>
+                            <h3 className="text-slate-900 font-bold text-xs tracking-tight leading-relaxed">Evaluation Protocol</h3>
                         </div>
 
                         <button
@@ -301,7 +301,7 @@ const WiFiSentry = ({ onBack }) => {
                             className="w-full py-6 bg-emerald-600/10 border-2 border-emerald-500/20 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-2xl group-hover:scale-110 transition-transform">✓</span>
-                            <span className="font-black text-emerald-500 group-hover:text-white uppercase tracking-widest text-[10px]">Connect</span>
+                            <span className="font-black text-emerald-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Connect</span>
                         </button>
 
                         <button
@@ -310,7 +310,7 @@ const WiFiSentry = ({ onBack }) => {
                             className="w-full py-6 bg-amber-600/10 border-2 border-amber-500/20 rounded-2xl group hover:bg-amber-600 hover:border-amber-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-2xl group-hover:scale-110 transition-transform">🛡️</span>
-                            <span className="font-black text-amber-500 group-hover:text-white uppercase tracking-widest text-[10px]">Use VPN</span>
+                            <span className="font-black text-amber-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Use VPN</span>
                         </button>
 
                         <button
@@ -319,7 +319,7 @@ const WiFiSentry = ({ onBack }) => {
                             className="w-full py-6 bg-rose-600/10 border-2 border-rose-500/20 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-2xl group-hover:scale-110 transition-transform">✕</span>
-                            <span className="font-black text-rose-500 group-hover:text-white uppercase tracking-widest text-[10px]">Avoid</span>
+                            <span className="font-black text-rose-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Avoid</span>
                         </button>
                     </div>
 
@@ -331,29 +331,29 @@ const WiFiSentry = ({ onBack }) => {
                             <div className="flex gap-4">
                                 <span className="text-lg grayscale group-hover:grayscale-0">🔍</span>
                                 <div>
-                                    <h5 className="text-slate-400 font-black text-[9px] uppercase tracking-wider mb-1">Metadata Scan</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">Each SSID reveals intent. Look for typos, missing encryption (locks), or restricted labels.</p>
+                                    <h5 className="text-slate-500 font-black text-[9px] uppercase tracking-wider mb-1">Metadata Scan</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">Each SSID reveals intent. Look for typos, missing encryption (locks), or restricted labels.</p>
                                 </div>
                             </div>
                             <div className="flex gap-4">
                                 <span className="text-lg grayscale">📑</span>
                                 <div>
-                                    <h5 className="text-slate-400 font-black text-[9px] uppercase tracking-wider mb-1">Certificate Chain</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">Invalid certificates on infrastructure usually indicate a Man-in-the-Middle configuration.</p>
+                                    <h5 className="text-slate-500 font-black text-[9px] uppercase tracking-wider mb-1">Certificate Chain</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">Invalid certificates on infrastructure usually indicate a Man-in-the-Middle configuration.</p>
                                 </div>
                             </div>
                             <div className="flex gap-4">
                                 <span className="text-lg grayscale">🌐</span>
                                 <div>
-                                    <h5 className="text-slate-400 font-black text-[9px] uppercase tracking-wider mb-1">VPN Tunnelling</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">Public hotspots are vulnerabilities. Encapsulating traffic via VPN provides security.</p>
+                                    <h5 className="text-slate-500 font-black text-[9px] uppercase tracking-wider mb-1">VPN Tunnelling</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">Public hotspots are vulnerabilities. Encapsulating traffic via VPN provides security.</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="mt-8 pt-6 border-t border-slate-900">
                             <div className="p-4 bg-[#0a0a0a] rounded-xl border border-slate-900 text-center">
-                                <span className="text-[8px] text-slate-600 font-black uppercase tracking-widest block mb-1">Aegis Guidance</span>
+                                <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest block mb-1">Aegis Guidance</span>
                                 <p className="text-[8px] text-slate-500 italic leading-snug">"Infrastructure is only as secure as the user connecting to it."</p>
                             </div>
                         </div>
@@ -391,7 +391,7 @@ const WiFiSentry = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Protocol Complete — Infrastructure Audit</p>
                 </div>
 
@@ -402,8 +402,8 @@ const WiFiSentry = ({ onBack }) => {
                         { label: 'Time Taken', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Inspected', value: `${correctCount}/${NETWORKS.length}`, color: 'text-indigo-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -421,12 +421,12 @@ const WiFiSentry = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0">
                                     {item.network.ssid[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.network.ssid}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.network.ssid}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {item.network.securityType}
                                         </span>
@@ -437,14 +437,14 @@ const WiFiSentry = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.isCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Network Analysis</span>
-                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-cyan-500 pl-4 py-1">
+                                    <p className="text-xs text-slate-500 leading-relaxed italic border-l-2 border-cyan-500 pl-4 py-1">
                                         "{item.network.explanation}"
                                     </p>
                                     <div className="flex items-start gap-2 text-xs text-cyan-400/80 mt-3 font-mono">
@@ -462,10 +462,10 @@ const WiFiSentry = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={startGame} className="px-12 py-4 bg-cyan-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 transition-all hover:text-cyan-600 shadow-lg text-sm">
+                    <button onClick={startGame} className="px-12 py-4 bg-cyan-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 transition-all hover:text-cyan-600 shadow-lg text-sm">
                         RETRY SCAN
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO LAB
                     </button>
                 </div>

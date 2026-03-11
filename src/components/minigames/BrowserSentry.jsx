@@ -181,8 +181,8 @@ const BrowserSentry = ({ onBack }) => {
             <div className="w-24 h-24 bg-indigo-500/10 rounded-[2.5rem] flex items-center justify-center mb-8 border border-indigo-500/20 shadow-[0_0_50px_rgba(99,102,241,0.15)]">
                 <span className="text-5xl">🌐</span>
             </div>
-            <h2 className="text-5xl font-black text-white uppercase tracking-tighter mb-6 underline decoration-indigo-500 underline-offset-8 italic">Browser Sentry</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg font-mono">
+            <h2 className="text-5xl font-black text-slate-900 uppercase tracking-tighter mb-6 underline decoration-indigo-500 underline-offset-8 italic">Browser Sentry</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg font-mono">
                 [ AEGIS_WEB_SENTRY_V2.5 ]
                 <br /><br />
                 A simulation of modern browser threats.
@@ -190,10 +190,10 @@ const BrowserSentry = ({ onBack }) => {
                 Decide: Enter Credentials or Exit Page.
             </p>
             <div className="flex gap-4">
-                <button onClick={onBack} className="px-10 py-4 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs border border-slate-800 active:scale-95">
+                <button onClick={onBack} className="px-10 py-4 bg-white hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black rounded-2xl transition-all uppercase tracking-[0.2em] text-xs border border-slate-200 active:scale-95">
                     ABORT
                 </button>
-                <button onClick={startGame} className="px-14 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all uppercase tracking-[0.2em] text-xs border border-indigo-400 active:scale-95">
+                <button onClick={startGame} className="px-14 py-4 bg-indigo-600 hover:bg-indigo-500 text-slate-900 font-black rounded-2xl shadow-[0_0_30px_rgba(99,102,241,0.3)] transition-all uppercase tracking-[0.2em] text-xs border border-indigo-400 active:scale-95">
                     INITIALIZE BROWSER
                 </button>
             </div>
@@ -207,19 +207,19 @@ const BrowserSentry = ({ onBack }) => {
                     <div className="flex flex-col items-center justify-center h-full p-8 bg-gray-50">
                         <div className="w-full max-w-sm bg-white p-10 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.05)] border border-gray-100">
                             <div className="text-3xl font-black text-[#1a237e] mb-10 flex items-center gap-3">
-                                <div className="w-10 h-10 bg-[#1a237e] rounded-xl flex items-center justify-center text-white text-xl">🏦</div>
+                                <div className="w-10 h-10 bg-[#1a237e] rounded-xl flex items-center justify-center text-slate-900 text-xl">🏦</div>
                                 <span className="tracking-tighter">GlobalFinance</span>
                             </div>
                             <div className="space-y-5">
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Client Identifier</label>
-                                    <div className="h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 flex items-center text-slate-300 text-sm italic">Enter user ID...</div>
+                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Client Identifier</label>
+                                    <div className="h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 flex items-center text-slate-400 text-sm italic">Enter user ID...</div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Secret PIN</label>
-                                    <div className="h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 flex items-center text-slate-300 text-sm tracking-widest">••••••••</div>
+                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Secret PIN</label>
+                                    <div className="h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 flex items-center text-slate-400 text-sm tracking-widest">••••••••</div>
                                 </div>
-                                <button className="w-full h-14 bg-[#1a237e] hover:bg-[#0d1642] text-white font-black rounded-xl mt-4 text-xs tracking-[0.2em] transition-all shadow-lg shadow-blue-900/10">SECURE ACCESS</button>
+                                <button className="w-full h-14 bg-[#1a237e] hover:bg-[#0d1642] text-slate-900 font-black rounded-xl mt-4 text-xs tracking-[0.2em] transition-all shadow-lg shadow-blue-900/10">SECURE ACCESS</button>
                             </div>
                             <div className="mt-8 pt-6 border-t border-gray-100 flex justify-between text-[9px] font-black text-blue-600 uppercase tracking-widest">
                                 <span className="hover:underline cursor-pointer">Recover Access</span>
@@ -234,19 +234,19 @@ const BrowserSentry = ({ onBack }) => {
                         <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                             <div className="hidden md:block">
                                 <h1 className="text-5xl font-black text-[#1877f2] mb-4 tracking-tighter">SocialConnect</h1>
-                                <p className="text-2xl text-slate-700 leading-snug">Connect with friends and the world around you on SocialConnect.</p>
+                                <p className="text-2xl text-slate-500 leading-snug">Connect with friends and the world around you on SocialConnect.</p>
                             </div>
                             <div className="w-full max-w-[400px] bg-white p-6 rounded-xl shadow-[0_2px_4px_rgba(0,0,0,0.1),0_8px_16px_rgba(0,0,0,0.1)] border border-gray-200 mx-auto">
                                 <div className="space-y-4">
                                     <div className="h-12 bg-white border border-gray-200 rounded-lg px-4 flex items-center text-gray-400 text-sm shadow-sm">Email or phone number</div>
                                     <div className="h-12 bg-white border border-gray-200 rounded-lg px-4 flex items-center text-gray-400 text-sm shadow-sm">Password</div>
-                                    <button className="w-full h-12 bg-[#1877f2] text-white font-black rounded-lg text-lg tracking-tight active:scale-[0.98] transition-all">Log In</button>
+                                    <button className="w-full h-12 bg-[#1877f2] text-slate-900 font-black rounded-lg text-lg tracking-tight active:scale-[0.98] transition-all">Log In</button>
                                 </div>
                                 <div className="mt-4 text-center border-b border-gray-200 pb-6">
                                     <span className="text-[#1877f2] text-[12px] hover:underline cursor-pointer">Forgotten password?</span>
                                 </div>
                                 <div className="mt-6 flex justify-center">
-                                    <button className="px-6 h-12 bg-[#42b72a] text-white font-black rounded-lg text-sm border-none shadow-md">Create new account</button>
+                                    <button className="px-6 h-12 bg-[#42b72a] text-slate-900 font-black rounded-lg text-sm border-none shadow-md">Create new account</button>
                                 </div>
                             </div>
                         </div>
@@ -254,7 +254,7 @@ const BrowserSentry = ({ onBack }) => {
                 );
             case 'crypto':
                 return (
-                    <div className="flex flex-col h-full bg-[#0d1117] text-white">
+                    <div className="flex flex-col h-full bg-[#0d1117] text-slate-900">
                         <div className="h-16 w-full border-b border-white/10 flex items-center px-8 justify-between">
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center font-black">E</div>
@@ -267,18 +267,18 @@ const BrowserSentry = ({ onBack }) => {
                                 <h2 className="text-xl font-black mb-2 flex items-center gap-2 text-orange-400">
                                     <span>🔑</span> Re-Verify Ownership
                                 </h2>
-                                <p className="text-[11px] text-slate-400 mb-6 leading-relaxed">Due to network upgrades, please re-input your recovery phrase to synchronize your local EtherPulse nodes.</p>
+                                <p className="text-[11px] text-slate-500 mb-6 leading-relaxed">Due to network upgrades, please re-input your recovery phrase to synchronize your local EtherPulse nodes.</p>
 
                                 <div className="grid grid-cols-3 gap-3 mb-6">
                                     {[...Array(12)].map((_, i) => (
                                         <div key={i} className="flex flex-col gap-1">
-                                            <span className="text-[8px] text-slate-600 font-bold uppercase">{i + 1}</span>
+                                            <span className="text-[8px] text-slate-400 font-bold uppercase">{i + 1}</span>
                                             <div className="h-8 bg-black/40 border border-white/5 rounded-lg"></div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <button className="w-full h-12 bg-white text-black font-black rounded-xl text-xs uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">SYNCHRONIZE_WALLET</button>
+                                <button className="w-full h-12 bg-white text-black font-black rounded-xl text-xs uppercase tracking-widest hover:bg-orange-500 hover:text-slate-900 transition-all">SYNCHRONIZE_WALLET</button>
                                 <p className="text-center mt-4 text-[9px] text-rose-400 font-bold italic animate-pulse">CRITICAL: Syncing required for transaction access.</p>
                             </div>
                         </div>
@@ -295,17 +295,17 @@ const BrowserSentry = ({ onBack }) => {
                                     <div className="bg-[#00a4ef]"></div>
                                     <div className="bg-[#ffb900]"></div>
                                 </div>
-                                <span className="text-xl font-bold text-slate-600 font-sans">Microsoft</span>
+                                <span className="text-xl font-bold text-slate-400 font-sans">Microsoft</span>
                             </div>
                             <h2 className="text-2xl font-bold text-slate-900 mb-4">Sign in</h2>
                             <div className="space-y-4">
                                 <div className="h-9 border-b border-slate-900 flex items-center text-sm text-slate-500">someone@example.com</div>
                                 <div className="flex gap-2 py-4">
-                                    <span className="text-xs text-slate-600">No account?</span>
+                                    <span className="text-xs text-slate-400">No account?</span>
                                     <span className="text-xs text-[#0067b8] hover:underline cursor-pointer">Create one!</span>
                                 </div>
                                 <div className="flex justify-end pt-4">
-                                    <button className="px-10 py-2 bg-[#0067b8] text-white font-bold text-sm">Next</button>
+                                    <button className="px-10 py-2 bg-[#0067b8] text-slate-900 font-bold text-sm">Next</button>
                                 </div>
                             </div>
                         </div>
@@ -315,7 +315,7 @@ const BrowserSentry = ({ onBack }) => {
                 return (
                     <div className="flex flex-col h-full bg-white">
                         <div className="h-16 w-full px-10 border-b border-gray-100 flex items-center gap-3">
-                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white text-xl">☁️</div>
+                            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-slate-900 text-xl">☁️</div>
                             <span className="text-xl font-black text-slate-900 tracking-tighter">CloudDrop</span>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center p-10 bg-slate-50">
@@ -332,14 +332,14 @@ const BrowserSentry = ({ onBack }) => {
                                         <div className="h-10 bg-white border border-gray-300 rounded-xl px-4 flex items-center text-gray-400 text-[10px]">Portal Password</div>
                                     </div>
                                 </div>
-                                <button className="w-full h-12 bg-blue-600 text-white font-black rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-all">VIEW PROTECTED FILE</button>
+                                <button className="w-full h-12 bg-blue-600 text-slate-900 font-black rounded-xl text-xs uppercase tracking-widest active:scale-95 transition-all">VIEW PROTECTED FILE</button>
                             </div>
                         </div>
                     </div>
                 );
             case 'streaming':
                 return (
-                    <div className="flex flex-col h-full bg-black text-white">
+                    <div className="flex flex-col h-full bg-black text-slate-900">
                         <div className="h-20 px-12 items-center flex justify-between fixed top-0 w-full bg-gradient-to-b from-black/80 to-transparent z-10">
                             <span className="text-3xl font-black text-red-600 tracking-tighter">PRIME STREAM</span>
                             <div className="px-6 py-2 bg-red-600 rounded text-xs font-black uppercase tracking-widest">Sign In</div>
@@ -349,13 +349,13 @@ const BrowserSentry = ({ onBack }) => {
                             <div className="w-full max-w-xl bg-black/60 p-16 rounded shadow-2xl relative z-10 border border-white/5">
                                 <h1 className="text-4xl font-black mb-8">Subscription Update</h1>
                                 <div className="space-y-6">
-                                    <p className="text-slate-300 leading-relaxed mb-6">Your payment method for <span className="text-white font-bold underline decoration-red-600">Premium Plan</span> could not be processed. Please update your details to continue streaming.</p>
+                                    <p className="text-slate-400 leading-relaxed mb-6">Your payment method for <span className="text-slate-900 font-bold underline decoration-red-600">Premium Plan</span> could not be processed. Please update your details to continue streaming.</p>
                                     <div className="grid grid-cols-1 gap-4">
-                                        <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-400 font-bold text-xs uppercase tracking-widest">Cardholder Name</div>
-                                        <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-400 font-bold text-xs uppercase tracking-widest">6 XXXX XXXX XXXX 0123</div>
+                                        <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-500 font-bold text-xs uppercase tracking-widest">Cardholder Name</div>
+                                        <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-500 font-bold text-xs uppercase tracking-widest">6 XXXX XXXX XXXX 0123</div>
                                         <div className="grid grid-cols-2 gap-4">
-                                            <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-400 font-bold text-xs uppercase tracking-widest">MM/YY</div>
-                                            <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-400 font-bold text-xs uppercase tracking-widest">CVV</div>
+                                            <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-500 font-bold text-xs uppercase tracking-widest">MM/YY</div>
+                                            <div className="h-14 bg-[#333] rounded px-4 flex items-center text-slate-500 font-bold text-xs uppercase tracking-widest">CVV</div>
                                         </div>
                                     </div>
                                     <button className="w-full h-16 bg-red-600 hover:bg-red-700 font-black rounded text-lg uppercase tracking-widest mt-6 transition-colors">UPDATE_PROTOCOL</button>
@@ -370,7 +370,7 @@ const BrowserSentry = ({ onBack }) => {
                         <div className="h-2 w-full bg-[#1e40af]"></div>
                         <div className="p-8 border-b border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-6">
-                                <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center text-white text-4xl">🏛️</div>
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-900 text-4xl">🏛️</div>
                                 <div>
                                     <h1 className="text-2xl font-black text-slate-900 uppercase">National Revenue Agency</h1>
                                     <p className="text-[10px] text-slate-500 font-black tracking-[0.3em] uppercase">Security Verification Protocol</p>
@@ -378,26 +378,26 @@ const BrowserSentry = ({ onBack }) => {
                             </div>
                             <div className="text-right">
                                 <span className="text-[10px] font-black uppercase text-rose-600 block mb-1">Status: Action Required</span>
-                                <span className="text-sm font-mono text-slate-400">REF-92384-NRA</span>
+                                <span className="text-sm font-mono text-slate-500">REF-92384-NRA</span>
                             </div>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center p-12 bg-slate-50">
                             <div className="w-full max-w-2xl bg-white p-12 rounded-lg border border-gray-200 shadow-sm">
                                 <h2 className="text-3xl font-black text-slate-900 mb-6 uppercase italic">Tax Refund: $1,240.45</h2>
-                                <p className="text-slate-600 mb-10 leading-relaxed text-lg border-l-4 border-blue-600 pl-6 py-2">Our records indicate a surplus in your 2025 contributions. To finalize your refund via instant wire transfer, please confirm your active credentials.</p>
+                                <p className="text-slate-400 mb-10 leading-relaxed text-lg border-l-4 border-blue-600 pl-6 py-2">Our records indicate a surplus in your 2025 contributions. To finalize your refund via instant wire transfer, please confirm your active credentials.</p>
 
                                 <div className="grid grid-cols-2 gap-10">
                                     <div className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Verification ID</label>
-                                        <div className="h-12 bg-slate-50 border border-slate-200 rounded flex items-center px-4 italic text-sm text-slate-300">Login username...</div>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Verification ID</label>
+                                        <div className="h-12 bg-slate-50 border border-slate-200 rounded flex items-center px-4 italic text-sm text-slate-400">Login username...</div>
                                     </div>
                                     <div className="space-y-4">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Security Key</label>
-                                        <div className="h-12 bg-slate-50 border border-slate-200 rounded flex items-center px-4 italic text-sm text-slate-300">••••••••</div>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Security Key</label>
+                                        <div className="h-12 bg-slate-50 border border-slate-200 rounded flex items-center px-4 italic text-sm text-slate-400">••••••••</div>
                                     </div>
                                 </div>
-                                <button className="w-full h-16 bg-[#1e40af] text-white font-black uppercase tracking-[0.4em] mt-10 text-xs shadow-xl shadow-blue-900/10 active:scale-95 transition-all hover:bg-blue-800">DISPATCH_REFUND_SIGNAL</button>
-                                <p className="text-center mt-6 text-[10px] text-slate-400 uppercase tracking-widest font-black">Encrypted via S-Protocol 256</p>
+                                <button className="w-full h-16 bg-[#1e40af] text-slate-900 font-black uppercase tracking-[0.4em] mt-10 text-xs shadow-xl shadow-blue-900/10 active:scale-95 transition-all hover:bg-blue-800">DISPATCH_REFUND_SIGNAL</button>
+                                <p className="text-center mt-6 text-[10px] text-slate-500 uppercase tracking-widest font-black">Encrypted via S-Protocol 256</p>
                             </div>
                         </div>
                     </div>
@@ -409,7 +409,7 @@ const BrowserSentry = ({ onBack }) => {
                     <div className="flex flex-col items-center justify-center h-full bg-slate-100">
                         <div className="w-full max-w-md bg-white p-10 rounded-lg shadow-sm border border-slate-200">
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="w-12 h-12 bg-slate-900 rounded flex items-center justify-center text-white font-black text-xl">C</div>
+                                <div className="w-12 h-12 bg-white rounded flex items-center justify-center text-slate-900 font-black text-xl">C</div>
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-900 uppercase">CoreSystems Internal</h2>
                                     <p className="text-[10px] text-slate-500 font-mono">AUTHORIZED ACCESS ONLY</p>
@@ -420,14 +420,14 @@ const BrowserSentry = ({ onBack }) => {
                                     You are attempting to access a secured corporate subnet. Credentials must be re-verified.
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee ID</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Employee ID</label>
                                     <div className="h-12 bg-slate-50 border border-slate-200 rounded px-4 flex items-center"></div>
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SSO Key</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">SSO Key</label>
                                     <div className="h-12 bg-slate-50 border border-slate-200 rounded px-4 flex items-center"></div>
                                 </div>
-                                <button className="w-full h-12 bg-slate-900 text-white font-black rounded uppercase tracking-widest text-xs">Verify & Enter</button>
+                                <button className="w-full h-12 bg-white text-slate-900 font-black rounded uppercase tracking-widest text-xs">Verify & Enter</button>
                             </div>
                         </div>
                     </div>
@@ -441,20 +441,20 @@ const BrowserSentry = ({ onBack }) => {
                         <div className="flex-1 flex flex-col items-center justify-center p-10">
                             <div className="w-full max-w-sm text-center">
                                 <h1 className="text-2xl font-bold mb-2">Account Recovery</h1>
-                                <p className="text-sm text-slate-600 mb-8">Confirm your credentials to keep your account safe from unauthorized changes.</p>
+                                <p className="text-sm text-slate-400 mb-8">Confirm your credentials to keep your account safe from unauthorized changes.</p>
                                 <div className="text-left space-y-4">
                                     <div className="border-2 border-blue-500 rounded-xl p-4 flex items-center gap-4 bg-blue-50/30">
                                         <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">👤</div>
                                         <div className="flex-1">
                                             <p className="text-sm font-black text-slate-900">user@official-mail.com</p>
-                                            <p className="text-[10px] text-slate-400 uppercase font-black">Primary Profile</p>
+                                            <p className="text-[10px] text-slate-500 uppercase font-black">Primary Profile</p>
                                         </div>
                                     </div>
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password Verification</label>
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Password Verification</label>
                                         <div className="h-14 border border-gray-300 rounded-xl px-4 flex items-center text-gray-300 italic text-sm">••••••••••••••••</div>
                                     </div>
-                                    <button className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl mt-4 tracking-widest text-xs">COMMIT UPDATES</button>
+                                    <button className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-slate-900 font-black rounded-xl mt-4 tracking-widest text-xs">COMMIT UPDATES</button>
                                 </div>
                             </div>
                         </div>
@@ -465,7 +465,7 @@ const BrowserSentry = ({ onBack }) => {
                     <div className="flex flex-col h-full bg-white font-sans">
                         <div className="h-20 w-full border-b border-gray-100 flex items-center px-12 justify-between">
                             <span className="text-2xl font-black text-red-600 italic tracking-tighter">MEGA_DEALS</span>
-                            <div className="flex gap-10 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <div className="flex gap-10 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                 <span className="text-slate-900 underline decoration-red-600 decoration-2 underline-offset-4 pointer">SALE</span>
                                 <span className="hover:text-slate-900 cursor-pointer">Electronics</span>
                                 <span className="hover:text-slate-900 cursor-pointer">Clothing</span>
@@ -477,30 +477,30 @@ const BrowserSentry = ({ onBack }) => {
                                 <h2 className="text-4xl font-black text-slate-900 uppercase italic tracking-tighter decoration-red-600 underline decoration-4 underline-offset-8">Checkout Sequence</h2>
                                 <div className="grid grid-cols-2 gap-10">
                                     <div className="space-y-6">
-                                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                            <span className="w-4 h-4 bg-slate-900 rounded-full text-[10px] text-white flex items-center justify-center">1</span> Shipping Protocol
+                                        <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <span className="w-4 h-4 bg-white rounded-full text-[10px] text-slate-900 flex items-center justify-center">1</span> Shipping Protocol
                                         </h3>
-                                        <div className="h-12 bg-white rounded-xl border border-gray-200 px-4 flex items-center italic text-slate-300 text-xs shadow-sm">Street Address</div>
-                                        <div className="h-12 bg-white rounded-xl border border-gray-200 px-4 flex items-center italic text-slate-300 text-xs shadow-sm">City / Zip Code</div>
+                                        <div className="h-12 bg-white rounded-xl border border-gray-200 px-4 flex items-center italic text-slate-400 text-xs shadow-sm">Street Address</div>
+                                        <div className="h-12 bg-white rounded-xl border border-gray-200 px-4 flex items-center italic text-slate-400 text-xs shadow-sm">City / Zip Code</div>
                                     </div>
                                     <div className="space-y-6">
-                                        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                            <span className="w-4 h-4 bg-slate-900 rounded-full text-[10px] text-white flex items-center justify-center">2</span> Payment Matrix
+                                        <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <span className="w-4 h-4 bg-white rounded-full text-[10px] text-slate-900 flex items-center justify-center">2</span> Payment Matrix
                                         </h3>
-                                        <div className="h-12 bg-white border border-gray-200 rounded-xl px-4 flex items-center text-xs text-slate-300 italic shadow-sm">Card Primary Number</div>
+                                        <div className="h-12 bg-white border border-gray-200 rounded-xl px-4 flex items-center text-xs text-slate-400 italic shadow-sm">Card Primary Number</div>
                                         <div className="h-12 bg-rose-50 border-2 border-rose-500/20 rounded-xl px-4 flex items-center text-[9px] text-rose-600 font-black uppercase tracking-widest shadow-inner">IDENTITY: SOCIAL SECURITY NUMBER (REQUIRED)</div>
                                     </div>
                                 </div>
                             </div>
                             <div className="w-72 bg-white p-8 rounded-[2.5rem] border border-gray-100 h-fit shadow-2xl">
-                                <h3 className="text-[10px] font-black mb-6 uppercase tracking-widest text-slate-400 border-b border-gray-100 pb-4">Order_Manifest</h3>
+                                <h3 className="text-[10px] font-black mb-6 uppercase tracking-widest text-slate-500 border-b border-gray-100 pb-4">Order_Manifest</h3>
                                 <div className="space-y-4 mb-8">
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600">Pro Gamer Headset</span>
+                                        <span className="text-slate-400">Pro Gamer Headset</span>
                                         <span className="font-black">$0.01</span>
                                     </div>
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-slate-600">Shipping</span>
+                                        <span className="text-slate-400">Shipping</span>
                                         <span className="font-black text-emerald-500">FREE</span>
                                     </div>
                                 </div>
@@ -508,7 +508,7 @@ const BrowserSentry = ({ onBack }) => {
                                     <span>TOTAL</span>
                                     <span>$0.01</span>
                                 </div>
-                                <button className="w-full py-4 bg-red-600 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-red-600/20 active:scale-95 transition-all">AUTHORIZE_PAYMENT</button>
+                                <button className="w-full py-4 bg-red-600 text-slate-900 font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg shadow-red-600/20 active:scale-95 transition-all">AUTHORIZE_PAYMENT</button>
                             </div>
                         </div>
                     </div>
@@ -518,15 +518,15 @@ const BrowserSentry = ({ onBack }) => {
     };
 
     const renderPlaying = () => (
-        <div className="w-screen h-screen flex flex-col animate-fade-in font-sans bg-slate-950 overflow-hidden">
+        <div className="w-screen h-screen flex flex-col animate-fade-in font-sans bg-slate-50 overflow-hidden">
             {/* Top Navigation Bar (Status) */}
-            <div className="shrink-0 w-full bg-black/60 border-b border-slate-800 px-8 py-3 flex items-center justify-between z-50 backdrop-blur-md">
+            <div className="shrink-0 w-full bg-black/60 border-b border-slate-200 px-8 py-3 flex items-center justify-between z-50 backdrop-blur-md">
                 <div className="flex items-center gap-8">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">WEBSITES</span>
-                        <span className="text-sm font-bold text-white">{currentIndex + 1} / {WEBSITES.length}</span>
+                        <span className="text-sm font-bold text-slate-900">{currentIndex + 1} / {WEBSITES.length}</span>
                     </div>
-                    <div className="w-px h-6 bg-slate-800" />
+                    <div className="w-px h-6 bg-slate-200" />
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">ELAPSED</span>
                         <span className="text-sm font-bold text-indigo-400 font-mono tracking-tighter">{formatTime(elapsed)}</span>
@@ -559,9 +559,9 @@ const BrowserSentry = ({ onBack }) => {
                         {/* Browser Chrome: Address Bar */}
                         <div className="h-12 w-full bg-[#1a1c1e] border-b border-black/80 flex items-center px-4 gap-4">
                             <div className="flex gap-4 text-gray-500">
-                                <span className="hover:text-white cursor-pointer transition-colors">←</span>
-                                <span className="hover:text-white cursor-pointer transition-colors">→</span>
-                                <span className="hover:text-white cursor-pointer transition-colors">↻</span>
+                                <span className="hover:text-slate-900 cursor-pointer transition-colors">←</span>
+                                <span className="hover:text-slate-900 cursor-pointer transition-colors">→</span>
+                                <span className="hover:text-slate-900 cursor-pointer transition-colors">↻</span>
                             </div>
                             <div className={`flex-1 h-8 rounded-full border px-4 flex items-center gap-3 transition-all duration-300 shadow-inner
                                 ${currentSite.isSecure
@@ -575,7 +575,7 @@ const BrowserSentry = ({ onBack }) => {
                                 )}
 
                                 <span className="text-xs font-mono tracking-tight flex-1">
-                                    {currentSite.url.split('//')[0]}//<span className="text-white font-bold">{currentSite.url.split('//')[1]}</span>
+                                    {currentSite.url.split('//')[0]}//<span className="text-slate-900 font-bold">{currentSite.url.split('//')[1]}</span>
                                 </span>
                             </div>
                             <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs text-gray-500">★</div>
@@ -587,26 +587,26 @@ const BrowserSentry = ({ onBack }) => {
 
                             {/* Cert Error Overlay */}
                             {currentSite.hasCertError && (
-                                <div className="absolute inset-0 z-[60] bg-[#1a1c1e] flex flex-col items-center justify-center p-20 text-white animate-fade-in text-center">
+                                <div className="absolute inset-0 z-[60] bg-[#1a1c1e] flex flex-col items-center justify-center p-20 text-slate-900 animate-fade-in text-center">
                                     <div className="max-w-xl flex flex-col items-center">
                                         <div className="w-24 h-24 bg-rose-500/10 rounded-[2rem] flex items-center justify-center mb-8 border border-rose-500/20 animate-pulse">
                                             <span className="text-5xl">⚠️</span>
                                         </div>
                                         <h2 className="text-4xl font-black uppercase mb-4 tracking-tighter decoration-rose-500 underline underline-offset-8 decoration-4 italic">Privacy Intercepted</h2>
-                                        <p className="text-slate-400 text-lg leading-relaxed mb-10 opacity-80">
+                                        <p className="text-slate-500 text-lg leading-relaxed mb-10 opacity-80">
                                             {currentSite.certWarning}
                                         </p>
                                         <div className="flex flex-col items-center gap-6">
                                             <div className="flex gap-4">
                                                 <button
                                                     onClick={() => handleAction('exit')}
-                                                    className="px-12 py-4 bg-rose-600 hover:bg-rose-500 text-white font-black rounded-xl uppercase tracking-[0.2em] text-xs transition-all active:scale-95 shadow-xl shadow-rose-900/20"
+                                                    className="px-12 py-4 bg-rose-600 hover:bg-rose-500 text-slate-900 font-black rounded-xl uppercase tracking-[0.2em] text-xs transition-all active:scale-95 shadow-xl shadow-rose-900/20"
                                                 >
                                                     TERMINATE CONNECTION
                                                 </button>
                                                 <button
                                                     onClick={() => setShowAdvanced(!showAdvanced)}
-                                                    className={`px-10 py-4 rounded-xl uppercase tracking-[0.2em] text-[10px] transition-all border ${showAdvanced ? 'bg-white/10 border-white/20 text-white' : 'bg-white/5 border-transparent text-slate-500 hover:bg-white/10'}`}
+                                                    className={`px-10 py-4 rounded-xl uppercase tracking-[0.2em] text-[10px] transition-all border ${showAdvanced ? 'bg-white/10 border-white/20 text-slate-900' : 'bg-white/5 border-transparent text-slate-500 hover:bg-white/10'}`}
                                                 >
                                                     Advanced Logic
                                                 </button>
@@ -632,9 +632,9 @@ const BrowserSentry = ({ onBack }) => {
 
                             {/* Feedback Overlay */}
                             {feedback && (
-                                <div className={`absolute inset-0 z-[100] flex flex-col items-center justify-center backdrop-blur-md transition-all duration-300 ${feedback === 'correct' ? 'bg-emerald-500/10' : 'bg-rose-500/10'}`}>
-                                    <div className="p-12 rounded-[3.5rem] bg-slate-900 border border-white/10 shadow-2xl flex flex-col items-center text-center scale-110 shadow-[0_0_100px_rgba(0,0,0,1)]">
-                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 text-4xl border ${feedback === 'correct' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)]' : 'bg-rose-500/10 border-rose-500/30 text-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)]'}`}>
+                                <div className={`absolute inset-0 z-[100] flex flex-col items-center justify-center backdrop-blur-md transition-all duration-300 ${feedback === 'correct' ? 'bg-emerald-500/15' : 'bg-rose-500/10'}`}>
+                                    <div className="p-12 rounded-[3.5rem] bg-white border border-white/10 shadow-2xl flex flex-col items-center text-center scale-110 shadow-[0_0_100px_rgba(0,0,0,1)]">
+                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 text-4xl border ${feedback === 'correct' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.2)]' : 'bg-rose-500/10 border-rose-500/30 text-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.2)]'}`}>
                                             {feedback === 'correct' ? '✓' : '✗'}
                                         </div>
                                         <h4 className={`text-3xl font-black uppercase tracking-tighter italic ${feedback === 'correct' ? 'text-emerald-500' : 'text-rose-500'}`}>
@@ -653,8 +653,8 @@ const BrowserSentry = ({ onBack }) => {
                     {/* Verdict Controls */}
                     <div className="flex-1 flex flex-col p-8 justify-center gap-4 border-b border-slate-900">
                         <div className="text-center mb-6">
-                            <span className="text-[10px] text-slate-600 uppercase font-black tracking-widest block mb-2 underline decoration-indigo-500">Judgment Module</span>
-                            <h3 className="text-white font-bold text-xs tracking-tight leading-relaxed">Identity Protection Protocol</h3>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2 underline decoration-indigo-500">Judgment Module</span>
+                            <h3 className="text-slate-900 font-bold text-xs tracking-tight leading-relaxed">Identity Protection Protocol</h3>
                         </div>
 
                         <button
@@ -663,7 +663,7 @@ const BrowserSentry = ({ onBack }) => {
                             className="w-full py-6 bg-emerald-600/10 border-2 border-emerald-500/20 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-5 active:scale-95"
                         >
                             <span className="text-3xl group-hover:scale-110 transition-transform">🔑</span>
-                            <span className="font-black text-emerald-500 group-hover:text-white uppercase tracking-widest text-[10px]">Enter Credentials</span>
+                            <span className="font-black text-emerald-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Enter Credentials</span>
                         </button>
 
                         <button
@@ -672,7 +672,7 @@ const BrowserSentry = ({ onBack }) => {
                             className="w-full py-6 bg-rose-600/10 border-2 border-rose-500/20 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-3xl group-hover:scale-110 transition-transform">🚪</span>
-                            <span className="font-black text-rose-500 group-hover:text-white uppercase tracking-widest text-[10px]">Exit Page</span>
+                            <span className="font-black text-rose-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Exit Page</span>
                         </button>
                     </div>
 
@@ -684,29 +684,29 @@ const BrowserSentry = ({ onBack }) => {
                             <div className="flex gap-4 group">
                                 <span className="text-xl grayscale group-hover:grayscale-0 transition-all">🔍</span>
                                 <div>
-                                    <h5 className="text-slate-200 font-black text-[9px] uppercase tracking-wider mb-1">Check URL</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">Each SSID reveals intent. Look for typos, homographs, or suspicious subdomains in the address bar.</p>
+                                    <h5 className="text-slate-600 font-black text-[9px] uppercase tracking-wider mb-1">Check URL</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">Each SSID reveals intent. Look for typos, homographs, or suspicious subdomains in the address bar.</p>
                                 </div>
                             </div>
                             <div className="flex gap-4 group">
                                 <span className="text-xl grayscale group-hover:grayscale-0 transition-all text-emerald-500">🔒</span>
                                 <div>
-                                    <h5 className="text-slate-200 font-black text-[9px] uppercase tracking-wider mb-1">SSL lock icon</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">The padlock indicates an encrypted connection. Lack of it is a significant red flag for input forms.</p>
+                                    <h5 className="text-slate-600 font-black text-[9px] uppercase tracking-wider mb-1">SSL lock icon</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">The padlock indicates an encrypted connection. Lack of it is a significant red flag for input forms.</p>
                                 </div>
                             </div>
                             <div className="flex gap-4 group">
                                 <span className="text-xl grayscale group-hover:grayscale-0 transition-all text-rose-500">📑</span>
                                 <div>
-                                    <h5 className="text-slate-200 font-black text-[9px] uppercase tracking-wider mb-1">Certificate warning</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">A certificate chain error on a public page typically indicates a hostile intercept attempt.</p>
+                                    <h5 className="text-slate-600 font-black text-[9px] uppercase tracking-wider mb-1">Certificate warning</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">A certificate chain error on a public page typically indicates a hostile intercept attempt.</p>
                                 </div>
                             </div>
                             <div className="flex gap-4 group">
                                 <span className="text-xl grayscale group-hover:grayscale-0 transition-all text-indigo-400">💳</span>
                                 <div>
-                                    <h5 className="text-slate-200 font-black text-[9px] uppercase tracking-wider mb-1">Payment form layout</h5>
-                                    <p className="text-slate-600 text-[8px] leading-relaxed">Legitimate sites don't usually ask for SSN or excessive data on a standard payment form.</p>
+                                    <h5 className="text-slate-600 font-black text-[9px] uppercase tracking-wider mb-1">Payment form layout</h5>
+                                    <p className="text-slate-400 text-[8px] leading-relaxed">Legitimate sites don't usually ask for SSN or excessive data on a standard payment form.</p>
                                 </div>
                             </div>
                         </div>
@@ -749,7 +749,7 @@ const BrowserSentry = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Session Complete — Infrastructure Audit</p>
                 </div>
 
@@ -760,8 +760,8 @@ const BrowserSentry = ({ onBack }) => {
                         { label: 'Time Taken', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Secured', value: `${correctCount}/${WEBSITES.length}`, color: 'text-cyan-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -779,12 +779,12 @@ const BrowserSentry = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0">
                                     {item.site.title[0]}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.site.title}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.site.title}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.isCorrect ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {item.site.correctAction === 'enter' ? 'LEGIT' : 'THREAT'}
                                         </span>
@@ -795,14 +795,14 @@ const BrowserSentry = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.isCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Forensic Analysis</span>
-                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-indigo-500 pl-4 py-1">
+                                    <p className="text-xs text-slate-500 leading-relaxed italic border-l-2 border-indigo-500 pl-4 py-1">
                                         "{item.site.explanation}"
                                     </p>
                                     <div className="flex items-start gap-2 text-xs text-indigo-400/80 mt-3 font-mono">
@@ -816,10 +816,10 @@ const BrowserSentry = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={startGame} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 transition-all hover:text-indigo-600 shadow-lg text-sm">
+                    <button onClick={startGame} className="px-12 py-4 bg-indigo-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 transition-all hover:text-indigo-600 shadow-lg text-sm">
                         RETRY AUDIT
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO LAB
                     </button>
                 </div>

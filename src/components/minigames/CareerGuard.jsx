@@ -113,13 +113,13 @@ const StatusBar = () => (
         </div>
         <div className="flex gap-1.5 items-center">
             <div className="flex items-center gap-1 mr-1">
-                <div className="w-4 h-4 rounded-full bg-slate-900/10 flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 bg-slate-900 rounded-full animate-pulse"></div>
+                <div className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
                 </div>
                 <div className="w-3 h-3 flex items-end gap-[1px]">
-                    <div className="w-[2px] h-1 bg-slate-900 rounded-full"></div>
-                    <div className="w-[2px] h-2 bg-slate-900 rounded-full"></div>
-                    <div className="w-[2px] h-3 bg-slate-900 rounded-full"></div>
+                    <div className="w-[2px] h-1 bg-white rounded-full"></div>
+                    <div className="w-[2px] h-2 bg-white rounded-full"></div>
+                    <div className="w-[2px] h-3 bg-white rounded-full"></div>
                 </div>
             </div>
             <div className="w-6 h-3 border border-current rounded-sm flex items-center p-0.5 relative">
@@ -185,8 +185,8 @@ const CareerGuard = ({ onBack }) => {
                 <div className="absolute inset-0 bg-indigo-500/5 rounded-full animate-ping opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <span className="text-5xl">👔</span>
             </div>
-            <h2 className="text-4xl font-black text-white uppercase tracking-tighter mb-6 underline decoration-indigo-500 underline-offset-8">Career Guard</h2>
-            <p className="text-slate-400 leading-relaxed mb-10 text-lg font-mono">
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-6 underline decoration-indigo-500 underline-offset-8">Career Guard</h2>
+            <p className="text-slate-500 leading-relaxed mb-10 text-lg font-mono">
                 [ SCANNING_COMMUNICATIONS ]
                 <br /><br />
                 LinkedIn is the new hunting ground for data harvesters.
@@ -195,10 +195,10 @@ const CareerGuard = ({ onBack }) => {
                 <span className="text-emerald-400 font-bold uppercase tracking-widest">[ OPPORTUNITY ]</span> or <span className="text-red-400 font-bold uppercase tracking-widest">[ SCAM ]</span>.
             </p>
             <div className="flex gap-4 font-sans">
-                <button onClick={onBack} className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg transition-all uppercase tracking-widest text-xs border border-slate-700 active:scale-95">
+                <button onClick={onBack} className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-slate-900 font-bold rounded-lg transition-all uppercase tracking-widest text-xs border border-slate-300 active:scale-95">
                     Abort
                 </button>
-                <button onClick={() => setGameState('playing')} className="px-12 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-lg shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all uppercase tracking-widest text-sm border border-indigo-400 active:scale-95">
+                <button onClick={() => setGameState('playing')} className="px-12 py-3 bg-indigo-600 hover:bg-indigo-500 text-slate-900 font-black rounded-lg shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all uppercase tracking-widest text-sm border border-indigo-400 active:scale-95">
                     Initialize Hub
                 </button>
             </div>
@@ -222,7 +222,7 @@ const CareerGuard = ({ onBack }) => {
                     <div className="bg-white border-b border-gray-200 p-4 pt-6 flex items-center gap-4 text-gray-800 shadow-sm z-50">
                         <div className="flex items-center gap-3">
                             <span className="text-gray-400 text-sm">❮</span>
-                            <div className="w-9 h-9 rounded-full bg-[#0a66c2] flex items-center justify-center italic text-white font-black text-xl shadow-inner">
+                            <div className="w-9 h-9 rounded-full bg-[#0a66c2] flex items-center justify-center italic text-slate-900 font-black text-xl shadow-inner">
                                 in
                             </div>
                         </div>
@@ -253,7 +253,7 @@ const CareerGuard = ({ onBack }) => {
                                 <div className="w-16 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center text-4xl shadow-sm border border-white overflow-hidden relative group/avatar">
                                     <div className="absolute inset-0 bg-black/5"></div>
                                     <span className="relative z-10 transition-transform group-hover/avatar:scale-110 duration-500">{currentOffer.avatar}</span>
-                                    {currentOffer.details.isHiring && <div className="absolute bottom-0 left-0 right-0 h-4 bg-purple-600/90 text-[8px] text-white font-black uppercase flex items-center justify-center">Member</div>}
+                                    {currentOffer.details.isHiring && <div className="absolute bottom-0 left-0 right-0 h-4 bg-purple-600/90 text-[8px] text-slate-900 font-black uppercase flex items-center justify-center">Member</div>}
                                 </div>
                                 <div className="flex-1 min-w-0 pr-10">
                                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -273,7 +273,7 @@ const CareerGuard = ({ onBack }) => {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <button className="flex-1 bg-[#0a66c2] text-white py-1.5 rounded-lg text-xs font-black shadow-sm active:scale-95 transition-all hover:bg-[#004182] border-b-2 border-transparent active:border-b-0">Connect</button>
+                                <button className="flex-1 bg-[#0a66c2] text-slate-900 py-1.5 rounded-lg text-xs font-black shadow-sm active:scale-95 transition-all hover:bg-[#004182] border-b-2 border-transparent active:border-b-0">Connect</button>
                                 <button className="flex-1 border border-[#0a66c2] text-[#0a66c2] py-1.5 rounded-lg text-xs font-black active:scale-95 transition-all hover:bg-blue-50">Message</button>
                             </div>
                         </div>
@@ -316,7 +316,7 @@ const CareerGuard = ({ onBack }) => {
                                     <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest flex items-center gap-1.5">
                                         <span className="text-xs opacity-60">🔍</span> Recruiter Scan
                                     </p>
-                                    <span className="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-black">AI_VERIFIED</span>
+                                    <span className="text-[9px] bg-slate-200 text-slate-400 px-1.5 py-0.5 rounded font-black">AI_VERIFIED</span>
                                 </div>
                                 <div className="p-4 space-y-4">
                                     <div className="flex items-start gap-3 group/meta">
@@ -370,7 +370,7 @@ const CareerGuard = ({ onBack }) => {
                     </div>
 
                     {/* Footer Decision Buttons - Hovering above nav */}
-                    <div className="absolute bottom-16 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-100 flex gap-3 z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+                    <div className="absolute bottom-16 left-0 right-0 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200/50 backdrop-blur-md border-t border-gray-100 flex gap-3 z-[70] shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
                         <button
                             onClick={() => handleDecision('scam')}
                             disabled={!!feedback}
@@ -381,7 +381,7 @@ const CareerGuard = ({ onBack }) => {
                         <button
                             onClick={() => handleDecision('legit')}
                             disabled={!!feedback}
-                            className="flex-1 bg-[#0a66c2] text-white font-black py-3.5 rounded-xl hover:bg-[#004182] transition-all shadow-[0_8px_20px_rgba(10,102,194,0.3)] active:scale-95 disabled:opacity-30 disabled:grayscale uppercase tracking-[0.15em] text-[10px] font-sans border border-[#004182]"
+                            className="flex-1 bg-[#0a66c2] text-slate-900 font-black py-3.5 rounded-xl hover:bg-[#004182] transition-all shadow-[0_8px_20px_rgba(10,102,194,0.3)] active:scale-95 disabled:opacity-30 disabled:grayscale uppercase tracking-[0.15em] text-[10px] font-sans border border-[#004182]"
                         >
                             LEGIT_OFFER
                         </button>
@@ -396,10 +396,10 @@ const CareerGuard = ({ onBack }) => {
                                 <div className="text-7xl mb-4 drop-shadow-2xl relative z-10 transition-transform animate-float">
                                     {feedback.status === 'correct' ? '🛡️' : '🚨'}
                                 </div>
-                                <span className="text-white font-black uppercase tracking-[0.25em] text-xl leading-none mb-1 relative z-10">
+                                <span className="text-slate-900 font-black uppercase tracking-[0.25em] text-xl leading-none mb-1 relative z-10">
                                     {feedback.status === 'correct' ? 'SECURED' : 'BREACH'}
                                 </span>
-                                <p className="text-white/80 text-[10px] uppercase font-black tracking-[0.3em] relative z-10 opacity-70">Forensics_Validated</p>
+                                <p className="text-slate-900/80 text-[10px] uppercase font-black tracking-[0.3em] relative z-10 opacity-70">Forensics_Validated</p>
                             </div>
                         </div>
                     )}
@@ -411,7 +411,7 @@ const CareerGuard = ({ onBack }) => {
                 <div className="bg-[#0f172a] border border-[#1e293b] p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none"></div>
                     <span className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] block mb-2 opacity-60">Protocol: JOBSCAN_PRO_v2</span>
-                    <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-3">
+                    <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
                         AGENT_04 <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]"></span>
                     </h3>
                     <div className="space-y-6">
@@ -420,18 +420,18 @@ const CareerGuard = ({ onBack }) => {
                                 <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-2">Integrity_Link</p>
                                 <div className="flex gap-2.5">
                                     {[...Array(3)].map((_, i) => (
-                                        <div key={i} className={`w-3.5 h-3.5 rounded-sm rotate-45 transition-all duration-700 ${i < lives ? 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'bg-slate-800'}`}></div>
+                                        <div key={i} className={`w-3.5 h-3.5 rounded-sm rotate-45 transition-all duration-700 ${i < lives ? 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'bg-slate-200'}`}></div>
                                     ))}
                                 </div>
                             </div>
                             <div className="text-right">
                                 <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1">Queue</p>
-                                <div className="text-3xl font-black text-white leading-none tabular-nums">
-                                    {currentIndex + 1}<span className="text-slate-700 text-lg">/{JOB_OFFERS.length}</span>
+                                <div className="text-3xl font-black text-slate-900 leading-none tabular-nums">
+                                    {currentIndex + 1}<span className="text-slate-500 text-lg">/{JOB_OFFERS.length}</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="w-full h-1 bg-slate-800/50 rounded-full overflow-hidden">
+                        <div className="w-full h-1 bg-slate-200/50 rounded-full overflow-hidden">
                             <div className="h-full bg-indigo-500 transition-all duration-1000 cubic-bezier(0.4, 0, 0.2, 1) shadow-[0_0_20px_rgba(99,102,241,0.5)]"
                                 style={{ width: `${((currentIndex + 1) / JOB_OFFERS.length) * 100}%` }} />
                         </div>
@@ -441,10 +441,10 @@ const CareerGuard = ({ onBack }) => {
                 <div className="bg-[#0f172a] border border-[#1e293b] p-8 rounded-[2rem] shadow-2xl text-center relative overflow-hidden group">
                     <div className="absolute -left-10 -top-10 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full"></div>
                     <span className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] block mb-3 opacity-60">Session_Credits</span>
-                    <div className="text-6xl font-black text-white tracking-tighter group-hover:text-indigo-400 transition-all duration-500 tabular-nums">
+                    <div className="text-6xl font-black text-slate-900 tracking-tighter group-hover:text-indigo-400 transition-all duration-500 tabular-nums">
                         {score.toLocaleString()}
                     </div>
-                    <div className="mt-4 flex justify-center border-t border-slate-800 pt-3">
+                    <div className="mt-4 flex justify-center border-t border-slate-200 pt-3">
                         <div className="flex gap-1.5">
                             <div className="w-1 h-3 bg-indigo-500/20 rounded-full"></div>
                             <div className="w-1 h-3 bg-indigo-500/40 rounded-full"></div>
@@ -454,13 +454,13 @@ const CareerGuard = ({ onBack }) => {
                 </div>
 
                 <div className="bg-emerald-950/10 border border-emerald-500/10 p-8 rounded-[2rem] relative border-dashed group transition-colors hover:bg-emerald-500/5">
-                    <p className="text-[11px] text-slate-400 font-bold leading-relaxed italic pr-4">
+                    <p className="text-[11px] text-slate-500 font-bold leading-relaxed italic pr-4">
                         "Real hiring managers often reference common connections or specific portfolio pieces. <span className="text-indigo-400 uppercase">Generic</span> praise is a warning sign."
                     </p>
                     <div className="absolute bottom-4 right-4 text-[10px] font-black text-emerald-500 uppercase opacity-20 tracking-tighter">SEC_TIP_#14</div>
                 </div>
 
-                <button onClick={onBack} className="mt-auto px-8 py-5 bg-transparent hover:bg-slate-800 text-slate-500 hover:text-white font-black rounded-2xl transition-all border border-slate-800/50 hover:border-slate-700 uppercase tracking-[0.3em] text-[9px] flex items-center justify-center gap-3 active:scale-95 group">
+                <button onClick={onBack} className="mt-auto px-8 py-5 bg-transparent hover:bg-slate-200 text-slate-500 hover:text-slate-900 font-black rounded-2xl transition-all border border-slate-200/50 hover:border-slate-300 uppercase tracking-[0.3em] text-[9px] flex items-center justify-center gap-3 active:scale-95 group">
                     <span className="text-lg opacity-40 group-hover:rotate-90 transition-transform">✕</span> Finalize Session
                 </button>
             </div>
@@ -494,7 +494,7 @@ const CareerGuard = ({ onBack }) => {
                         style={{ borderColor: resultGrade.color, boxShadow: `0 0 50px ${resultGrade.color}33` }}>
                         <span className="text-5xl font-black" style={{ color: resultGrade.color }}>{resultGrade.grade}</span>
                     </div>
-                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter">{resultGrade.label}</h2>
+                    <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">{resultGrade.label}</h2>
                     <p className="text-slate-500 font-mono text-xs mt-2 uppercase tracking-widest">Assessment Complete — Professional Integrity Report</p>
                 </div>
 
@@ -505,8 +505,8 @@ const CareerGuard = ({ onBack }) => {
                         { label: 'Time', value: formatTime(elapsed), color: 'text-amber-400' },
                         { label: 'Lives', value: lives, color: lives > 0 ? 'text-cyan-400' : 'text-red-400' },
                     ].map((stat, i) => (
-                        <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
-                            <span className="text-[9px] text-slate-600 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
+                        <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
+                            <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
                             <span className={`text-2xl font-black ${stat.color}`}>{stat.value}</span>
                         </div>
                     ))}
@@ -524,12 +524,12 @@ const CareerGuard = ({ onBack }) => {
                             onClick={() => setExpandedResult(expandedResult === idx ? null : idx)}
                         >
                             <div className="flex items-center gap-4 px-5 py-4">
-                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-800 text-white text-xs font-black shrink-0">
+                                <div className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-200 text-slate-900 text-xs font-black shrink-0">
                                     {item.offer.avatar}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-sm font-bold text-white truncate">{item.offer.sender}</span>
+                                        <span className="text-sm font-bold text-slate-900 truncate">{item.offer.sender}</span>
                                         <span className={`text-[8px] uppercase font-black px-2 py-0.5 rounded ${item.offer.isScam ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                                             {item.offer.isScam ? 'SCAM' : 'LEGIT'}
                                         </span>
@@ -540,27 +540,27 @@ const CareerGuard = ({ onBack }) => {
                                     <span className={`text-sm font-bold ${item.isCorrect ? 'text-emerald-400' : 'text-red-400'}`}>
                                         {item.isCorrect ? '✓' : '✗'}
                                     </span>
-                                    <span className="text-slate-600 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
+                                    <span className="text-slate-400 text-xs">{expandedResult === idx ? '▲' : '▼'}</span>
                                 </div>
                             </div>
 
                             {expandedResult === idx && (
-                                <div className="border-t border-slate-800 bg-slate-950/50 px-5 py-4 space-y-2 animate-fade-in">
+                                <div className="border-t border-slate-200 bg-slate-50 px-5 py-4 space-y-2 animate-fade-in">
                                     <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Forensic Logic</span>
                                     {item.offer.isScam ? (
                                         <ul className="space-y-1 mt-2">
                                             {item.offer.redFlags.map((flag, fi) => (
-                                                <li key={fi} className="text-xs text-slate-400 flex items-start gap-2">
+                                                <li key={fi} className="text-xs text-slate-500 flex items-start gap-2">
                                                     <span className="text-red-500">•</span>
                                                     <span>{flag}</span>
                                                 </li>
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-xs text-slate-400 italic">Legitimate recruitment pattern from a verified domain.</p>
+                                        <p className="text-xs text-slate-500 italic">Legitimate recruitment pattern from a verified domain.</p>
                                     )}
-                                    <div className="text-[10px] text-slate-600 mt-2 font-mono">
-                                        Role: <span className="text-slate-400">{item.offer.role}</span>
+                                    <div className="text-[10px] text-slate-400 mt-2 font-mono">
+                                        Role: <span className="text-slate-500">{item.offer.role}</span>
                                     </div>
                                 </div>
                             )}
@@ -577,10 +577,10 @@ const CareerGuard = ({ onBack }) => {
                         setHistory([]);
                         setElapsed(0);
                         setExpandedResult(null);
-                    }} className="px-12 py-4 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-indigo-600 shadow-lg text-sm">
+                    }} className="px-12 py-4 bg-indigo-600 text-slate-900 font-black uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all hover:text-indigo-600 shadow-lg text-sm">
                         RETRY EVAL
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 border border-slate-700 rounded-xl text-slate-400 hover:text-white transition-all font-bold text-sm">
+                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
                         BACK TO HUB
                     </button>
                 </div>

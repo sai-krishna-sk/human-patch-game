@@ -387,30 +387,30 @@ const DDOSDefense = ({ onBack }) => {
     };
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 p-6 animate-fade-in relative z-0">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/50 to-cyan-50/30 p-6 animate-fade-in relative z-0">
             {/* Header / HUD */}
             <div className="w-full max-w-5xl flex justify-between items-center mb-6 z-10">
                 <div>
-                    <h2 className="text-2xl font-black text-white uppercase tracking-widest flex items-center gap-3">
+                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-widest flex items-center gap-3">
                         <span className="text-3xl animate-pulse text-red-500">🛡️</span>
                         DDoS Defense
                     </h2>
                     <p className="text-slate-500 font-mono text-xs uppercase tracking-widest mt-1">Fortify Core Infrastructure</p>
                 </div>
 
-                <div className="flex items-center gap-6 bg-slate-900/80 backdrop-blur-md px-6 py-2 rounded-full border border-slate-700 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                <div className="flex items-center gap-6 bg-white/90 backdrop-blur-md border-slate-200 px-6 py-2 rounded-full border border-slate-300 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
                     <div className="flex flex-col">
                         <span className="text-[10px] text-slate-500 font-mono uppercase">Wave</span>
                         <span className="text-indigo-400 font-black text-xl tabular-nums leading-none tracking-wider">{wave}</span>
                     </div>
-                    <div className="h-8 w-px bg-slate-700 mx-2"></div>
+                    <div className="h-8 w-px bg-slate-300 mx-2"></div>
                     <div className="flex flex-col">
                         <span className="text-[10px] text-slate-500 font-mono uppercase">Bandwidth</span>
                         <span className="text-emerald-400 font-mono font-bold text-xl tabular-nums leading-none flex items-center gap-1">
                             <span className="text-emerald-600 text-sm">₹</span>{bandwidth}
                         </span>
                     </div>
-                    <div className="h-8 w-px bg-slate-700 mx-2"></div>
+                    <div className="h-8 w-px bg-slate-300 mx-2"></div>
                     <div className="flex flex-col">
                         <span className="text-[10px] text-slate-500 font-mono uppercase">System Integrity</span>
                         <div className="flex items-center gap-2">
@@ -423,7 +423,7 @@ const DDOSDefense = ({ onBack }) => {
 
                 <button
                     onClick={onBack}
-                    className="px-6 py-2 border border-slate-700 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-all font-mono text-xs uppercase shadow-sm"
+                    className="px-6 py-2 bg-slate-600 hover:bg-slate-700 rounded text-white transition-all font-mono text-xs uppercase shadow-sm"
                 >
                     Abandon Link
                 </button>
@@ -434,8 +434,8 @@ const DDOSDefense = ({ onBack }) => {
 
                 {/* Tower Selection Menu */}
                 <div className="w-64 flex flex-col gap-4">
-                    <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-lg backdrop-blur-md">
-                        <h3 className="text-slate-400 font-mono text-sm uppercase tracking-widest border-b border-slate-800 pb-2 mb-4">Defense Arsenal</h3>
+                    <div className="bg-white/80 border border-slate-300 rounded-xl p-4 shadow-lg backdrop-blur-md">
+                        <h3 className="text-slate-500 font-mono text-sm uppercase tracking-widest border-b border-slate-200 pb-2 mb-4">Defense Arsenal</h3>
                         <div className="flex flex-col gap-3">
                             {Object.values(TOWER_TYPES).map(tower => {
                                 const canAfford = bandwidth >= tower.cost;
@@ -444,10 +444,10 @@ const DDOSDefense = ({ onBack }) => {
                                     <div
                                         key={tower.id}
                                         onClick={() => canAfford && setSelectedTower(isSelected ? null : tower.id)}
-                                        className={`p-3 rounded-lg border-2 transition-all cursor-pointer flex flex-col gap-2 ${isSelected ? `border-white ${tower.bg}` : canAfford ? `border-slate-700 hover:border-slate-500 bg-slate-800/50` : 'border-slate-800 bg-slate-900/50 opacity-50 cursor-not-allowed'}`}
+                                        className={`p-3 rounded-lg border-2 transition-all cursor-pointer flex flex-col gap-2 ${isSelected ? `border-white ${tower.bg}` : canAfford ? `border-slate-300 hover:border-slate-500 bg-slate-200/50` : 'border-slate-200 bg-slate-100/80 opacity-50 cursor-not-allowed'}`}
                                     >
                                         <div className="flex justify-between items-center">
-                                            <span className="font-bold text-slate-200 flex items-center gap-2">
+                                            <span className="font-bold text-slate-600 flex items-center gap-2">
                                                 <span>{tower.icon}</span> {tower.name}
                                             </span>
                                             <span className={`text-xs font-mono font-bold ${canAfford ? 'text-emerald-400' : 'text-red-500'}`}>${tower.cost}</span>
@@ -462,18 +462,18 @@ const DDOSDefense = ({ onBack }) => {
                         </div>
                     </div>
 
-                    <div className="flex-1 bg-slate-900/50 border border-slate-800 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center backdrop-blur-sm relative">
+                    <div className="flex-1 bg-slate-100/80 border border-slate-200 border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center backdrop-blur-sm relative">
                         {!waveStateRef.current.active ? (
                             <button
                                 onClick={startNextWave}
-                                className="w-full py-4 bg-indigo-500 text-white rounded-lg font-black uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]"
+                                className="w-full py-4 bg-indigo-500 text-slate-900 rounded-lg font-black uppercase tracking-widest hover:bg-indigo-400 transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_rgba(99,102,241,0.6)]"
                             >
                                 Send Next Wave
                             </button>
                         ) : (
-                            <div className="text-slate-400 font-mono text-sm uppercase animate-pulse mb-8">
+                            <div className="text-slate-500 font-mono text-sm uppercase animate-pulse mb-8">
                                 Wave {wave - 1} Active...<br />
-                                <span className="text-xs text-slate-600 mt-2 block">Monitoring Traffic</span>
+                                <span className="text-xs text-slate-400 mt-2 block">Monitoring Traffic</span>
                             </div>
                         )}
 
@@ -483,7 +483,7 @@ const DDOSDefense = ({ onBack }) => {
                                 <button
                                     key={speed}
                                     onClick={() => setGameSpeed(speed)}
-                                    className={`flex-1 py-1 rounded border border-slate-700 text-xs font-mono font-bold transition-all ${gameSpeed === speed ? 'bg-indigo-500/30 text-indigo-300 border-indigo-500' : 'bg-slate-800/50 text-slate-500 hover:text-white'}`}
+                                    className={`flex-1 py-1 rounded border border-slate-300 text-xs font-mono font-bold transition-all ${gameSpeed === speed ? 'bg-indigo-500/30 text-indigo-300 border-indigo-500' : 'bg-slate-200/50 text-slate-500 hover:text-slate-900'}`}
                                 >
                                     {speed}x
                                 </button>
@@ -494,7 +494,7 @@ const DDOSDefense = ({ onBack }) => {
 
                 {/* Game Board */}
                 <div
-                    className="relative bg-slate-950 border-2 border-slate-800 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+                    className="relative bg-slate-50 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.8)]"
                     style={{ width: GRID_W * CELL_SIZE, height: GRID_H * CELL_SIZE }}
                     onMouseMove={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -591,7 +591,7 @@ const DDOSDefense = ({ onBack }) => {
                                         }}
                                     ></div>
                                     {/* HP Bar */}
-                                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-1 bg-slate-800 rounded overflow-hidden">
+                                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-8 h-1 bg-slate-200 rounded overflow-hidden">
                                         <div className="h-full bg-red-500" style={{ width: `${(enemy.hp / enemy.maxHp) * 100}%` }}></div>
                                     </div>
                                 </div>
@@ -615,16 +615,16 @@ const DDOSDefense = ({ onBack }) => {
 
             {/* Overlays */}
             {gameState === 'start' && (
-                <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center z-50 backdrop-blur-md">
-                    <div className="bg-slate-900 border-2 border-cyan-500/30 p-10 rounded-3xl flex flex-col items-center text-center max-w-lg shadow-[0_0_50px_rgba(34,211,238,0.2)]">
+                <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center z-50 backdrop-blur-md">
+                    <div className="bg-white border-2 border-cyan-500/30 p-10 rounded-3xl flex flex-col items-center text-center max-w-lg shadow-[0_0_50px_rgba(34,211,238,0.2)]">
                         <div className="text-6xl mb-6">🌐</div>
-                        <h3 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">DDoS Defense Array</h3>
-                        <p className="text-slate-400 mb-8">
+                        <h3 className="text-3xl font-black text-slate-900 mb-2 uppercase tracking-tight">DDoS Defense Array</h3>
+                        <p className="text-slate-500 mb-8">
                             Malicious traffic is attempting to overwhelm the core server. Build defenses on the grid to filter and drop malicious packets before they reach the core.
                         </p>
                         <button
                             onClick={startGame}
-                            className="px-10 py-4 bg-cyan-600 text-white rounded-xl font-bold uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-[0_0_20px_rgba(34,211,238,0.5)]"
+                            className="px-10 py-4 bg-cyan-600 text-slate-900 rounded-xl font-bold uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-[0_0_20px_rgba(34,211,238,0.5)]"
                         >
                             Initialize Defenses
                         </button>
@@ -636,12 +636,12 @@ const DDOSDefense = ({ onBack }) => {
                 <div className="absolute inset-0 bg-red-950/90 flex flex-col items-center justify-center z-50 backdrop-blur-md">
                     <div className="bg-red-900/40 border border-red-500/50 p-8 rounded-2xl flex flex-col items-center text-center max-w-sm">
                         <span className="text-5xl mb-4 animate-bounce text-red-500">💥</span>
-                        <h3 className="text-3xl font-black text-white mb-2 uppercase">Server Down</h3>
-                        <p className="text-red-200 mb-6">The core infrastructure was overwhelmed by traffic.</p>
-                        <p className="text-slate-300 font-mono text-xs mb-8">Waves survived: {wave - 1}</p>
+                        <h3 className="text-3xl font-black text-slate-900 mb-2 uppercase">Server Down</h3>
+                        <p className="text-red-600 mb-6">The core infrastructure was overwhelmed by traffic.</p>
+                        <p className="text-slate-400 font-mono text-xs mb-8">Waves survived: {wave - 1}</p>
                         <button
                             onClick={startGame}
-                            className="px-8 py-3 bg-red-600 text-white rounded hover:bg-red-500 transition-all uppercase tracking-widest font-bold font-mono text-sm shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+                            className="px-8 py-3 bg-red-600 text-slate-900 rounded hover:bg-red-500 transition-all uppercase tracking-widest font-bold font-mono text-sm shadow-[0_0_15px_rgba(220,38,38,0.5)]"
                         >
                             Reboot Array
                         </button>
