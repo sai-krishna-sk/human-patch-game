@@ -767,7 +767,7 @@ const Level5 = () => {
                             width: LIVING_ROOM_WIDTH,
                             height: LIVING_ROOM_HEIGHT,
                             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-                            backgroundColor: '#2c3e50',
+                            backgroundColor: 'black',
                             transition: 'transform 0.1s linear'
                         }}
                     >
@@ -910,7 +910,7 @@ const Level5 = () => {
         const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
         const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
         return (
-            <div className="w-full h-full flex flex-col bg-slate-900 overflow-hidden relative font-sans">
+            <div className="w-full h-full flex flex-col bg-black overflow-hidden relative font-sans">
                 <FeedbackToast />
                 {/* Fade overlays */}
                 <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-1000 pointer-events-none ${isTransitioning || gardenFadeOut ? 'opacity-100' : 'opacity-0'}`} />

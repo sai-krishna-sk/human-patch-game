@@ -106,6 +106,7 @@ const GmailAlert = ({ onProceed }) => (
 
 const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) => {
     const [password, setPassword] = useState('');
+    const inputRef = useRef(null);
     const [entropy, setEntropy] = useState(0);
     const [crackTime, setCrackTime] = useState('Seconds');
 
@@ -133,6 +134,13 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
         else setCrackTime('20,000+ Centuries');
     }, [password]);
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (inputRef.current) inputRef.current.focus();
+        }, 100);
+        return () => clearTimeout(timer);
+    }, []);
+
     const handleConfirm = () => {
         const hasSymbols = /[^A-Za-z0-9]/.test(password) || /[0-9]/.test(password);
         const isLong = password.length >= 15;
@@ -152,7 +160,7 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
     };
 
     return (
-        <div className="fixed inset-0 z-[3000] bg-zinc-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white overflow-hidden">
+        <div className="fixed inset-0 z-[3000] bg-zinc-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white overflow-y-auto">
             <div className="w-full max-w-4xl bg-zinc-900 border border-white/10 rounded-3xl p-12 shadow-2xl relative overflow-hidden animate-in scale-in-95 duration-500">
                 <div className="flex justify-between items-start mb-12">
                     <div>
@@ -166,6 +174,7 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
                         <div>
                             <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4">Set New Passphrase:</label>
                             <input
+                                ref={inputRef}
                                 type="text"
                                 value={password}
                                 onChange={(e) => {
@@ -174,7 +183,6 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
                                 }}
                                 className="w-full bg-black border-2 border-white/10 rounded-2xl px-8 py-6 text-3xl font-black text-white focus:border-cyan-500 outline-none transition-all placeholder:text-zinc-800"
                                 placeholder="........"
-                                autoFocus
                             />
                         </div>
 
@@ -225,7 +233,7 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
 
                         <button
                             onClick={handleConfirm}
-                            className="w-full py-6 bg-white text-black font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-xl text-sm"
+                            className="w-full py-4 bg-white text-black font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-xl text-[11px]"
                         >
                             Update Credentials
                         </button>
@@ -331,7 +339,7 @@ const BookshelfSearch = ({ onComplete, hasClue, discoveredClues, discoverClue })
                 {/* Close Button */}
                 <button
                     onClick={selectedBook ? () => { setSelectedBook(null); setIsOpening(false); } : onComplete}
-                    className="absolute top-8 right-12 w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-zinc-600 hover:text-white transition-all z-[1000] border border-white/5"
+                    className="absolute top-8 right-12 w-10 h-10 rounded-full bg-red-950/20 hover:bg-red-500/20 flex items-center justify-center text-red-500/70 hover:text-red-400 transition-all z-[1000] border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
                 >✕</button>
 
                 {/* Designer Bookshelf Frame */}
@@ -664,7 +672,7 @@ const PlantSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) => 
                 {/* Close Button */}
                 <button
                     onClick={onComplete}
-                    className="absolute top-12 right-12 w-14 h-14 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-all group z-[1000]"
+                    className="absolute top-12 right-12 w-14 h-14 rounded-full bg-red-950/20 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center text-red-500/70 hover:text-red-400 transition-all group z-[1000] shadow-[0_0_20px_rgba(239,68,68,0.1)]"
                 >
                     <span className="text-xl group-hover:scale-125 transition-transform">✕</span>
                 </button>
@@ -1152,21 +1160,27 @@ const Level2 = () => {
                     if (interactionTarget === 'laptop') {
                         if (!cluesFound.includes('alert_received')) {
                             setGameState('alert');
+                            setInteractionTarget(null);
                             playSynthSound('success_bell');
                             discoverClue('alert_received');
                         } else if (cluesFound.length < Object.keys(CLUE_INFO).length) {
                             showFeedback("I need to discover my grandfather's legacy rules before I can properly secure this account.");
                         } else {
                             setGameState('terminal');
+                            setInteractionTarget(null);
                         }
                     } else if (interactionTarget === 'rule_patterns') {
                         setGameState('plant_search_left');
+                        setInteractionTarget(null);
                     } else if (interactionTarget === 'empty_plant') {
                         setGameState('plant_search_right');
+                        setInteractionTarget(null);
                     } else if (interactionTarget === 'rule_length') {
                         setGameState('bookshelf_search_left');
+                        setInteractionTarget(null);
                     } else if (interactionTarget === 'empty_book') {
                         setGameState('bookshelf_search_right');
+                        setInteractionTarget(null);
                     } else if (interactionTarget.startsWith('empty_')) {
                         showFeedback("Nothing here...");
                     } else {
@@ -1324,7 +1338,7 @@ const Level2 = () => {
                                     width: ROOM_WIDTH,
                                     height: ROOM_HEIGHT,
                                     transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`,
-                                    backgroundColor: '#2c3e50',
+                                    backgroundColor: 'black',
                                     willChange: 'transform'
                                 }}
                             >
@@ -1521,6 +1535,15 @@ const Level2 = () => {
                                 willChange: 'transform'
                             }}
                         >
+                            {/* Narrative Overlay for Start */}
+                            {gameState === 'room_intro' && (
+                                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+                                    <div className="bg-slate-950/80 backdrop-blur-md px-8 py-3 rounded-full border border-white/10 shadow-2xl flex items-center gap-4">
+                                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                        <span className="text-white font-black tracking-[0.3em] uppercase text-[10px]">Go out of the room</span>
+                                    </div>
+                                </div>
+                            )}
 
 
 
@@ -1644,7 +1667,7 @@ const Level2 = () => {
                 )}
 
                 {/* Global Ultra-Minimalist Cinematic Prompt & Cutscene Dialogue */}
-                {(notificationStep > 0 || (interactionTarget && notificationStep === 0)) && (
+                {(notificationStep > 0 || (interactionTarget && notificationStep === 0 && ['room', 'room_intro', 'living_room', 'return_to_room'].includes(gameState))) && (
                     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[8000] animate-in fade-in duration-500">
                         <div className="h-[2px] w-12 bg-white/30 mb-3" />
                         <div className="text-white font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] text-center max-w-[400px]">

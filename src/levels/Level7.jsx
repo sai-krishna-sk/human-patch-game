@@ -548,7 +548,7 @@ const Level7 = () => {
         const camY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+            <div className="w-full h-full flex items-center justify-center bg-black px-8">
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     {FadeOverlay()}
                     {InteractionPrompt({ text: 'exit to living room', target: 'room_door' })}
@@ -582,7 +582,7 @@ const Level7 = () => {
         const camY = Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+            <div className="w-full h-full flex items-center justify-center bg-black px-8">
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     {FadeOverlay()}
                     {InteractionPrompt({ text: 'exit to garden', target: 'main_door' })}
@@ -669,7 +669,7 @@ const Level7 = () => {
         const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
 
         return (
-            <div className="w-full h-full flex flex-col bg-slate-900 overflow-hidden relative font-sans">
+            <div className="w-full h-full flex flex-col bg-black overflow-hidden relative font-sans">
                 {FadeOverlay()}
                 {InteractionPrompt({ text: 'get into car', target: 'car' })}
 
@@ -712,7 +712,7 @@ const Level7 = () => {
         const camY = Math.max(0, Math.min(cafeExteriorPlayerPos.y - window.innerHeight / 2, EXT_HEIGHT - window.innerHeight));
 
         return (
-            <div className="w-full h-full bg-slate-950 overflow-hidden relative font-sans">
+            <div className="w-full h-full bg-black overflow-hidden relative font-sans">
                 {FadeOverlay()}
                 {FeedbackToast()}
 
@@ -776,7 +776,7 @@ const Level7 = () => {
         const camY = Math.max(0, Math.min(cafePlayerPos.y - window.innerHeight / 2, CAFE_HEIGHT - window.innerHeight));
 
         return (
-            <div className="w-full h-full bg-slate-950 overflow-hidden relative font-sans">
+            <div className="w-full h-full bg-black overflow-hidden relative font-sans">
                 {FadeOverlay()}
                 {FeedbackToast()}
                 {CluesSidebar()}

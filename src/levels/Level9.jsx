@@ -274,12 +274,12 @@ const Level9 = () => {
         const VIEWPORT_WIDTH = 1200;
         const VIEWPORT_HEIGHT = 800;
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center bg-black px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <FeedbackToast />
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
-                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: '#2c3e50' }}>
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-black" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: 'black' }}>
                         <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/60 pointer-events-none z-10"></div>
 
@@ -364,10 +364,10 @@ const Level9 = () => {
 
     if (gameState === 'bedroom_walk') {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 relative overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center bg-black px-8 relative overflow-hidden">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-black" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                     <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.8)' }} />
                     <div className="absolute inset-0 bg-blue-900/10 pointer-events-none mix-blend-multiply z-10"></div>
 
@@ -382,7 +382,7 @@ const Level9 = () => {
                         </div>
                     )}
 
-                    <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
+                    <div className="absolute top-4 left-4 z-30 bg-black/80 px-4 py-2 rounded-lg border border-slate-700/50">
                         <p className="text-amber-400 font-bold text-xs tracking-widest uppercase">NIGHT — 9:35 PM</p>
                         <p className="text-slate-400 text-[10px] font-mono">YOUR BEDROOM</p>
                     </div>
@@ -452,7 +452,7 @@ const Level9 = () => {
                     <FeedbackToast />
 
                     {/* Phone container */}
-                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
                         <StatusBar dark />
 
                         {/* Dynamic Island */}
@@ -574,7 +574,7 @@ const Level9 = () => {
 
                             {/* Notification appears after 3 seconds */}
                             <div className="absolute top-12 right-2 left-2 animate-in slide-in-from-top-4 fade-in duration-500 z-50">
-                                <div className="bg-zinc-900/95 backdrop-blur-md text-white p-3 px-4 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.5)] cursor-pointer hover:scale-[1.02] transition-transform border border-zinc-800"
+                                <div className="bg-black/95 backdrop-blur-md text-white p-3 px-4 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.5)] cursor-pointer hover:scale-[1.02] transition-transform border border-zinc-800"
                                     onClick={() => setGameState('message_received')}>
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3">
@@ -626,7 +626,7 @@ const Level9 = () => {
                 <div className="relative z-20">
                     <FeedbackToast />
 
-                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
                     <StatusBar />
 
                     {/* Dynamic Island */}
@@ -701,7 +701,7 @@ const Level9 = () => {
                         <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
                             {messageStep === messages.length - 1 && showThought ? (
                                 <div className="space-y-2.5">
-                                    <button className="w-full bg-slate-900 hover:bg-black text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] border-b-4 border-slate-700 flex items-center justify-center gap-2 group"
+                                    <button className="w-full bg-black hover:bg-black text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] border-b-4 border-slate-700 flex items-center justify-center gap-2 group"
                                         onClick={() => setGameState('profile_investigation')}>
                                         <span>🔍 Verify Identity First</span>
                                         <span className="group-hover:translate-x-1 transition-transform">➔</span>
@@ -743,7 +743,7 @@ const Level9 = () => {
                     <FeedbackToast />
 
                 {/* Phone with profile - matching Levels 1-3 style */}
-                <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
+                <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
                     style={{ transform: isDetectiveModeOpen ? 'translateX(-150px)' : 'translateX(0)' }}>
                     <StatusBar />
 
@@ -1225,7 +1225,7 @@ const Level9 = () => {
                     <FeedbackToast />
 
                     {/* Single Phone UI (Outgoing Call) */}
-                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col items-center justify-center">
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col items-center justify-center">
                         {/* Dynamic Island */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                             <div className="w-2 h-2 bg-slate-700 rounded-full" />
@@ -1313,7 +1313,7 @@ const Level9 = () => {
                     <FeedbackToast />
 
                     {/* Single Phone UI (Connected Call) */}
-                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                    <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
                         <StatusBar dark={false} />
 
                         {/* Dynamic Island */}
@@ -1621,11 +1621,11 @@ const Level9 = () => {
                     <p className="text-purple-400 text-2xl font-light tracking-widest uppercase italic mb-12">Profile Impersonation Defeated</p>
                     
                     <div className="flex gap-6 justify-center mb-16 px-10">
-                        <div className="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 w-56 shadow-2xl">
+                        <div className="bg-black border border-slate-700/50 rounded-3xl p-8 w-56 shadow-2xl">
                             <div className="text-5xl text-emerald-400 font-black mb-3">+35</div>
                             <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">Safety Score</div>
                         </div>
-                        <div className="bg-slate-900 border border-slate-700/50 rounded-3xl p-8 w-56 shadow-2xl flex flex-col items-center justify-center">
+                        <div className="bg-black border border-slate-700/50 rounded-3xl p-8 w-56 shadow-2xl flex flex-col items-center justify-center">
                             <div className="text-2xl text-cyan-400 font-black mb-3 uppercase leading-tight tracking-wider text-center">The Verifier</div>
                             <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.2em]">Badge Earned</div>
                         </div>
@@ -1766,7 +1766,7 @@ const Level9 = () => {
                             <p className="text-red-500 text-5xl font-black font-mono mt-1">-₹5,000</p>
                         </div>
                     </div>
-                    <button className="w-full bg-slate-950 hover:bg-black text-white font-black py-8 rounded-[2.5rem] text-3xl shadow-3xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
+                    <button className="w-full bg-black hover:bg-black text-white font-black py-8 rounded-[2.5rem] text-3xl shadow-3xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
                         onClick={() => {
                             adjustAssets(-5000);
                             completeLevel(false, 0, 0);

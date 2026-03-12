@@ -1059,7 +1059,7 @@ const Level11 = () => {
   // --- MAIN RENDERS ---
 
   const renderIntro = () => (
-    <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-center p-12">
+    <div className="flex flex-col items-center justify-center h-full bg-black text-center p-12">
       <h1 className="text-7xl font-black mb-6 tracking-tighter italic">I'M SO LONELY</h1>
       <div className="bg-red-600 px-6 py-2 text-sm font-black uppercase tracking-widest mb-10 skew-x-[-10deg]">Advanced Romance Fraud Mystery</div>
       <p className="max-w-xl text-zinc-400 text-lg leading-relaxed mb-12">
@@ -1103,7 +1103,7 @@ const Level11 = () => {
     };
 
     return (
-      <div className="w-full h-full relative bg-zinc-900 overflow-hidden text-white">
+      <div className="w-full h-full relative bg-black overflow-hidden text-white">
         <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("${getBackground()}")` }} />
         {/* Removed Day HUD overlay per user request */}
         <Player x={playerPos.x} y={playerPos.y} />
@@ -1131,7 +1131,7 @@ const Level11 = () => {
     else if (phoneApp === 'whatsapp') AppToRender = <WhatsAppApp />;
     else if (phoneApp === 'whatsapp_unknown') AppToRender = <WhatsAppApp />;
     else if (phoneApp === 'dm_transition') AppToRender = (
-      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
+      <div className="flex-1 flex flex-col bg-black items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
         <p className="font-mono text-xl tracking-widest text-zinc-400 z-10 animate-pulse">{transitionMsg}</p>
       </div>
     );
@@ -1185,7 +1185,7 @@ const Level11 = () => {
       AppToRender = <GPayApp amount={amount} />;
     }
     else if (phoneApp === 'whatsapp_transition_2h') AppToRender = (
-      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
+      <div className="flex-1 flex flex-col bg-black items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/assets/study.png')] bg-cover opacity-10 bg-center"></div>
         <div className="w-16 h-16 border-t-2 border-indigo-500 border-r-2 border-transparent rounded-full animate-spin mb-8 z-10"></div>
         <p className="font-mono text-xl tracking-widest text-zinc-400 z-10">2 HOURS LATER</p>
@@ -1216,7 +1216,7 @@ const Level11 = () => {
   const renderResults = () => {
     const rank = points >= 230 ? "Cyber Detective Elite" : points >= 150 ? "Vigilant Defender" : points >= 80 ? "Awareness Student" : "Compromised";
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-12 bg-zinc-950">
+      <div className="flex flex-col items-center justify-center h-full text-center p-12 bg-black">
         <h1 className="text-9xl font-black mb-2 italic tracking-tighter">{points} / 230</h1>
         <p className="text-3xl font-black text-indigo-400 mb-12 uppercase">{rank}</p>
         <div className="max-w-2xl text-zinc-400 italic mb-12 text-lg">
@@ -1258,7 +1258,7 @@ const Level11 = () => {
 
   function renderAct3() {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full bg-zinc-950 p-6 md:p-12 overflow-y-auto relative">
+      <div className="flex flex-col items-center justify-center min-h-full bg-black p-6 md:p-12 overflow-y-auto relative">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full animate-pulse" />
@@ -1304,7 +1304,7 @@ const Level11 = () => {
 
   function renderAwareness() {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full bg-zinc-950 p-6 md:p-12 overflow-y-auto relative">
+      <div className="flex flex-col items-center justify-center min-h-full bg-black p-6 md:p-12 overflow-y-auto relative">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] bg-indigo-600/5 blur-[150px] rounded-full animate-pulse" />

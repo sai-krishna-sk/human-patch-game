@@ -229,7 +229,7 @@ const LevelBedroom = () => {
             {/* Objective Hint */}
             {phase === 'walking' && !interactionActive && (
                 <div className="absolute top-12 left-1/2 -translate-x-1/2 z-30">
-                    <div className="bg-slate-950/80 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 shadow-2xl flex items-center gap-4">
+                    <div className="bg-black/80 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 shadow-2xl flex items-center gap-4">
                         <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                         <span className="text-white/70 text-[10px] font-black tracking-[0.3em] uppercase">Approach the Bed</span>
                     </div>

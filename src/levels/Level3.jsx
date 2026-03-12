@@ -194,7 +194,7 @@ SecureMail Support Team`,
 
     if (gameState === 'intro_pov') {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden relative animate-cinematic-sequence">
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 overflow-hidden relative">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 40px, #000 40px, #000 80px)' }}></div>
@@ -379,7 +379,7 @@ SecureMail Support Team`,
                                     <div className="flex-1 bg-white transition-all duration-500 animate-fadeIn overflow-y-auto custom-scrollbar">
                                         <div className="bg-[#003366] text-white p-6 flex justify-between items-center shadow-md">
                                             <div className="flex items-center gap-4">
-                                                <img src="https://upload.wikimedia.org/wikipedia/en/thumb/5/58/State_Bank_of_India_logo.svg/300px-State_Bank_of_India_logo.svg.png" className="h-10 brightness-0 invert" alt="SBI" />
+                                                <img src="/assets/sbi_logo.png" className="h-10 brightness-0 invert" alt="SBI" />
                                                 <span className="text-2xl font-black tracking-tighter">SBI PERSONAL BANKING</span>
                                             </div>
                                             <div className="flex gap-6 text-sm font-bold opacity-80 uppercase tracking-widest">
@@ -465,7 +465,7 @@ SecureMail Support Team`,
                                             {activeEmailId === 'scam' ? (
                                                 <div className="text-[#1F1F1F] text-[16px] leading-[1.8] font-sans">
                                                     <img
-                                                        src="https://upload.wikimedia.org/wikipedia/en/thumb/5/58/State_Bank_of_India_logo.svg/300px-State_Bank_of_India_logo.svg.png"
+                                                        src="/assets/sbi_logo.png"
                                                         alt="SBI Logo"
                                                         draggable
                                                         onDragStart={(e) => { e.dataTransfer.setData('application/json', JSON.stringify({ id: 7, title: 'Copied Logo', desc: 'Anyone can copy a bank logo and paste it into a fake email.' })); setIsDetectiveModeOpen(true); }}
@@ -597,8 +597,7 @@ SecureMail Support Team`,
     if (gameState === 'final_decision') {
         return (
             <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative p-8 overflow-hidden">
-                {/* GLOBAL TRANSITION FADE */}
-                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                {/* GLOBAL TRANSITION FADE */}                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 {/* Background FX */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-900/20 rounded-full blur-[100px]"></div>
@@ -659,7 +658,7 @@ SecureMail Support Team`,
 
     if (gameState === 'outro_pov') {
         return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
+            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 {outroStep === 1 && (
@@ -714,7 +713,7 @@ SecureMail Support Team`,
 
     if (gameState === 'scam_outcome') {
         return (
-            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden animate-cinematic-sequence">
+            <div className="w-full h-full bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="absolute inset-0 bg-red-950/40 z-0"></div>
@@ -769,7 +768,7 @@ SecureMail Support Team`,
 
     if (gameState === 'victory_outcome') {
         return (
-            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-8 relative overflow-hidden animate-cinematic-sequence">
+            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center p-8 relative overflow-hidden">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="absolute inset-0 bg-emerald-950/30 z-0"></div>

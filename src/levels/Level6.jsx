@@ -589,7 +589,7 @@ const Level6 = () => {
 
                 {/* FULL PC VIEW */}
                 {step === 1 && (
-                    <div className="absolute inset-0 z-[100] bg-slate-900 animate-in fade-in duration-500 overflow-hidden flex flex-col select-none cursor-none">
+                    <div className="absolute inset-0 z-[100] bg-black animate-in fade-in duration-500 overflow-hidden flex flex-col select-none cursor-none">
                         <div className="absolute inset-0 flex flex-col">
                             <div className="flex-1 bg-gradient-to-br from-blue-600 to-indigo-900 border-b border-slate-700 p-4">
                                 <div className="space-y-6">

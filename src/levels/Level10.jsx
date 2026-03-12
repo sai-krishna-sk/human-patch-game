@@ -9,8 +9,8 @@ const VIEWPORT_HEIGHT = 800;
 const PLAYER_SIZE = 40;
 const SPEED = 15;
 
-const PHONE_DESK = { x: 600, y: 400, w: 400, h: 350 };
-const LAPTOP_AREA = { x: 650, y: 400, w: 150, h: 100 };
+const LAPTOP_AREA = { x: 300, y: 350, w: 150, h: 150 }; // Placed in bedroom
+
 
 const checkCollision = (px, py, rect) => (
     px < rect.x + rect.w && px + PLAYER_SIZE > rect.x &&
@@ -52,9 +52,12 @@ const CLUE_INFO = {
 
 const Level10 = () => {
     const { completeLevel, adjustAssets, assets, setSafetyScore, lives, adjustLives } = useGameState();
-    const [gameState, setGameState] = useState('room'); // room, phone, laptop, outcome
-    const [playerPos, setPlayerPos] = useState({ x: 780, y: 750 });
+    const [gameState, setGameState] = useState('pre_waking_up'); // pre_waking_up, room, phone, laptop, outcome
+    const [playerPos, setPlayerPos] = useState({ x: 800, y: 400 });
     const keysRef = useRef({});
+    const audioCtxRef = useRef(null);
+    const vibeRef = useRef(null);
+
     const [canInteractPhone, setCanInteractPhone] = useState(false);
     const [canInteractLaptop, setCanInteractLaptop] = useState(false);
     const [phoneApp, setPhoneApp] = useState('home'); // home, call, contacts, pay
@@ -85,6 +88,68 @@ const Level10 = () => {
         setFeedbackMsg(msg);
         setTimeout(() => setFeedbackMsg(null), 3000);
     };
+
+    const getAudioContext = () => {
+        if (!audioCtxRef.current) {
+            audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtxRef.current;
+    };
+
+    const playSynthSound = (type) => {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+
+        switch (type) {
+            case 'call_vibration': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                const mod = ctx.createOscillator();
+                const gate = ctx.createGain();
+                const gateOsc = ctx.createOscillator();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(55, ctx.currentTime);
+                mod.type = 'triangle';
+                mod.frequency.setValueAtTime(3, ctx.currentTime);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gateOsc.type = 'square';
+                gateOsc.frequency.setValueAtTime(0.714, ctx.currentTime);
+
+                const gateConst = ctx.createGain();
+                gateConst.gain.setValueAtTime(0.5, ctx.currentTime);
+                gateOsc.connect(gateConst);
+                gate.gain.setValueAtTime(0.5, ctx.currentTime);
+                gateConst.connect(gate.gain);
+
+                mod.connect(gain.gain);
+                osc.connect(gain);
+                gain.connect(gate);
+                gate.connect(ctx.destination);
+
+                osc.start();
+                mod.start();
+                gateOsc.start();
+                return { osc, mod, gain, gateOsc };
+            }
+            case 'acceptance_click': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.05);
+                break;
+            }
+            default: break;
+        }
+    };
+
 
     const discoverClue = (id) => {
         if (!cluesFound.includes(id)) {
@@ -214,12 +279,14 @@ const Level10 = () => {
                     if (keys['a'] || keys['arrowleft']) nx -= SPEED;
                     if (keys['d'] || keys['arrowright']) nx += SPEED;
 
-                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
-                    ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+                    // Bedroom boundaries
+                    nx = Math.max(250, Math.min(nx, 1300));
+                    ny = Math.max(300, Math.min(ny, 650));
 
                     // Interaction collision checks
-                    setCanInteractPhone(checkCollision(nx, ny, { ...PHONE_DESK, w: 100, x: PHONE_DESK.x + 50 }));
+                    setCanInteractPhone(true); 
                     setCanInteractLaptop(checkCollision(nx, ny, LAPTOP_AREA));
+
 
                     return { x: nx, y: ny };
                 });
@@ -235,10 +302,44 @@ const Level10 = () => {
         };
     }, [gameState]); // Only depends on gameState
 
+    // Call vibration effect for pre_waking_up and ringing phase
+    useEffect(() => {
+        const isRinging = gameState === 'pre_waking_up' || (gameState === 'phone' && callStatus === 'ringing');
+        if (isRinging) {
+            if (!vibeRef.current) {
+                vibeRef.current = playSynthSound('call_vibration');
+            }
+        } else {
+            if (vibeRef.current) {
+                const { osc, mod, gain, gateOsc } = vibeRef.current;
+                const ctx = getAudioContext();
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                setTimeout(() => {
+                    if (osc) osc.stop();
+                    if (mod) mod.stop();
+                    if (gateOsc) gateOsc.stop();
+                    vibeRef.current = null;
+                }, 500);
+            }
+        }
+    }, [gameState, callStatus]);
+
+
+
     useEffect(() => {
         // Shared interaction listener
         const handleInteractions = (e) => {
             if (e.key.toLowerCase() === 'e') {
+                if (gameState === 'pre_waking_up') {
+                    playSynthSound('acceptance_click');
+                    setGameState('phone');
+                    setPhoneApp('call'); // Ensure it shows the call screen (ringing/active)
+                    setCallStatus('ringing');
+                    setIsDetectiveModeOpen(true);
+                }
+
+
+
                 if (canInteractPhone && gameState === 'room') {
                     setGameState('phone');
                     setIsDetectiveModeOpen(true);
@@ -247,6 +348,7 @@ const Level10 = () => {
                 if (canInteractLaptop && gameState === 'room' && calledRealFriend) setGameState('laptop');
             }
         };
+
         window.addEventListener('keydown', handleInteractions);
         return () => window.removeEventListener('keydown', handleInteractions);
     }, [canInteractPhone, canInteractLaptop, gameState, calledRealFriend, callStatus]);
@@ -266,9 +368,11 @@ const Level10 = () => {
     const advanceDialogue = () => {
         const nextIdx = dialogueIndex + 1;
         if (nextIdx >= dialogueSequence.length) {
-            setCallStatus('hangup');
+            setCallStatus('idle');
+            setPhoneApp('home');
             return;
         }
+
         setDialogueIndex(nextIdx);
         const next = dialogueSequence[nextIdx];
         if (next.speaker === 'SCAMMER') {
@@ -356,19 +460,20 @@ const Level10 = () => {
         const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
+            <div className="w-full h-full flex items-center justify-center bg-black px-8">
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     <div className="absolute inset-0 transition-transform duration-100 ease-out" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT, transform: `translate(${-cameraX}px, ${-cameraY}px)` }}>
                         <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                            {/* Room Background Image */}
+                            {/* Room Background Image - Updated to Bedroom */}
                             <div
                                 className="absolute inset-0 z-0"
                                 style={{
-                                    backgroundImage: "url('/assets/study.png')",
+                                    backgroundImage: "url('/assets/morning_bed.png')",
                                     backgroundSize: 'cover',
                                     backgroundPosition: 'south'
                                 }}
                             />
+
 
 
 
@@ -500,7 +605,35 @@ const Level10 = () => {
         );
     }
 
+    if (gameState === 'pre_waking_up') {
+        return (
+            <div className="w-full h-full bg-black flex flex-col items-center justify-center font-mono relative overflow-hidden">
+                {/* Immersive Background */}
+                <div className="absolute inset-0 z-0 scale-110 blur-sm brightness-[0.3]">
+                    <img src="/assets/morning_bed.png" className="w-full h-full object-cover" alt="" />
+                </div>
+
+                <div className="relative z-10 space-y-8 text-center animate-pulse">
+                    <div className="text-white/20 text-[10px] tracking-[1em] uppercase mb-4">Incoming Call Connection...</div>
+                    <div className="text-white text-3xl italic tracking-tighter">"how is calling me at this hour"</div>
+                    <div className="flex flex-col items-center gap-4 mt-20">
+                        <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-full flex items-center justify-center animate-bounce">
+                            <span className="text-white text-xs font-black">E</span>
+                        </div>
+                        <div className="text-white/40 text-[9px] font-black uppercase tracking-[0.4em]">Press E to pick up phone</div>
+                    </div>
+                </div>
+                {/* procedural vibration hum visual */}
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-white/5 overflow-hidden z-20">
+                    <div className="h-full bg-blue-500/20 w-1/3 animate-ping"></div>
+                </div>
+            </div>
+        );
+    }
+
+
     if (gameState === 'phone') {
+
         const renderHomeScreen = () => (
             <div className="flex-1 flex flex-col p-8 bg-gradient-to-br from-indigo-950 via-slate-900 to-zinc-950 ring-inset ring-8 ring-black/20">
                 <div className="flex justify-between items-center mb-12 backdrop-blur-md bg-white/10 p-2 rounded-full px-4">
@@ -633,7 +766,7 @@ const Level10 = () => {
         );
 
         const renderPayApp = () => (
-            <div className="flex-1 flex flex-col bg-slate-950">
+            <div className="flex-1 flex flex-col bg-black">
                 <div className="p-6 border-b border-blue-500/20 flex items-center justify-between bg-blue-600/5">
                     <button onClick={() => setPhoneApp('home')} className="text-blue-400 text-xs font-bold">← Home</button>
                     <span className="text-xs font-black text-white uppercase tracking-widest">PayUp Beta</span>
@@ -668,7 +801,13 @@ const Level10 = () => {
         );
 
         return (
-            <div className="fixed inset-0 z-[1000] bg-black/95 flex items-center justify-center backdrop-blur-2xl">
+            <div className="fixed inset-0 z-[1000] flex items-center justify-center font-sans overflow-hidden">
+                {/* Background Context */}
+                <div className="absolute inset-0 z-0">
+                    <img src="/assets/morning_bed.png" className="w-full h-full object-cover brightness-[0.4]" alt="" />
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
+                </div>
+
                 {/* Close phone button */}
                 <button onClick={() => setGameState('room')} className="absolute top-8 right-8 z-[1100] px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white text-xs font-black rounded-full border border-white/10 transition-all backdrop-blur-md">✕ Close Phone</button>
 

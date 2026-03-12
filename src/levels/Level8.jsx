@@ -337,7 +337,7 @@ const Level8 = () => {
               width: ROOM_WIDTH,
               height: ROOM_HEIGHT,
               transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-              backgroundColor: '#2c3e50'
+              backgroundColor: 'black'
             }}
           >
 
@@ -534,7 +534,7 @@ const Level8 = () => {
     const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
 
     return (
-      <div className={`w-full h-full flex flex-col bg-slate-900 overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`w-full h-full flex flex-col bg-black overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {interactionTarget === 'exit_car' && !isCarExited && (
           <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
             <div className="h-[2px] w-12 bg-white/30 mb-3" />

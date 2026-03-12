@@ -89,10 +89,10 @@ const LevelLivingRoom = () => {
     const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
     return (
-        <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-mono">
+        <div className="w-full h-full flex items-center justify-center bg-black px-8 animate-in fade-in duration-1000 font-mono">
             {/* Viewport Container */}
             <div
-                className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900"
+                className="relative border-8 border-zinc-800 shadow-2xl overflow-hidden bg-black"
                 style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
             >
                 {/* World Container (Camera) */}
@@ -102,7 +102,7 @@ const LevelLivingRoom = () => {
                         width: ROOM_WIDTH,
                         height: ROOM_HEIGHT,
                         transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-                        backgroundColor: '#2c3e50'
+                        backgroundColor: '#1a1a1a'
                     }}
                 >
                     {/* Wood Floor */}

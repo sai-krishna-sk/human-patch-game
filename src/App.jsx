@@ -23,7 +23,7 @@ function GameRunner() {
     const { currentLevel, assets, rank, safetyScore, lives } = useGameState();
 
     return (
-        <div className="w-screen h-screen bg-slate-900 overflow-hidden font-sans relative">
+        <div className="w-screen h-screen bg-black overflow-hidden font-sans relative">
 
             {/* Global HUD — Assets & Status - Only visible in levels 1-5 */}
             {currentLevel > 0 && (
