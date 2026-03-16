@@ -1048,7 +1048,7 @@ const Level10 = () => {
 
     if (gameState === 'outcome') {
         return (
-            <div className="fixed inset-0 z-[2000] bg-black flex items-center justify-center p-12 overflow-hidden text-center text-white">
+            <div className="fixed inset-0 z-[2000] bg-[#0f172a] flex items-center justify-center p-12 overflow-hidden text-center text-white">
                 <div className="max-w-4xl space-y-12 animate-in zoom-in-95 duration-1000">
                     <div className="space-y-4">
                         <h1 className="text-[100px] font-black uppercase tracking-tighter italic leading-none">THE_VOICE_IS_GEN</h1>

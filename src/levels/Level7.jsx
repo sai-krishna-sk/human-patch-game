@@ -529,7 +529,7 @@ const Level7 = () => {
 
     if (gameState === 'pov_intro') {
         return (
-            <div className="w-full h-full bg-black relative overflow-hidden flex items-center justify-center">
+            <div className="w-full h-full bg-[#0f172a] relative overflow-hidden flex items-center justify-center">
                 {FadeOverlay()}
                 <img src="/assets/temppho.png" alt="POV intro" className="w-full h-full object-cover opacity-60 scale-105 animate-[pulse_6s_infinite]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
@@ -548,14 +548,14 @@ const Level7 = () => {
         const camY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-black px-8">
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+            <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8">
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     {FadeOverlay()}
                     {InteractionPrompt({ text: 'exit to living room', target: 'room_door' })}
 
                     <div className="absolute transition-transform duration-100 ease-out" style={{ transform: `translate(${-camX}px, ${-camY}px)`, width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                         {/* Room Environment */}
-                        <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
+                        <div className="absolute inset-0 bg-[#0f172a] overflow-hidden">
                             <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/30 pointer-events-none z-20" />
                             <div
                                 className="absolute inset-0 z-0"
@@ -582,8 +582,8 @@ const Level7 = () => {
         const camY = Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-black px-8">
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+            <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8">
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     {FadeOverlay()}
                     {InteractionPrompt({ text: 'exit to garden', target: 'main_door' })}
 
@@ -1004,7 +1004,7 @@ const Level7 = () => {
                         </div>
                     </div>
                     {/* Menu board */}
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[80%] h-24 bg-zinc-900 rounded-lg border-4 border-[#3d2415] p-3">
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[80%] h-24 bg-slate-900 rounded-lg border-4 border-[#3d2415] p-3">
                         <div className="text-[8px] text-amber-400 font-black text-center mb-1">☕ MENU</div>
                         <div className="text-[6px] text-stone-400 space-y-0.5 text-center font-mono">
                             <p>Filter Coffee ₹80 | Latte ₹150</p>

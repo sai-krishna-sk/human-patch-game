@@ -274,12 +274,12 @@ const Level9 = () => {
         const VIEWPORT_WIDTH = 1200;
         const VIEWPORT_HEIGHT = 800;
         return (
-            <div className="w-full h-full flex items-center justify-center bg-black px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
+            <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <FeedbackToast />
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-black" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
-                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: 'black' }}>
+                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: '#2c3e50' }}>
                         <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/60 pointer-events-none z-10"></div>
 

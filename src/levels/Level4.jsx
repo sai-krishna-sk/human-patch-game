@@ -290,7 +290,7 @@ const Level4 = () => {
 
     if (gameState === 'study_walk' || gameState === 'walk') {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-black px-8">
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <FeedbackToast />

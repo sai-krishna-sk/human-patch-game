@@ -10,22 +10,22 @@ const dialogues = [
     },
     {
         speaker: 'GRANDPA',
-        text: "Hello? ... Is this you? ... My son, it's me. My time has come. Listen carefully, for I won't have long...",
+        text: "Hello? ... Is this you? ... My son, it's me! I've got some amazing news. I'm finally doing it—I'm going to Hawaii!",
         portrait: '/assets/grandpa.jpg',
     },
     {
         speaker: 'GRANDPA',
-        text: "There is... something you must know. The secrets I've kept... they are yours now. Use them well, for the world is full of shadows.",
+        text: "But listen, I'm heading to the airport soon and I need you to come home to the study room immediately. I have something important for you.",
         portrait: '/assets/grandpa.jpg',
     },
     {
         speaker: 'PLAYER',
-        text: "Grandfather? What's happening? Where are you? Please, stay with me!",
+        text: "Grandfather? Hawaii? That's great! I'll be there as fast as I can. Wait for me!",
         portrait: '/assets/protagonist.png',
     },
     {
         speaker: 'GRANDPA',
-        text: "...Find the truth... The shadows... they are moving...",
+        text: "Hurry now, my boy! The taxi is coming soon. The study... everything starts there...",
         portrait: '/assets/grandpa.jpg',
     }
 ];
@@ -285,7 +285,7 @@ const Prologue = () => {
 
     if (phase === 'office') {
         return (
-            <div className="w-screen h-screen bg-black flex items-center justify-center relative overflow-hidden animate-fade-in text-white/90">
+            <div className="w-screen h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden animate-fade-in text-white/90">
                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/assets/office_inside.jpeg")' }} />
                 <Player x="49%" y="63%" />
                 <div className="absolute top-[52%] left-[40%] animate-phone-vibrate pointer-events-none z-40" style={{ filter: 'drop-shadow(0 0 5px rgba(255,255,255,0.4))' }}>

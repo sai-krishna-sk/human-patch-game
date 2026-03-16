@@ -182,26 +182,28 @@ const WorldMap = () => {
                 </div>
             </div>
 
-            <div className="absolute top-8 right-8 z-[900] flex flex-col items-end gap-3 select-none pointer-events-none">
-                <div className="flex gap-4">
-                    <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-500 font-black tracking-widest uppercase">Assets</span>
-                        <span className="text-xl font-black text-emerald-400">₹{assets ? assets.toLocaleString('en-IN') : '0'}</span>
+            {assets > 0 && (
+                <div className="absolute top-8 right-8 z-[900] select-none pointer-events-none">
+                    <div className="flex gap-4">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-slate-500 font-black tracking-widest uppercase">Assets</span>
+                            <span className="text-xl font-black text-emerald-400">₹{assets ? assets.toLocaleString('en-IN') : '0'}</span>
+                        </div>
+                        <div className="w-px h-8 bg-slate-800" />
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] text-slate-500 font-black tracking-widest uppercase">Rank</span>
+                            <span className="text-xl font-black text-indigo-400 capitalize">{rank}</span>
+                        </div>
                     </div>
-                    <div className="w-px h-8 bg-slate-800" />
-                    <div className="flex flex-col items-end">
-                        <span className="text-[9px] text-slate-500 font-black tracking-widest uppercase">Rank</span>
-                        <span className="text-xl font-black text-indigo-400 capitalize">{rank}</span>
+                    <div className="flex items-center gap-4 bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-sm shadow-xl mt-3">
+                        <span className="text-[9px] text-slate-500 font-black tracking-widest uppercase">Safety</span>
+                        <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.5)]" style={{ width: `${Math.min(100, (safetyScore || 0) / 10)}%` }} />
+                        </div>
+                        <span className="text-xs font-black text-cyan-400">{safetyScore || 0}</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 bg-slate-900/60 border border-slate-800 px-4 py-2 rounded-sm shadow-xl">
-                    <span className="text-[9px] text-slate-500 font-black tracking-widest uppercase">Safety</span>
-                    <div className="w-32 h-1 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.5)]" style={{ width: `${Math.min(100, (safetyScore || 0) / 10)}%` }} />
-                    </div>
-                    <span className="text-xs font-black text-cyan-400">{safetyScore || 0}</span>
-                </div>
-            </div>
+            )}
 
             {/* ═══ WORLD CONTAINER ═══ */}
             <div

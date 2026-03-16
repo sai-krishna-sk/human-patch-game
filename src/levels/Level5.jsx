@@ -662,7 +662,7 @@ const Level5 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'waking_up') {
         return (
-            <div className="w-full h-full bg-black flex items-center justify-center overflow-hidden relative font-sans">
+            <div className="w-full h-full bg-[#0f172a] flex items-center justify-center overflow-hidden relative font-sans">
                 <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div
                     className="w-full h-full transition-all duration-1000"
@@ -690,7 +690,7 @@ const Level5 = () => {
         const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
         const cameraX = Math.max(0, Math.min(bedroomPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
         return (
-            <div className="w-full h-full flex flex-col bg-black overflow-hidden relative font-sans">
+            <div className="w-full h-full flex flex-col bg-[#0f172a] overflow-hidden relative font-sans">
                 <FeedbackToast />
                 <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
@@ -741,7 +741,7 @@ const Level5 = () => {
         const cameraY = Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative">
+            <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-sans relative">
                 <FeedbackToast />
                 <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
@@ -758,7 +758,7 @@ const Level5 = () => {
                 )}
 
                 <div
-                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900"
+                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-[#0f172a]"
                     style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
                 >
                     <div
@@ -767,7 +767,7 @@ const Level5 = () => {
                             width: LIVING_ROOM_WIDTH,
                             height: LIVING_ROOM_HEIGHT,
                             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-                            backgroundColor: 'black',
+                            backgroundColor: '#2c3e50',
                             transition: 'transform 0.1s linear'
                         }}
                     >
@@ -1173,7 +1173,7 @@ const Level5 = () => {
                     <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/30 rounded-full z-50"></div>
 
                     {/* Phone Screen */}
-                    <div className="w-full h-full bg-zinc-900 rounded-[2.5rem] overflow-hidden flex flex-col relative">
+                    <div className="w-full h-full bg-slate-900 rounded-[2.5rem] overflow-hidden flex flex-col relative">
                         <div className="flex-1 bg-slate-900 flex flex-col">
                             <div className="px-6 pt-10 pb-2 flex justify-between text-white/40 text-xs font-black">
                                 <span>8:15 AM</span>
@@ -1453,7 +1453,7 @@ const Level5 = () => {
                 <div className="w-[336px] h-[688px] relative flex-shrink-0">
                     <div className="w-[420px] h-[860px] bg-black rounded-[4rem] p-4 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[8px] border-zinc-800 origin-top-left scale-[0.8]">
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-3xl z-50"></div>
-                        <div className="w-full h-full bg-zinc-900 rounded-[3rem] overflow-hidden flex flex-col relative">
+                        <div className="w-full h-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col relative">
                             <div className="bg-[#1c2128] p-8 pt-14 text-center">
                                 <h3 className="text-white text-2xl font-black uppercase">Enter UPI PIN</h3>
                                 <p className="text-white/40 text-xs mt-2 font-mono">Authorize collect request of ₹1.00</p>
@@ -2830,7 +2830,7 @@ const Level5 = () => {
                 <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
                 <div
-                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900"
+                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900"
                     style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
                 >
                     <div
@@ -2839,7 +2839,7 @@ const Level5 = () => {
                             width: LIVING_ROOM_WIDTH,
                             height: LIVING_ROOM_HEIGHT,
                             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-                            backgroundColor: '#2c3e50',
+                            backgroundColor: '#0f172a',
                             transition: 'transform 0.1s linear'
                         }}
                     >

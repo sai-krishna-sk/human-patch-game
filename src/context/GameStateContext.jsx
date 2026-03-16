@@ -5,7 +5,7 @@ const GameStateContext = createContext();
 export const useGameState = () => useContext(GameStateContext);
 
 export const GameStateProvider = ({ children }) => {
-    const [assets, setAssets] = useState(4200000);
+    const [assets, setAssets] = useState(0);
     const [safetyScore, setSafetyScore] = useState(0);
     const [rank, setRank] = useState('Rookie');
     const [lives, setLives] = useState(3);
@@ -95,7 +95,7 @@ export const GameStateProvider = ({ children }) => {
     };
 
     const completeLevel = (success, pointsAmount, assetChange) => {
-        setAssets(prev => prev + assetChange);
+        setAssets(prev => Math.max(0, prev + assetChange));
         if (success) {
             setSafetyScore(prev => prev + pointsAmount);
             // Logic for rank up might go here based on total score

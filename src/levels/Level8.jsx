@@ -324,10 +324,10 @@ const Level8 = () => {
     const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
     return (
-      <div className={`w-full h-full flex items-center justify-center bg-zinc-950 px-8 transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`w-full h-full flex items-center justify-center bg-[#0f172a] px-8 transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {/* Viewport Container */}
         <div
-          className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900"
+          className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-slate-900"
           style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
         >
           {/* World Container (Camera) */}
@@ -337,7 +337,7 @@ const Level8 = () => {
               width: ROOM_WIDTH,
               height: ROOM_HEIGHT,
               transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-              backgroundColor: 'black'
+              backgroundColor: '#2c3e50'
             }}
           >
 
@@ -490,7 +490,7 @@ const Level8 = () => {
   };
 
   const LivingPov = () => (
-    <div className={`w-full h-full flex flex-col items-center justify-center bg-black relative animate-in fade-in duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`w-full h-full flex flex-col items-center justify-center bg-[#0f172a] relative animate-in fade-in duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
       <img src="/assets/living_pov.png" alt="Living POV" className="w-full h-full object-cover" />
       
       {/* Clickable Phone Area */}
@@ -534,7 +534,7 @@ const Level8 = () => {
     const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
 
     return (
-      <div className={`w-full h-full flex flex-col bg-black overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`w-full h-full flex flex-col bg-zinc-950 overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {interactionTarget === 'exit_car' && !isCarExited && (
           <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
             <div className="h-[2px] w-12 bg-white/30 mb-3" />

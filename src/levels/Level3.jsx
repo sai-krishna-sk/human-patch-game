@@ -597,7 +597,8 @@ SecureMail Support Team`,
     if (gameState === 'final_decision') {
         return (
             <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative p-8 overflow-hidden">
-                {/* GLOBAL TRANSITION FADE */}                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none animate-cinematic-sequence ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 {/* Background FX */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-900/20 rounded-full blur-[100px]"></div>

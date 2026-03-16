@@ -745,7 +745,7 @@ const Level1 = () => {
                                     setTimeout(() => {
                                         setOutroStep(3);
                                         setTimeout(() => {
-                                            completeLevel(callOutcome === 'won', callOutcome === 'won' ? 500 : 0, callOutcome === 'won' ? 4200000 : 0);
+                                            completeLevel(callOutcome === 'won', callOutcome === 'won' ? 500 : 0, callOutcome === 'won' ? 0 : -4200000);
                                         }, 4000);
                                     }, 3000);
                                 }, 3500);
@@ -778,7 +778,7 @@ const Level1 = () => {
                     {isPhotoZoomed && (
                         <div className="absolute bottom-20 w-full text-center animate-fadeIn pointer-events-none z-50">
                             <p className="text-white/95 text-2xl font-serif italic tracking-wider drop-shadow-[0_4px_8px_rgba(0,0,0,0.9)] px-8">
-                                "Why did you leave so early, grandpa?"
+                                "Hope you're having a blast in Hawaii, Grandpa!"
                             </p>
                             <div className="mt-4 w-12 h-[2px] bg-white/30 mx-auto" />
                         </div>
@@ -888,8 +888,8 @@ const Level1 = () => {
 
                             {[
                                 { id: 3, sender: "SecureBank", text: "CREDIT: ₹4,200,000.00 processed. New balance: ₹4,242,000.00", time: "Now", color: "bg-amber-500", important: true },
-                                { id: 2, sender: "Cousin Rohan", text: "Yo, I heard about the 42L! That is CRAZY. Grandpa really looked out for you.", time: "1m ago", color: "bg-green-500" },
-                                { id: 1, sender: "Aunt Meera", text: "So sorry to hear about Papa. He loved you so much, beta.", time: "2m ago", color: "bg-blue-500" }
+                                { id: 2, sender: "Cousin Rohan", text: "Yo, I heard Grandpa left you in charge of the 42L! Don't blow it, haha.", time: "1m ago", color: "bg-green-500" },
+                                { id: 1, sender: "Aunt Meera", text: "Safe travels to Papa! Hope he enjoys the beaches. Watch over the house, beta.", time: "2m ago", color: "bg-blue-500" }
                             ].map((n, i) => {
                                 const showCount = 3 - i;
                                 return showCount <= visibleNotiCount && (

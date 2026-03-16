@@ -1321,9 +1321,9 @@ const Level2 = () => {
 
                 {/* LIVING ROOM PHASE (Full CSS Environment Synced with Level 9) */}
                 {(gameState === 'living_room' || gameState === 'return_to_room') && (
-                    <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans">
+                    <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-sans">
                         <div
-                            className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900"
+                            className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900"
                             style={{
                                 width: VIEWPORT_WIDTH,
                                 height: VIEWPORT_HEIGHT,
@@ -1338,7 +1338,7 @@ const Level2 = () => {
                                     width: ROOM_WIDTH,
                                     height: ROOM_HEIGHT,
                                     transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`,
-                                    backgroundColor: 'black',
+                                    backgroundColor: '#2c3e50',
                                     willChange: 'transform'
                                 }}
                             >

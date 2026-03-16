@@ -28,6 +28,7 @@ const Level11 = () => {
   const [waHistory, setWaHistory] = useState([]);
   const [waUnknownHistory, setWaUnknownHistory] = useState([]);
   const [showUnknownNotif, setShowUnknownNotif] = useState(false);
+  const [blackmailProgress, setBlackmailProgress] = useState(0);
 
   // FLAGS (Narrative Choices)
   const [profileChecked, setProfileChecked] = useState(false);
@@ -125,7 +126,7 @@ const Level11 = () => {
 
   const InstagramApp = () => {
     const posts = [
-      { user: 'celebrity_quotes', img: '/assets/cartoon_girl.png', text: '“The sun will rise again. Believe in yourself.” ✨', comments: ['Stay strong!', 'Needed this today.'] },
+      { user: 'celebrity_quotes', img: '/assets/celebrity_girl.png', text: '“The sun will rise again. Believe in yourself.” ✨', comments: ['Stay strong!', 'Needed this today.'] },
       { user: 'foodie_chennai', img: '/assets/market_bg.png', text: 'Best Biryani in Anna Nagar! 🍛', comments: ['Price?', 'Address please!'] },
       { user: 'digital_safety', img: '/assets/phone_noti.png', text: 'Never share your OTP with anyone. Stay safe!', comments: ['Thanks for the tip.', 'Important!'] },
     ];
@@ -145,7 +146,9 @@ const Level11 = () => {
           {posts.map((post, i) => (
             <div key={i} className="flex flex-col border-b border-white/5 pb-4">
               <div className="flex items-center gap-2 p-3">
-                <div className="w-8 h-8 rounded-full bg-zinc-800" />
+                <div className="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">
+                  <img src={post.user === 'celebrity_quotes' ? '/assets/celebrity_girl.png' : '/assets/priya_real.png'} className="w-full h-full object-cover" alt="avatar" />
+                </div>
                 <span className="text-xs font-bold">{post.user}</span>
               </div>
               <div className="aspect-square bg-zinc-900 overflow-hidden">
@@ -193,10 +196,10 @@ const Level11 = () => {
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="w-20 h-20 rounded-full border border-indigo-500 overflow-hidden bg-zinc-800 shrink-0">
-              <img src="/assets/cartoon_girl.png" className="w-full h-full object-cover" alt="Profile" />
+              <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="Profile" />
             </div>
             <div className="flex gap-4 text-center">
-              <div><div className="font-bold text-lg">12</div><div className="text-[10px] text-zinc-400">Posts</div></div>
+              <div><div className="font-bold text-lg">1</div><div className="text-[10px] text-zinc-400">Posts</div></div>
               <div><div className="font-bold text-lg">{isFollowing ? "1,241" : "1,240"}</div><div className="text-[10px] text-zinc-400">Followers</div></div>
               <div><div className="font-bold text-lg">4,521</div><div className="text-[10px] text-zinc-400">Following</div></div>
             </div>
@@ -204,8 +207,8 @@ const Level11 = () => {
 
           <div className="mb-4">
             <h2 className="font-bold text-sm">Priya</h2>
-            <p className="text-xs text-zinc-400 mb-1">CHENNAI | MUSIC + CHAI LOVER ☕</p>
-            <p className="text-[10px] italic pr-4">"dm for frndz chat... im so loneoly 😔 just need smone to tlk to..."</p>
+            <p className="text-xs text-zinc-400 mb-1">Anime Vibes | Cozy corner 🍵 | Dreaming of magic ✨</p>
+            <p className="text-[10px] italic pr-4">"Lost in the colors of the sky. Let's be friends? 🎀"</p>
           </div>
 
           <div className="flex gap-2">
@@ -216,11 +219,9 @@ const Level11 = () => {
 
         {/* Grid */}
         <div className="grid grid-cols-3 gap-[2px] mt-2 pb-12">
-          {Array(12).fill(null).map((_, i) => (
-            <div key={i} className="aspect-square bg-zinc-800 overflow-hidden relative border border-zinc-900 border-opacity-50">
-              {i === 4 && <img src="/assets/cartoon_girl.png" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" alt="Post" />}
-            </div>
-          ))}
+          <div className="aspect-square bg-zinc-800 overflow-hidden relative border border-zinc-900 border-opacity-50">
+            <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="Post" />
+          </div>
         </div>
 
         {/* 3-Dot Menu Modal */}
@@ -293,7 +294,9 @@ const Level11 = () => {
             <div className="flex-1 p-4 overflow-y-auto pt-10">
               {renderSystemMsg("Day 1, 9:47 PM")}
               <div className="text-center p-4 bg-zinc-900/50 rounded-xl mb-4 border border-white/5">
-                <div className="w-16 h-16 rounded-full bg-indigo-600 mx-auto mb-2" />
+                <div className="w-16 h-16 rounded-full bg-indigo-600 mx-auto mb-2 overflow-hidden border-2 border-indigo-500/50">
+                  <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
+                </div>
                 <p className="font-bold text-sm">@_priya.sunshine_</p>
                 <p className="text-[9px] text-zinc-400">Chennai | music + chai lover ✨</p>
               </div>
@@ -492,7 +495,7 @@ const Level11 = () => {
         <div className="cursor-pointer font-bold text-xl mr-1 hover:text-white/80 active:scale-95 transition-transform" onClick={() => setPhoneApp('whatsapp_list')}>←</div>
       )}
       <div className="w-10 h-10 rounded-full bg-zinc-300 overflow-hidden flex items-center justify-center">
-        <div className="w-full h-full bg-indigo-600 border border-white/20" />
+        <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
       </div>
       <div className="flex-1">
         <p className="font-bold text-sm leading-tight">{title}</p>
@@ -600,7 +603,7 @@ const Level11 = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-5">
           <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400">👤</div><span className="font-bold text-sm">Amma</span></div>
           <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400">👤</div><span className="font-bold text-sm">Appa</span></div>
-          {savedContact && <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex justify-center items-center font-black">P</div><span className="font-bold text-sm">Priya</span></div>}
+          {savedContact && <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-100 overflow-hidden"><img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="P" /></div><span className="font-bold text-sm">Priya</span></div>}
           <div className="flex items-center gap-4"><div className="w-10 h-10 rounded-full bg-zinc-200 flex items-center justify-center text-zinc-400">👤</div><span className="font-bold text-sm">Rahul (College)</span></div>
         </div>
       </div>
@@ -700,8 +703,7 @@ const Level11 = () => {
             {isRinging ? "Incoming Voice Call" : formatTime(callDuration)}
           </p>
           <div className="z-10 w-32 h-32 rounded-full bg-zinc-300 mb-6 flex items-center justify-center text-4xl shadow-xl border-4 border-[#25d366]/50 mb-4 overflow-hidden relative">
-            <div className={`w-full h-full bg-indigo-600 ${isRinging ? 'animate-pulse' : ''}`} />
-            <div className="absolute font-black text-6xl text-white/50">P</div>
+            <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
           </div>
           <p className="z-10 text-3xl font-bold mb-2">Priya</p>
           <p className="z-10 text-sm opacity-80 mb-2 font-mono">+91 94440 12345</p>
@@ -729,6 +731,7 @@ const Level11 = () => {
 
   const WAVideoCall = () => {
     const [isAccepted, setIsAccepted] = useState(false);
+    const [showResponse, setShowResponse] = useState(false);
     const videoRef = useRef(null);
     const playerVideoRef = useRef(null);
 
@@ -757,17 +760,27 @@ const Level11 = () => {
             src="/Dia_audio/lvl1/priyavideo.mp4"
             autoPlay
             playsInline
-            onEnded={handleEndCall}
+            onEnded={() => setShowResponse(true)}
             className="w-full h-full object-cover"
           />
 
           {/* Player PIP (Picture-in-Picture) */}
           <div className="absolute top-24 right-4 w-28 h-40 bg-zinc-800 rounded-lg border-2 border-white/20 z-20 shadow-xl overflow-hidden">
-            <img
-              src="/assets/protagonist.png"
-              alt="Player"
-              className="object-cover w-full h-full scale-x-[-1]"
-            />
+            {!showResponse ? (
+              <img
+                src="/assets/protagonist.png"
+                alt="Player"
+                className="object-cover w-full h-full scale-x-[-1]"
+              />
+            ) : (
+              <video
+                src="/Dia_audio/lvl1/proresponse.mp4"
+                autoPlay
+                playsInline
+                onEnded={handleEndCall}
+                className="w-full h-full object-cover scale-x-[-1]"
+              />
+            )}
           </div>
 
           {/* Call Controls Overlay */}
@@ -795,7 +808,9 @@ const Level11 = () => {
 
         <div className="flex-1 p-4 text-center flex flex-col items-center justify-center z-20">
           <div className="w-32 h-32 rounded-full border-4 border-[#25d366] border-t-transparent animate-spin mb-4" />
-          <div className="w-24 h-24 rounded-full bg-indigo-600 absolute flex items-center justify-center text-4xl font-black text-white/50 shadow-[0_0_30px_rgba(79,70,229,0.5)]">P</div>
+          <div className="w-24 h-24 rounded-full bg-indigo-600 absolute flex items-center justify-center text-4xl font-black text-white/50 shadow-[0_0_30px_rgba(79,70,229,0.5)] overflow-hidden">
+            <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
+          </div>
           <p className="font-bold text-white text-xl mt-8 drop-shadow-md">Incoming Video Call</p>
           <p className="text-[#25d366] text-sm mt-2 font-mono uppercase tracking-widest animate-pulse">Priya is calling...</p>
         </div>
@@ -903,6 +918,11 @@ const Level11 = () => {
             <div key={idx} className="p-3 bg-red-100 border border-red-300 rounded-lg text-black text-[10px] my-4 leading-tight font-bold shadow-sm animate-fadeIn">
               <span className="text-red-700 block mb-1">Unknown Number:</span>
               {msg.text}
+              {msg.img && (
+                <div className="mt-2 rounded-lg overflow-hidden border border-red-400">
+                  <img src={msg.img} className="w-full h-auto" alt="blackmail" />
+                </div>
+              )}
             </div>
           );
           return <React.Fragment key={idx}>{renderWARPlayerMsg(msg.text)}</React.Fragment>;
@@ -918,7 +938,29 @@ const Level11 = () => {
           <WAHeader title="+91 98941 23094" subtitle="online" showBack={true} />
           {renderChatStream(waUnknownHistory)}
           <div className="z-20 pb-10 pt-2 shrink-0 w-full bg-[#f0f0f0] shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col">
-            {renderWARChoices([
+            {blackmailProgress === 0 && renderWARChoices([
+              {
+                text: "Send: 'Who is this? How did you get that?'", points: 0, impact: () => {
+                  addToUnknown({ type: 'player', text: "Who is this? How did you get that?" });
+                  setBlackmailProgress(1);
+                  setTimeout(() => {
+                    addToUnknown({ type: 'unknown', text: "Doesn't matter. You have 2 minutes to decide. ₹1,20,000 or your life is ruined." });
+                  }, 1500);
+                }
+              }
+            ])}
+            {blackmailProgress === 1 && waUnknownHistory.some(m => m.text.includes("Doesn't matter")) && renderWARChoices([
+              {
+                text: "Send: 'I need time.'", points: 0, impact: () => {
+                  addToUnknown({ type: 'player', text: "I need time." });
+                  setBlackmailProgress(2);
+                  setTimeout(() => {
+                    addToUnknown({ type: 'unknown', text: "No time. Priya told us you have the money from Thatha." });
+                  }, 1500);
+                }
+              }
+            ])}
+            {blackmailProgress === 2 && waUnknownHistory.some(m => m.text.includes("Priya told us")) && renderWARChoices([
               {
                 text: "Return to Priya's Chat", points: 0, nextStep: 9.5, impact: () => {
                   setPhoneApp('whatsapp');
@@ -956,7 +998,7 @@ const Level11 = () => {
             onClick={() => {
               setShowUnknownNotif(false);
               setPhoneApp('whatsapp_unknown');
-              setWaUnknownHistory([{ type: 'system', text: 'TODAY' }, { type: 'unknown', text: 'Pay ₹1,20,000 NOW or we release your video call screenshots. We know about the ₹42 lakhs.' }]);
+              setWaUnknownHistory([{ type: 'system', text: 'TODAY' }, { type: 'unknown', text: 'Pay ₹1,20,000 NOW or we release your video call screenshots. We know about the ₹42 lakhs.', img: '/assets/blackmail_proof.png' }]);
             }}>
             <div className="w-10 h-10 bg-[#25d366] rounded-full flex items-center justify-center text-xl">💬</div>
             <div className="flex-1">
@@ -1059,7 +1101,7 @@ const Level11 = () => {
   // --- MAIN RENDERS ---
 
   const renderIntro = () => (
-    <div className="flex flex-col items-center justify-center h-full bg-black text-center p-12">
+    <div className="flex flex-col items-center justify-center h-full bg-zinc-950 text-center p-12">
       <h1 className="text-7xl font-black mb-6 tracking-tighter italic">I'M SO LONELY</h1>
       <div className="bg-red-600 px-6 py-2 text-sm font-black uppercase tracking-widest mb-10 skew-x-[-10deg]">Advanced Romance Fraud Mystery</div>
       <p className="max-w-xl text-zinc-400 text-lg leading-relaxed mb-12">
@@ -1103,7 +1145,7 @@ const Level11 = () => {
     };
 
     return (
-      <div className="w-full h-full relative bg-black overflow-hidden text-white">
+      <div className="w-full h-full relative bg-zinc-900 overflow-hidden text-white">
         <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("${getBackground()}")` }} />
         {/* Removed Day HUD overlay per user request */}
         <Player x={playerPos.x} y={playerPos.y} />
@@ -1131,7 +1173,7 @@ const Level11 = () => {
     else if (phoneApp === 'whatsapp') AppToRender = <WhatsAppApp />;
     else if (phoneApp === 'whatsapp_unknown') AppToRender = <WhatsAppApp />;
     else if (phoneApp === 'dm_transition') AppToRender = (
-      <div className="flex-1 flex flex-col bg-black items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
+      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
         <p className="font-mono text-xl tracking-widest text-zinc-400 z-10 animate-pulse">{transitionMsg}</p>
       </div>
     );
@@ -1185,7 +1227,7 @@ const Level11 = () => {
       AppToRender = <GPayApp amount={amount} />;
     }
     else if (phoneApp === 'whatsapp_transition_2h') AppToRender = (
-      <div className="flex-1 flex flex-col bg-black items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
+      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/assets/study.png')] bg-cover opacity-10 bg-center"></div>
         <div className="w-16 h-16 border-t-2 border-indigo-500 border-r-2 border-transparent rounded-full animate-spin mb-8 z-10"></div>
         <p className="font-mono text-xl tracking-widest text-zinc-400 z-10">2 HOURS LATER</p>
@@ -1216,7 +1258,7 @@ const Level11 = () => {
   const renderResults = () => {
     const rank = points >= 230 ? "Cyber Detective Elite" : points >= 150 ? "Vigilant Defender" : points >= 80 ? "Awareness Student" : "Compromised";
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-12 bg-black">
+      <div className="flex flex-col items-center justify-center h-full text-center p-12 bg-zinc-950">
         <h1 className="text-9xl font-black mb-2 italic tracking-tighter">{points} / 230</h1>
         <p className="text-3xl font-black text-indigo-400 mb-12 uppercase">{rank}</p>
         <div className="max-w-2xl text-zinc-400 italic mb-12 text-lg">
@@ -1258,7 +1300,7 @@ const Level11 = () => {
 
   function renderAct3() {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full bg-black p-6 md:p-12 overflow-y-auto relative">
+      <div className="flex flex-col items-center justify-center min-h-full bg-zinc-950 p-6 md:p-12 overflow-y-auto relative">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/10 blur-[120px] rounded-full animate-pulse" />
@@ -1304,7 +1346,7 @@ const Level11 = () => {
 
   function renderAwareness() {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full bg-black p-6 md:p-12 overflow-y-auto relative">
+      <div className="flex flex-col items-center justify-center min-h-full bg-zinc-950 p-6 md:p-12 overflow-y-auto relative">
         {/* Background Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
           <div className="absolute top-1/2 right-1/4 w-[500px] h-[500px] bg-indigo-600/5 blur-[150px] rounded-full animate-pulse" />
