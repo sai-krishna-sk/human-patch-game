@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
@@ -350,12 +351,7 @@ const Level9 = () => {
                     </div>
 
                     {interactionTarget === 'bedroom' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                Press E to enter bedroom
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to enter bedroom" />
                     )}
                 </div>
             </div>
@@ -374,12 +370,7 @@ const Level9 = () => {
                     <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
 
                     {interactionTarget === 'sleep' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                Press E to lay down
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to lay down" />
                     )}
 
                     <div className="absolute top-4 left-4 z-30 bg-black/80 px-4 py-2 rounded-lg border border-slate-700/50">

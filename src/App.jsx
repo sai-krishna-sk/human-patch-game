@@ -17,6 +17,7 @@ import LevelSelector from './components/LevelSelector';
 import MainMenu from './components/MainMenu';
 import Prologue from './levels/Prologue';
 import CyberDefenseLab from './components/CyberDefenseLab';
+import Conclusion from './levels/Conclusion';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 
 function GameRunner() {
@@ -86,6 +87,7 @@ function GameRunner() {
             {currentLevel === 9 && <Level9 />}
             {currentLevel === 10 && <Level10 />}
             {currentLevel === 11 && <Level11 />}
+            {currentLevel === 12 && <Conclusion />}
             {currentLevel === 'living-room' && <LevelLivingRoom />}
             {currentLevel === 'bedroom' && <LevelBedroom />}
 

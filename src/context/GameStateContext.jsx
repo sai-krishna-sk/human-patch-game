@@ -1,15 +1,44 @@
-import React, { createContext, useContext, useState, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const GameStateContext = createContext();
 
 export const useGameState = () => useContext(GameStateContext);
 
 export const GameStateProvider = ({ children }) => {
-    const [assets, setAssets] = useState(0);
-    const [safetyScore, setSafetyScore] = useState(0);
-    const [rank, setRank] = useState('Rookie');
-    const [lives, setLives] = useState(3);
-    const [currentLevel, setCurrentLevel] = useState(-2); // -2 = Main Menu, -1 = Selector, 0 = World Map...
+    // ═══ PERSISTENT STATE ═══
+    const [assets, setAssets] = useState(() => {
+        const saved = localStorage.getItem('hpg_assets');
+        return saved !== null ? Number(saved) : 0;
+    });
+    const [safetyScore, setSafetyScore] = useState(() => {
+        const saved = localStorage.getItem('hpg_safetyScore');
+        return saved !== null ? Number(saved) : 0;
+    });
+    const [rank, setRank] = useState(() => {
+        return localStorage.getItem('hpg_rank') || 'Rookie';
+    });
+    const [lives, setLives] = useState(() => {
+        const saved = localStorage.getItem('hpg_lives');
+        return saved !== null ? Number(saved) : 3;
+    });
+    const [currentLevel, setCurrentLevel] = useState(-2); // -2 = Main Menu
+
+    useEffect(() => { localStorage.setItem('hpg_assets', assets); }, [assets]);
+    useEffect(() => { localStorage.setItem('hpg_safetyScore', safetyScore); }, [safetyScore]);
+    useEffect(() => { localStorage.setItem('hpg_rank', rank); }, [rank]);
+    useEffect(() => { localStorage.setItem('hpg_lives', lives); }, [lives]);
+
+    const resetProgress = () => {
+        localStorage.removeItem('hpg_assets');
+        localStorage.removeItem('hpg_safetyScore');
+        localStorage.removeItem('hpg_rank');
+        localStorage.removeItem('hpg_lives');
+        setAssets(0);
+        setSafetyScore(0);
+        setRank('Rookie');
+        setLives(3);
+        setCurrentLevel(-2);
+    };
 
     const audioCtxRef = useRef(null);
 
@@ -117,7 +146,8 @@ export const GameStateProvider = ({ children }) => {
             completeLevel,
             adjustAssets,
             adjustLives,
-            playTitleCardSound
+            playTitleCardSound,
+            resetProgress
         }}>
             {children}
         </GameStateContext.Provider>

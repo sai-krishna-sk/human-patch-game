@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const dialogues = [
     {
@@ -258,15 +259,7 @@ const Prologue = () => {
         }
     }, [phase]);
 
-    // Standardized Interaction Prompt
-    const InteractionPrompt = ({ text }) => (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md whitespace-nowrap">
-                {text}
-            </div>
-        </div>
-    );
+
 
     // ═══ RENDER ═══
 

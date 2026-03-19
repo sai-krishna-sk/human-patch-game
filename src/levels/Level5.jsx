@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const ROOM_WIDTH = 1600;
 const ROOM_HEIGHT = 1100;
@@ -674,12 +675,7 @@ const Level5 = () => {
                 />
 
                 {/* Ultra-Minimalist Cinematic Prompt */}
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                    <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                    <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                        Press E to get up from bed
-                    </div>
-                </div>
+                <InteractionPrompt text="Press E to get up from bed" />
             </div>
         );
     }
@@ -704,22 +700,12 @@ const Level5 = () => {
 
                     {/* Interactive Bathroom (Left) */}
                     {bedroomInteractionTarget === 'bathroom' && gameState === 'bedroom' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to freshen up
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to freshen up" />
                     )}
 
                     {/* Interactive Living Room Door (Bottom) */}
                     {bedroomInteractionTarget === 'living_room_door' && gameState === 'bedroom_freshened' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to exit room
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to exit room" />
                     )}
                 </div>
 
@@ -886,12 +872,7 @@ const Level5 = () => {
                 </div>
 
                 {livingRoomInteractionTarget === 'main_door' && livingRoomStep === 3 && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                        <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                            Press E to go to garden
-                        </div>
-                    </div>
+                    <InteractionPrompt text="Press E to go to garden" />
                 )}
                 {livingRoomStep === 3 && !livingRoomInteractionTarget && (
                     <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
@@ -927,12 +908,7 @@ const Level5 = () => {
 
                     {/* Interactive Car Trigger Area */}
                     {isNearCar && !gardenFadeOut && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to get into car
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to get into car" />
                     )}
                 </div>
             </div>
@@ -1018,12 +994,7 @@ const Level5 = () => {
 
                     {/* Premium Interaction UI - Triggered when near Selvi */}
                     {canInteract && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to talk to Selvi
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to talk to Selvi" />
                     )}
                 </div>
 
@@ -1932,33 +1903,23 @@ const Level5 = () => {
 
                     {/* Interaction Prompt - Level 5 Style */}
                     {interactionTarget && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                {(() => {
-                                    switch (interactionTarget) {
-                                        case 'laptop': return "Press E to open laptop";
-                                        case 'rule_symbols': return "Press E to search draws";
-                                        case 'rule_pii': return "Press E to check frame";
-                                        case 'rule_length':
-                                        case 'empty_book': return "Press E to inspect bookshelf";
-                                        case 'rule_patterns':
-                                        case 'empty_plant': return "Press E to inspect plant";
-                                        default: return "Press E to inspect";
-                                    }
-                                })()}
-                            </div>
-                        </div>
+                        <InteractionPrompt text={(() => {
+                            switch (interactionTarget) {
+                                case 'laptop': return "Press E to open laptop";
+                                case 'rule_symbols': return "Press E to search draws";
+                                case 'rule_pii': return "Press E to check frame";
+                                case 'rule_length':
+                                case 'empty_book': return "Press E to inspect bookshelf";
+                                case 'rule_patterns':
+                                case 'empty_plant': return "Press E to inspect plant";
+                                default: return "Press E to inspect";
+                            }
+                        })()} />
                     )}
 
                     {/* Laptop-specific interaction prompt */}
                     {canInteractLaptop && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to open laptop
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to open laptop" />
                     )}
 
                     {/* HUD — Enhanced */}
@@ -2746,12 +2707,7 @@ const Level5 = () => {
 
                     {/* Prompt to leave */}
                     {playerPos.x < 150 && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to go to car
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to go to car" />
                     )}
                 </div>
 
@@ -2799,21 +2755,11 @@ const Level5 = () => {
                     )}
 
                     {isGardenReturnCar && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to get down from car
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to get down from car" />
                     )}
 
                     {!isGardenReturnCar && gardenPlayerPos.y < 150 && (
-                        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to enter Home
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to enter Home" />
                     )}
                 </div>
             </div>
@@ -2877,11 +2823,7 @@ const Level5 = () => {
 
                 {/* Study Room Prompt */}
                 {livingRoomPlayerPos.x > 1400 && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
-                            Press E to enter Study Room
-                        </div>
-                    </div>
+                    <InteractionPrompt text="Press E to enter Study Room" />
                 )}
 
                 {livingRoomPlayerPos.x <= 1400 && (

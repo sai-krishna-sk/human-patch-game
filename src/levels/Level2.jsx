@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 import Player from '../components/Player';
 
 const ROOM_WIDTH = 1600;
@@ -1307,12 +1308,7 @@ const Level2 = () => {
                         </div>
 
                         {/* Ultra-Minimalist Cinematic Prompt */}
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Press E to get up from the chair
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to get up from the chair" />
 
 
 
@@ -1668,13 +1664,18 @@ const Level2 = () => {
 
                 {/* Global Ultra-Minimalist Cinematic Prompt & Cutscene Dialogue */}
                 {(notificationStep > 0 || (interactionTarget && notificationStep === 0 && ['room', 'room_intro', 'living_room', 'return_to_room'].includes(gameState))) && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[8000] animate-in fade-in duration-500">
-                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                        <div className="text-white font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] text-center max-w-[400px]">
-                            {notificationStep === 1 && "What was that notification?"}
-                            {notificationStep === 2 && "Let's check the phone."}
-                            {notificationStep === 3 && "Press E to check the phone"}
-                            {notificationStep === 0 && interactionTarget && `Press E to ${(() => {
+                    <>
+                        {notificationStep === 1 && (
+                            <InteractionPrompt text="What was that notification? — Press E" />
+                        )}
+                        {notificationStep === 2 && (
+                            <InteractionPrompt text="Let's check the phone. — Press E" />
+                        )}
+                        {notificationStep === 3 && (
+                            <InteractionPrompt text="Press E to check the phone" />
+                        )}
+                        {notificationStep === 0 && interactionTarget && (
+                            <InteractionPrompt text={`Press E to ${(() => {
                                 switch (interactionTarget) {
                                     case 'laptop': return cluesFound.includes('alert_received') ? "Terminal" : "Check Alert";
                                     case 'rule_symbols': return "Search Draws";
@@ -1688,14 +1689,9 @@ const Level2 = () => {
                                     case 'exit_house': return "Front Door";
                                     default: return "Inspect";
                                 }
-                            })()}`}
-                        </div>
-                        {(notificationStep === 1 || notificationStep === 2) && (
-                            <div className="text-white/50 font-mono text-[9px] uppercase tracking-widest mt-4 animate-pulse">
-                                Press E for next
-                            </div>
+                            })()}`} />
                         )}
-                    </div>
+                    </>
                 )}
 
 

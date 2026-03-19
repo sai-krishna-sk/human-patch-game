@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const ROOM_WIDTH = 1600;
 const ROOM_HEIGHT = 1100;
@@ -483,16 +484,10 @@ const Level10 = () => {
 
                     {/* Interaction Prompts */}
                     {canInteractPhone && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.4)] z-[400] flex items-center gap-3 animate-bounce">
-                            <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
-                            <span>ANSWER PHONE</span>
-                        </div>
+                        <InteractionPrompt text="Press E to answer phone" />
                     )}
                     {canInteractLaptop && calledRealFriend && (
-                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-black font-bold px-6 py-3 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.4)] z-[400] flex items-center gap-3 animate-bounce">
-                            <span className="bg-black text-white px-2 py-1 rounded shadow-inner">E</span>
-                            <span>REPORT CYBER CRIME</span>
-                        </div>
+                        <InteractionPrompt text="Press E to report cyber crime" />
                     )}
 
                     {/* Instruction HUD */}
@@ -616,12 +611,7 @@ const Level10 = () => {
                 <div className="relative z-10 space-y-8 text-center animate-pulse">
                     <div className="text-white/20 text-[10px] tracking-[1em] uppercase mb-4">Incoming Call Connection...</div>
                     <div className="text-white text-3xl italic tracking-tighter">"how is calling me at this hour"</div>
-                    <div className="flex flex-col items-center gap-4 mt-20">
-                        <div className="w-12 h-12 bg-white/5 border border-white/20 rounded-full flex items-center justify-center animate-bounce">
-                            <span className="text-white text-xs font-black">E</span>
-                        </div>
-                        <div className="text-white/40 text-[9px] font-black uppercase tracking-[0.4em]">Press E to pick up phone</div>
-                    </div>
+                        <InteractionPrompt text="Press E to pick up phone" />
                 </div>
                 {/* procedural vibration hum visual */}
                 <div className="absolute inset-x-0 bottom-0 h-1 bg-white/5 overflow-hidden z-20">

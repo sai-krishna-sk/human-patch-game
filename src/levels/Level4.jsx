@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
@@ -277,12 +278,7 @@ const Level4 = () => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
 
                     {/* Ultra-Minimalist Cinematic Prompt */}
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                        <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-md">
-                            Press E to get down from the chair
-                        </div>
-                    </div>
+                    <InteractionPrompt text="Press E to get down from the chair" />
                 </div>
             </div>
         );
@@ -309,12 +305,7 @@ const Level4 = () => {
                     <Player x={playerPos.x} y={playerPos.y} />
 
                     {interactionTarget === 'exit' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                Press E to exit the room
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to exit the room" />
                     )}
 
                     <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
@@ -405,12 +396,7 @@ const Level4 = () => {
                     </div>
 
                     {interactionTarget === 'bedroom' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                Press E to enter bedroom
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to enter bedroom" />
                     )}
                 </div>
             </div>
@@ -429,12 +415,7 @@ const Level4 = () => {
                     <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
 
                     {interactionTarget === 'sleep' && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                                Press E to lay down
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Press E to lay down" />
                     )}
 
                     <div className="absolute top-4 left-4 z-30 bg-slate-900/80 px-4 py-2 rounded-lg border border-slate-700/50">
@@ -520,12 +501,7 @@ const Level4 = () => {
                 </div>
 
                 {phonePickupStep >= 4 && (
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                        <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-md">
-                            Press E to pick up the phone
-                        </div>
-                    </div>
+                    <InteractionPrompt text="Press E to pick up the phone" />
                 )}
             </div>
         );
@@ -1091,12 +1067,7 @@ const Level4 = () => {
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none" />
 
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn tracking-[0.4em]">
-                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                        <div className="text-white/80 font-mono text-[11px] uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-                            Press E to keep phone aside and sleep
-                        </div>
-                    </div>
+                    <InteractionPrompt text="Press E to keep phone aside and sleep" />
                 </div>
             </div>
         );

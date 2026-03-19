@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const dialogues = [
     {
@@ -292,14 +293,7 @@ const LevelLivingRoom = () => {
                             </div>
 
                             {/* MISSION HINT */}
-                            {interactionTarget === 'room_door' ? ( // Changed interactionActive to interactionTarget
-                                <div className="absolute z-50 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                                    <div className="bg-white text-slate-900 px-4 py-2 rounded-full shadow-2xl border-2 border-cyan-500 font-black text-xs tracking-widest uppercase whitespace-nowrap animate-bounce flex items-center gap-2">
-                                        <span className="w-5 h-5 flex items-center justify-center bg-slate-900 text-white rounded text-[10px]">E</span>
-                                        Enter Study Room
-                                    </div>
-                                </div>
-                            ) : (
+                            {interactionTarget !== 'room_door' && (
                                 <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
                                     <div className="bg-slate-950/80 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 shadow-2xl flex items-center gap-4">
                                         <span className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></span>
@@ -310,15 +304,7 @@ const LevelLivingRoom = () => {
                         </>
                     )}
 
-                    {/* Study Room Interaction Hint */}
-                    {phase === 'walking_study' && interactionTarget === 'grandpa' && (
-                        <div className="absolute z-50 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                            <div className="bg-white text-slate-900 px-4 py-2 rounded-full shadow-2xl border-2 border-red-500 font-black text-xs tracking-widest uppercase whitespace-nowrap animate-bounce flex items-center gap-2">
-                                <span className="w-5 h-5 flex items-center justify-center bg-slate-900 text-white rounded text-[10px]">E</span>
-                                Talk to Grandfather
-                            </div>
-                        </div>
-                    )}
+
 
                     {/* PLAYER */}
                     <div className="absolute z-40" style={{ left: playerPos.x, top: playerPos.y, transform: 'translate(-50%, -50%)', willChange: 'transform' }}>
@@ -327,6 +313,14 @@ const LevelLivingRoom = () => {
                 </div>
 
                 {/* --- HUD LAYER (Fixed relative to viewport) --- */}
+
+                {/* Interaction Prompts (Outside camera, inside viewport) */}
+                {phase === 'walking_living' && interactionTarget === 'room_door' && (
+                    <InteractionPrompt text="Press E to Enter Study Room" />
+                )}
+                {phase === 'walking_study' && interactionTarget === 'grandpa' && (
+                    <InteractionPrompt text="Press E to Talk to Grandfather" />
+                )}
 
                 {/* Feedback Overlay (Level 2 Style) */}
                 {feedbackMsg && (

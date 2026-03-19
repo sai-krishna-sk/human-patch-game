@@ -2,7 +2,7 @@ import React from 'react';
 import { useGameState } from '../context/GameStateContext';
 
 const MainMenu = () => {
-    const { enterLevel } = useGameState();
+    const { enterLevel, resetProgress } = useGameState();
     const [menuView, setMenuView] = React.useState('main'); // 'main' or 'story'
 
     const menuButtonStyle = "group relative px-8 py-4 bg-slate-900/40 hover:bg-indigo-600/20 border border-slate-700/50 hover:border-indigo-500/50 rounded-lg transition-all duration-300 backdrop-blur-md overflow-hidden w-72 text-left";
@@ -60,7 +60,7 @@ const MainMenu = () => {
                     <>
                         {/* ═══ STORY SUB-MENU ═══ */}
                         <button
-                            onClick={() => enterLevel(-3)} // New Game (Prologue)
+                            onClick={() => { resetProgress(); enterLevel(-3); }} // New Game (Prologue) — wipes saved data
                             className={menuButtonStyle}
                         >
                             <div className="relative z-10">

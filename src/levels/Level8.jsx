@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 // ═══ CONSTANTS ═══
 const CLUE_DATA = [
@@ -474,11 +475,7 @@ const Level8 = () => {
 
             {/* INTERACTION HINT UI */}
             {interactionTarget === 'sofa' && (
-              <div className="absolute z-30 pointer-events-none" style={{ left: playerPos.x, top: playerPos.y - 60 }}>
-                <div className="bg-white text-slate-900 px-3 py-1 rounded shadow-xl border-2 border-slate-500 font-bold animate-bounce text-sm whitespace-nowrap">
-                  Press [E] to sit down
-                </div>
-              </div>
+              <InteractionPrompt text="Press E to sit down" />
             )}
 
             {/* THE PLAYER AVATAR */}
@@ -536,20 +533,10 @@ const Level8 = () => {
     return (
       <div className={`w-full h-full flex flex-col bg-zinc-950 overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         {interactionTarget === 'exit_car' && !isCarExited && (
-          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
-            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                Press E to exit car
-            </div>
-          </div>
+          <InteractionPrompt text="Press E to exit car" />
         )}
         {interactionTarget === 'enter_house' && (
-          <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
-            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                Press E to enter house
-            </div>
-          </div>
+          <InteractionPrompt text="Press E to enter house" />
         )}
 
         <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)` }}>

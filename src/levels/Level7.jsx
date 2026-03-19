@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 // ═══ CLUE DATA (Dual-View Edition) ═══
 const CLUE_DATA = [
@@ -511,16 +512,7 @@ const Level7 = () => {
     // ═══════════════════════════════════════
     // CINEMATIC COMPONENTS
     // ═══════════════════════════════════════
-    const InteractionPrompt = ({ text, target }) => (
-        interactionTarget === target && (
-            <div className="fixed bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[100] animate-pulse">
-                <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                    Press E to {text}
-                </div>
-            </div>
-        )
-    );
+    // Local InteractionPrompt removed — using global component
 
     // Fade Overlay
     const FadeOverlay = () => (
@@ -533,12 +525,7 @@ const Level7 = () => {
                 {FadeOverlay()}
                 <img src="/assets/temppho.png" alt="POV intro" className="w-full h-full object-cover opacity-60 scale-105 animate-[pulse_6s_infinite]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40" />
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                    <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                    <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                        Press E to get down from chair
-                    </div>
-                </div>
+                <InteractionPrompt text="Press E to get down from chair" />
             </div>
         );
     }
@@ -551,7 +538,7 @@ const Level7 = () => {
             <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8">
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     {FadeOverlay()}
-                    {InteractionPrompt({ text: 'exit to living room', target: 'room_door' })}
+                    {interactionTarget === 'room_door' && <InteractionPrompt text="Press E to exit to living room" />}
 
                     <div className="absolute transition-transform duration-100 ease-out" style={{ transform: `translate(${-camX}px, ${-camY}px)`, width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                         {/* Room Environment */}
@@ -585,7 +572,7 @@ const Level7 = () => {
             <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8">
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     {FadeOverlay()}
-                    {InteractionPrompt({ text: 'exit to garden', target: 'main_door' })}
+                    {interactionTarget === 'main_door' && <InteractionPrompt text="Press E to exit to garden" />}
 
                     <div className="absolute transition-transform duration-100 ease-out" style={{ transform: `translate(${-camX}px, ${-camY}px)`, width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                         <div className="absolute inset-0">
@@ -671,7 +658,7 @@ const Level7 = () => {
         return (
             <div className="w-full h-full flex flex-col bg-black overflow-hidden relative font-sans">
                 {FadeOverlay()}
-                {InteractionPrompt({ text: 'get into car', target: 'car' })}
+                {interactionTarget === 'car' && <InteractionPrompt text="Press E to get into car" />}
 
                 <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)`, transition: 'transform 0.1s linear' }}>
                     {/* The Full Reference Background Image */}
@@ -716,9 +703,9 @@ const Level7 = () => {
                 {FadeOverlay()}
                 {FeedbackToast()}
 
-                {interactionTarget === 'exterior_car_exit' && InteractionPrompt({ text: 'get out of car', target: 'exterior_car_exit' })}
-                {interactionTarget === 'exterior_car' && InteractionPrompt({ text: 'get in car', target: 'exterior_car' })}
-                {interactionTarget === 'cafe_door' && InteractionPrompt({ text: 'enter Café', target: 'cafe_door' })}
+                {interactionTarget === 'exterior_car_exit' && <InteractionPrompt text="Press E to get out of car" />}
+                {interactionTarget === 'exterior_car' && <InteractionPrompt text="Press E to get in car" />}
+                {interactionTarget === 'cafe_door' && <InteractionPrompt text="Press E to enter Café" />}
 
                 <div
                     className="absolute"
@@ -782,10 +769,10 @@ const Level7 = () => {
                 {CluesSidebar()}
                 {ClueDetailPanel()}
 
-                {interactionTarget === 'barista_chat' && InteractionPrompt({ text: cafePhase === 'arrived' ? 'order food' : (cafePhase === 'need_wifi' || cafePhase === 'investigating' ? 'ask for Wi-Fi password' : 'talk to Barista'), target: 'barista_chat' })}
-                {interactionTarget === 'hacker_corner' && InteractionPrompt({ text: 'inspect Hacker', target: 'hacker_corner' })}
-                {interactionTarget === 'customer_screen' && InteractionPrompt({ text: 'check Student', target: 'customer_screen' })}
-                {interactionTarget === 'phone_pov' && InteractionPrompt({ text: 'sit and use phone (V to toggle)', target: 'phone_pov' })}
+                {interactionTarget === 'barista_chat' && <InteractionPrompt text={`Press E to ${cafePhase === 'arrived' ? 'order food' : (cafePhase === 'need_wifi' || cafePhase === 'investigating' ? 'ask for Wi-Fi password' : 'talk to Barista')}`} />}
+                {interactionTarget === 'hacker_corner' && <InteractionPrompt text="Press E to inspect Hacker" />}
+                {interactionTarget === 'customer_screen' && <InteractionPrompt text="Press E to check Student" />}
+                {interactionTarget === 'phone_pov' && <InteractionPrompt text="Press E to sit and use phone (V to toggle)" />}
 
                 <div
                     className="absolute"
