@@ -49,6 +49,8 @@ const Prologue = () => {
     const [isInsideCar, setIsInsideCar] = useState(true);
     const [estatePlayerPos, setEstatePlayerPos] = useState({ x: 50, y: 70 }); // Starting near the car
     const [isNearHouseDoor, setIsNearHouseDoor] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const isTransitioningRef = useRef(false);
 
     const videoRef = useRef(null);
     const keysPressed = useRef({});
@@ -58,6 +60,119 @@ const Prologue = () => {
     const playerEstateCompRef = useRef(null);
     const playerPosRef = useRef({ x: 10, y: 82 });
     const estatePosRef = useRef({ x: 50, y: 85 });
+    
+    // Audio Refs
+    const audioCtxRef = useRef(null);
+    const footstepAudioRef = useRef(null);
+    const drivingAudioRef = useRef(null);
+
+    useEffect(() => {
+        drivingAudioRef.current = new Audio('/audio/driving.mp3');
+        return () => {
+            if (drivingAudioRef.current) {
+                drivingAudioRef.current.pause();
+                drivingAudioRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        footstepAudioRef.current = new Audio('/audio/foot.m4a');
+        footstepAudioRef.current.loop = true;
+        footstepAudioRef.current.volume = 0.6;
+        
+        return () => {
+            if (footstepAudioRef.current) {
+                footstepAudioRef.current.pause();
+                footstepAudioRef.current = null;
+            }
+        };
+    }, []);
+
+    // Stop footstep audio if changing phases away from walking
+    useEffect(() => {
+        if (phase !== 'outside' && phase !== 'estate_exterior') {
+            if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                footstepAudioRef.current.pause();
+            }
+        }
+    }, [phase]);
+
+    const getAudioContext = () => {
+        if (!audioCtxRef.current) {
+            audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtxRef.current;
+    };
+
+    const playSynthSound = (type) => {
+        try {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+
+            switch (type) {
+                case 'noti_vibration': {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const mod = ctx.createOscillator();
+                    const modGain = ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(80, ctx.currentTime);
+
+                    mod.type = 'square';
+                    mod.frequency.setValueAtTime(10, ctx.currentTime);
+                    modGain.gain.setValueAtTime(0.5, ctx.currentTime);
+
+                    gain.gain.setValueAtTime(0, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+                    gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.25);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+
+                    mod.connect(modGain);
+                    modGain.connect(osc.frequency);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start();
+                    mod.start();
+                    osc.stop(ctx.currentTime + 0.45);
+                    mod.stop(ctx.currentTime + 0.45);
+                    break;
+                }
+                case 'footstep': {
+                    // Realistic "thwack/scuff" using pure swept noise (removes electronic/tonal artifacts)
+                    const bufferSize = ctx.sampleRate * 0.1; 
+                    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = Math.random() * 2 - 1;
+                    }
+                    const noise = ctx.createBufferSource();
+                    noise.buffer = buffer;
+
+                    const noiseFilter = ctx.createBiquadFilter();
+                    noiseFilter.type = 'lowpass';
+                    // Sweep filter down sharply to simulate the dull impact of a shoe
+                    noiseFilter.frequency.setValueAtTime(800, ctx.currentTime);
+                    noiseFilter.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.05);
+
+                    const noiseGain = ctx.createGain();
+                    noiseGain.gain.setValueAtTime(1.5, ctx.currentTime); // Louder initial transient
+                    noiseGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+
+                    noise.connect(noiseFilter);
+                    noiseFilter.connect(noiseGain);
+                    noiseGain.connect(ctx.destination);
+
+                    noise.start();
+                    break;
+                }
+            }
+        } catch(e) { console.error(e) }
+    };
+
 
     // Stable phase refs for use in event listeners
     const phaseRef = useRef(phase);
@@ -73,11 +188,19 @@ const Prologue = () => {
     // Handle Video Phase
     const handleVideoEnd = () => setPhase('office');
 
-    // Handle Office Phase Prompt
+    // Handle Office Phase Prompt & Audio
     useEffect(() => {
         if (phase === 'office') {
             const timer = setTimeout(() => setShowInteractionPrompt(true), 1500);
-            return () => clearTimeout(timer);
+            
+            const interval = setInterval(() => {
+                playSynthSound('noti_vibration');
+            }, 1000);
+
+            return () => {
+                clearTimeout(timer);
+                clearInterval(interval);
+            };
         }
     }, [phase]);
 
@@ -89,17 +212,23 @@ const Prologue = () => {
 
             // Handle instantaneous interactions
             if (phaseRef.current === 'office' && key === 'e') {
+                playSynthSound('noti_vibration'); // Give one last click sound conceptually
                 setPhase('dialogue');
             }
             if (phaseRef.current === 'outside' && key === 'e' && isNearCarRef.current) {
                 setIsEnteringCar(true);
+                new Audio('/audio/car.mp3').play().catch(() => {});
                 setTimeout(() => setPhase('travel'), 1500);
             }
             if (phaseRef.current === 'estate_exterior' && key === 'e') {
                 if (isInsideCarRef.current) {
                     setIsInsideCar(false);
-                } else if (isNearHouseDoorRef.current) {
-                    enterLevel('living-room');
+                    new Audio('/audio/car.mp3').play().catch(() => {});
+                } else if (isNearHouseDoorRef.current && !isTransitioningRef.current) {
+                    isTransitioningRef.current = true;
+                    setIsTransitioning(true);
+                    new Audio('/audio/home door.mp3').play().catch(() => {});
+                    setTimeout(() => enterLevel('living-room'), 800);
                 }
             }
         };
@@ -144,8 +273,15 @@ const Prologue = () => {
                     playerOutsideCompRef.current.setMoving(true);
                     playerOutsideCompRef.current.setFacing(moveX > 0 ? 'right' : 'left');
                 }
+
+                if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                    footstepAudioRef.current.play().catch(() => {});
+                }
             } else {
                 if (playerOutsideCompRef.current) playerOutsideCompRef.current.setMoving(false);
+                if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                    footstepAudioRef.current.pause();
+                }
             }
 
             // Check car proximity (car is at 80% X) - Moved outside movement conditional
@@ -172,6 +308,10 @@ const Prologue = () => {
             lastTime = time;
 
             const keys = keysPressed.current;
+            if (isTransitioningRef.current) {
+                frameId = requestAnimationFrame(update);
+                return;
+            }
             let moveX = 0;
             let moveY = 0;
             if (keys['a'] || keys['arrowleft']) moveX -= 1;
@@ -195,8 +335,15 @@ const Prologue = () => {
                     playerEstateCompRef.current.setMoving(true);
                     if (moveX !== 0) playerEstateCompRef.current.setFacing(moveX > 0 ? 'right' : 'left');
                 }
+
+                if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                    footstepAudioRef.current.play().catch(() => {});
+                }
             } else {
                 if (playerEstateCompRef.current) playerEstateCompRef.current.setMoving(false);
+                if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                    footstepAudioRef.current.pause();
+                }
             }
 
             // Near top center door - Moved outside movement conditional
@@ -254,12 +401,27 @@ const Prologue = () => {
     // Estate Phase Transition
     useEffect(() => {
         if (phase === 'travel') {
+            if (drivingAudioRef.current) drivingAudioRef.current.play().catch(() => {});
             const timer = setTimeout(() => setPhase('estate_exterior'), 4000);
             return () => clearTimeout(timer);
+        } else if (phase === 'estate_exterior') {
+            if (drivingAudioRef.current) drivingAudioRef.current.pause();
         }
     }, [phase]);
 
 
+    // Key-based interaction for dialogue advancement
+    useEffect(() => {
+        if (phase !== 'dialogue') return;
+        const handleKeyDown = (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'e' || key === ' ' || key === 'enter') {
+                handleDialogueInteraction();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [phase, dialogueIndex, isTyping]);
 
     // ═══ RENDER ═══
 
@@ -380,6 +542,11 @@ const Prologue = () => {
     if (phase === 'estate_exterior') {
         return (
             <div className="w-screen h-screen bg-black relative overflow-hidden animate-fade-in">
+                {/* Screen Transition Overlay */}
+                <div 
+                    className="absolute inset-0 bg-black z-[9999] pointer-events-none transition-opacity duration-[800ms] ease-in-out"
+                    style={{ opacity: isTransitioning ? 1 : 0 }}
+                />
                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/assets/garden_night.png")' }} />
 
                 {/* The Car is already in the background image, so we just manage the player and prompts */}

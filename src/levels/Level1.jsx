@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const Level1 = () => {
     const { assets, completeLevel, adjustAssets, playTitleCardSound } = useGameState();
@@ -37,6 +38,7 @@ const Level1 = () => {
 
     // POV INTERACTION STATE
     const [isPhotoZoomed, setIsPhotoZoomed] = useState(false);
+    const [hasInspectedPhoto, setHasInspectedPhoto] = useState(false);
     const [showPhoneNoti, setShowPhoneNoti] = useState(false);
     const [visibleNotiCount, setVisibleNotiCount] = useState(0);
     const [showCallNotification, setShowCallNotification] = useState(false);
@@ -381,7 +383,7 @@ const Level1 = () => {
         },
         {
             speaker: 'SCAMMER', parts: [
-                { text: "Sir, I am Ravi Kumar, Senior Fraud Prevention Officer from the State Bank of India. My " },
+                { text: "Sir, I am Natasha, Senior Fraud Prevention Officer from the State Bank of India. My " },
                 { text: "employee ID is SBI-CYB-4492", isDraggable: true, clueId: 1, title: 'Unverifiable Employee ID', desc: 'Anyone can make up an employee ID. There is no way to verify this over the phone.' },
                 { text: ". I am calling on high priority." }
             ], audio: "/Dia_audio/lvl1/L1_DIA_008.mp3"
@@ -598,6 +600,21 @@ const Level1 = () => {
         return () => clearInterval(interval);
     }, [isTimerRunning, timer, gameState, isDetectiveModeOpen]);
 
+    // KEYBOARD CONTROLS FOR DIALOGUE
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key.toLowerCase() === 'e') {
+                if (isTypingDone && !isAudioPlaying && !showingOptions && gameState === 'active_call') {
+                    handleContinue();
+                } else if (gameState === 'calling_1930' && callStep < callConversation.length - 1) {
+                    setCallStep(prev => prev + 1);
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isTypingDone, isAudioPlaying, showingOptions, gameState, callStep, callConversation.length]);
+
     const advanceDialogue = () => {
         const nextIdx = dialogueIndex + 1;
         if (nextIdx >= dialogueSequence.length) return;
@@ -702,11 +719,21 @@ const Level1 = () => {
     };
 
     const handleGameOver = () => {
+        if (dialogueAudioRef.current) {
+            dialogueAudioRef.current.pause();
+            dialogueAudioRef.current.currentTime = 0;
+        }
+        setIsAudioPlaying(false);
         setGameState('game_over');
         adjustAssets(-100000);
     };
 
     const handleVictory = () => {
+        if (dialogueAudioRef.current) {
+            dialogueAudioRef.current.pause();
+            dialogueAudioRef.current.currentTime = 0;
+        }
+        setIsAudioPlaying(false);
         setGameState('victory');
     };
 
@@ -716,9 +743,100 @@ const Level1 = () => {
         return `${m}:${s.toString().padStart(2, '0')}`;
     };
 
+    useEffect(() => {
+        if (gameState === 'ringing_1930') {
+            const timer = setTimeout(() => {
+                setGameState('calling_1930');
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [gameState]);
+
+    if (gameState === 'dialer_1930') {
+        const keypad = [1, 2, 3, 4, 5, 6, 7, 8, 9, '*', 0, '#'];
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-cover bg-center p-4 relative" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+                <div className="w-[380px] h-[750px] bg-zinc-900/95 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col backdrop-blur-md">
+                    <div className="p-10 pb-4 text-center">
+                        <div className="text-zinc-500 text-[10px] font-mono tracking-[0.4em] uppercase mb-4 opacity-50 italic">Priority Emergency Link</div>
+                        <div className="text-emerald-400 font-black text-xs uppercase tracking-[0.25em] mb-2 animate-pulse flex items-center justify-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            Dial 1930 to Report
+                        </div>
+                        <div className="h-24 flex items-center justify-center bg-black/40 rounded-2xl border border-white/5 shadow-inner">
+                            <span className="text-6xl font-black text-white tracking-widest font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">{dialerInput || '----'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 px-10 py-4 grid grid-cols-3 gap-6 items-center content-center">
+                        {keypad.map(key => (
+                            <button 
+                                key={key}
+                                onClick={() => {
+                                    if (dialerInput.length < 4) {
+                                        const newInput = dialerInput + key;
+                                        setDialerInput(newInput);
+                                        playSynthSound('wood_tap');
+                                        if (newInput === '1930') {
+                                            setTimeout(() => setGameState('ringing_1930'), 500);
+                                        }
+                                    }
+                                }}
+                                className="w-16 h-16 rounded-full bg-white/5 hover:bg-white/10 active:bg-white/20 border border-white/10 flex items-center justify-center text-2xl font-bold text-white transition-all hover:scale-110 active:scale-95 shadow-lg group relative overflow-hidden"
+                            >
+                                <span className="relative z-10">{key}</span>
+                                <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="p-8 flex justify-center gap-8">
+                         <button 
+                            onClick={() => { setDialerInput(''); playSynthSound('digital_glitch'); }}
+                            className="w-16 h-16 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 flex items-center justify-center text-red-500 transition-all hover:scale-110"
+                            title="Clear"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    
+                    {dialerInput === '1930' && (
+                        <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center animate-pulse pointer-events-none">
+                            <div className="text-emerald-400 font-black tracking-widest uppercase text-xl animate-zoomIn">Authenticating...</div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'ringing_1930') {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-cover bg-center p-4 relative" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center justify-center text-center">
+                    <div className="mb-12 relative">
+                        <div className="w-32 h-32 bg-emerald-500/10 border-2 border-emerald-500/40 rounded-full flex items-center justify-center animate-pulse">
+                            <div className="w-24 h-24 bg-emerald-500/20 rounded-full animate-ping absolute" />
+                            <svg className="w-16 h-16 text-emerald-400 animate-wiggle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                        </div>
+                    </div>
+                    <h2 className="text-3xl font-black text-white tracking-[0.2em] mb-4 uppercase">Calling...</h2>
+                    <p className="text-emerald-400 font-mono text-xl tracking-[0.4em] mb-20 animate-pulse">1930</p>
+                    <div className="text-zinc-500 text-xs font-mono uppercase tracking-widest italic animate-fadeInDelay">Routing through secure gateway...</div>
+                    <div className="mt-12 flex gap-1">
+                        {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-emerald-500/40 animate-bounce" style={{ animationDelay: `${i * 0.2}s` }} />)}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (gameState === 'calling_1930') {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4">
+            <div className="w-full h-full flex items-center justify-center bg-cover bg-center p-4 relative" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
                 <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
                     <div className="w-full bg-emerald-900 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-emerald-700">
                         <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">🛡️</div>
@@ -733,9 +851,14 @@ const Level1 = () => {
                             if (msg.speaker === 'YOU') return <div key={idx} className="w-full flex justify-end"><div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">"{msg.text}"</div></div>;
                             return null;
                         })}
-                        {callStep < callConversation.length - 1 ? (
-                            <button className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors" onClick={() => setCallStep(prev => prev + 1)}>[ Continue... ]</button>
-                        ) : (
+                            {callStep < callConversation.length - 1 ? (
+                                <button 
+                                    className="w-full py-4 bg-white hover:bg-zinc-100 text-zinc-950 font-black uppercase tracking-[0.3em] text-[11px] rounded-2xl mt-6 shadow-2xl transition-all hover:scale-[1.02] active:scale-95 animate-fadeIn flex items-center justify-center gap-3 group border-b-4 border-zinc-300" 
+                                    onClick={() => setCallStep(prev => prev + 1)}
+                                >
+                                    Continue <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                </button>
+                            ) : (
                             <button className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-bold text-sm rounded-lg mt-4 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-colors" onClick={() => {
                                 setGameState('cinematic_outro');
                                 setOutroStep(1);
@@ -753,6 +876,9 @@ const Level1 = () => {
                         )}
                         <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
                     </div>
+                    {callStep < callConversation.length - 1 && (
+                        <InteractionPrompt text="Continue" />
+                    )}
                 </div>
             </div>
         );
@@ -784,29 +910,19 @@ const Level1 = () => {
                         </div>
                     )}
 
-                    {/* Ultra-Minimalist Cinematic Hints (Standardized) */}
-                    {(!isPhotoZoomed && !showPhoneNoti) && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
-                                Inspect the photo frame
-                            </div>
-                        </div>
+                    {/* Cinematic Hints (Standardized) */}
+                    {(!isPhotoZoomed && !showPhoneNoti && !hasInspectedPhoto) && (
+                        <InteractionPrompt text="Click to Inspect Photo Frame" showKey={false} />
                     )}
 
                     {(showPhoneNoti && gameState === 'intro_pov') && (
-                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn">
-                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                            <div className="text-cyan-400 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">
-                                Inspect the phone
-                            </div>
-                        </div>
+                        <InteractionPrompt text="Click to Inspect Phone" showKey={false} />
                     )}
 
 
-                    {!isPhotoZoomed && !showPhoneNoti && (
+                    {!isPhotoZoomed && !showPhoneNoti && !hasInspectedPhoto && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); setIsPhotoZoomed(true); playSynthSound('wood_tap'); }}
+                            onClick={(e) => { e.stopPropagation(); setIsPhotoZoomed(true); setHasInspectedPhoto(true); playSynthSound('wood_tap'); }}
                             className="absolute right-[12%] top-[60%] w-[12%] h-[28%] bg-white/0 hover:bg-white/10 transition-all cursor-pointer rounded-sm group overflow-hidden"
                             title="Look at photo"
                         >
@@ -881,8 +997,8 @@ const Level1 = () => {
                                         </div>
                                         <span className="text-white/60 text-[9px] font-bold uppercase tracking-wider animate-pulse">Now</span>
                                     </div>
-                                    <h3 className="text-white text-sm font-black tracking-tight">UNKNOWN NUMBER</h3>
-                                    <div className="mt-1.5 py-1.5 bg-white/10 rounded-xl text-white text-[9px] font-mono tracking-[0.2em] group-hover:bg-white/20 transition-all border border-white/10 uppercase text-center">[ Swipe to Answer ]</div>
+                                    <h3 className="text-white text-sm font-black tracking-tight text-center">UNKNOWN NUMBER</h3>
+                                    <div className="mt-1.5 py-1.5 bg-white/10 rounded-xl text-white text-[9px] font-mono tracking-[0.2em] group-hover:bg-white/20 transition-all border border-white/10 uppercase text-center">[ Click Here ]</div>
                                 </div>
                             )}
 
@@ -955,7 +1071,7 @@ const Level1 = () => {
                             <div className="w-24 h-24 bg-red-500/20 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.4)]">
                                 <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white animate-bounce" viewBox="0 0 20 20" fill="currentColor"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg></div>
                             </div>
-                            <h2 className="text-2xl font-bold mb-1 tracking-wider text-red-500">UNKNOWN NUMBER</h2>
+                            <h2 className="text-2xl font-bold mb-1 tracking-wider text-red-500 text-center">UNKNOWN NUMBER</h2>
                             <p className="text-zinc-500 font-mono text-sm uppercase mb-1">Incoming Call...</p>
                         </div>
                         <div className="absolute bottom-16 flex w-full justify-around px-8">
@@ -973,7 +1089,7 @@ const Level1 = () => {
                     <div className={`w-[380px] h-[750px] bg-zinc-900/95 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center z-10 transition-transform duration-500 ease-in-out ${isDetectiveModeOpen ? '-translate-x-[250px]' : 'translate-x-0'}`}>
                         <div className="w-full bg-zinc-800 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-zinc-700 z-10">
                             <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">📞</div>
-                            <h2 className="text-xl font-bold text-white tracking-widest">UNKNOWN CALLER</h2>
+                            <h2 className="text-xl font-bold text-white tracking-widest text-center">UNKNOWN CALLER</h2>
                             <div className={`font-mono text-lg animate-pulse ${isTimerRunning ? 'text-red-500 font-bold' : 'text-green-400'}`}>
                                 {isTimerRunning ? `⚠️ TIME LEFT: ${formatTime(timer)}` : formatTime(callDuration)}
                             </div>
@@ -1056,7 +1172,12 @@ const Level1 = () => {
                                 </div>
                             )}
                             {isTypingDone && !isAudioPlaying && !showingOptions && gameState === 'active_call' && (
-                                <button className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-lg mt-4 shadow-xl transition-colors" onClick={handleContinue}>[ Continue... ]</button>
+                                <button 
+                                    className="w-full py-4 bg-white hover:bg-zinc-100 text-zinc-950 font-black uppercase tracking-[0.3em] text-[11px] rounded-2xl mt-6 shadow-2xl transition-all hover:scale-[1.02] active:scale-95 animate-fadeIn flex items-center justify-center gap-3 group border-b-4 border-zinc-300" 
+                                    onClick={handleContinue}
+                                >
+                                    Continue <span className="group-hover:translate-x-1 transition-transform">→</span>
+                                </button>
                             )}
                             <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
                         </div>
@@ -1089,29 +1210,35 @@ const Level1 = () => {
                                 <div className="space-y-4 w-full">
                                     <button
                                         onClick={handleGameOver}
-                                        className="w-full p-4 bg-red-900/40 hover:bg-red-900/60 border-2 border-red-500 text-white rounded-2xl transition-all font-bold"
+                                        className="w-full p-4 bg-zinc-800/60 hover:bg-zinc-700 border-2 border-zinc-500 text-white rounded-2xl transition-all font-bold"
                                     >
                                         Share the OTP
-                                        <p className="text-[10px] text-red-300 font-normal mt-1 opacity-70 italic">"Here is the number: 584921..."</p>
+                                        <p className="text-[10px] text-zinc-400 font-normal mt-1 opacity-70 italic">"Here is the number: 584921..."</p>
                                     </button>
                                     <button
                                         onClick={handleVictory}
-                                        className="w-full p-4 bg-emerald-900/40 hover:bg-emerald-900/60 border-2 border-emerald-500 text-white rounded-2xl transition-all font-bold"
+                                        className="w-full p-4 bg-zinc-800/60 hover:bg-zinc-700 border-2 border-zinc-500 text-white rounded-2xl transition-all font-bold"
                                     >
                                         Hang Up
-                                        <p className="text-[10px] text-emerald-300 font-normal mt-1 opacity-70 italic">Disconnect from the call immediately.</p>
+                                        <p className="text-[10px] text-zinc-400 font-normal mt-1 opacity-70 italic">Disconnect from the call immediately.</p>
                                     </button>
                                 </div>
                             </div>
                         )}
-                        <button className="absolute bottom-6 left-6 w-14 h-14 bg-amber-500 rounded-full flex items-center justify-center shadow-lg border-2 border-amber-300 z-50 text-2xl" onClick={() => {
-                            if (!isDetectiveModeOpen) playSynthSound('board_opening');
-                            setIsDetectiveModeOpen(!isDetectiveModeOpen);
-                        }}>🔍</button>
                     </div>
 
-                    {isDetectiveModeOpen && (
-                        <div className="absolute inset-y-12 right-12 w-[680px] bg-stone-200 rounded-lg shadow-2xl z-[200] p-10 flex flex-col border-[20px] border-[#4a2e1a] overflow-hidden" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`, backgroundColor: '#dcc6a0' }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
+                    <button className="absolute bottom-10 right-10 w-20 h-20 bg-amber-500 hover:bg-amber-400 text-stone-900 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.4)] border-4 border-amber-300 z-[1000] text-4xl transition-all hover:scale-110 active:scale-95 animate-bounce" onClick={() => {
+                        if (!isDetectiveModeOpen) playSynthSound('board_opening');
+                        setIsDetectiveModeOpen(!isDetectiveModeOpen);
+                    }}>
+                        <span className="relative z-10">🔍</span>
+                        <div className="absolute inset-0 bg-white/20 rounded-full animate-ping opacity-20" />
+                    </button>
+                </div>
+            )}
+
+            {isDetectiveModeOpen && (
+                <div className="absolute inset-y-12 right-12 w-[680px] bg-stone-200 rounded-lg shadow-2xl z-[200] p-10 flex flex-col border-[20px] border-[#4a2e1a] overflow-hidden" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E")`, backgroundColor: '#dcc6a0' }} onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
                             e.preventDefault(); try {
                                 const data = JSON.parse(e.dataTransfer.getData('application/json'));
                                 if (data.isFake) { adjustAssets(-1000); setFeedbackMsg("Invalid Clue!"); setTimeout(() => setFeedbackMsg(null), 2000); }
@@ -1187,8 +1314,6 @@ const Level1 = () => {
                             </div>
                         </div>
                     )}
-                </div>
-            )}
 
             {gameState === 'cinematic_outro' && (
                 <div className="absolute inset-0 z-[2000] overflow-hidden bg-black">
@@ -1242,47 +1367,85 @@ const Level1 = () => {
             )}
 
             {gameState === 'game_over' && (
-                <div className="absolute inset-0 bg-red-950/40 z-[500] backdrop-blur-xl text-white flex flex-col items-center justify-center p-12 text-center animate-fadeIn">
-                    <div className="max-w-3xl bg-black/60 border border-red-500/30 p-16 rounded-[2rem] shadow-[0_0_100px_rgba(220,38,38,0.2)] relative overflow-hidden">
-                        <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(circle_at_center,rgba(220,38,38,0.4)_0%,transparent_70%)]" />
+                <div className="absolute inset-0 bg-red-950/60 z-[500] backdrop-blur-2xl text-white flex flex-col items-center justify-center p-12 text-center animate-fadeIn overflow-hidden">
+                    {/* Atmospheric Overlays */}
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #ef4444 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/5 to-red-500/10 pointer-events-none" />
+                    <div className="absolute top-0 left-0 w-full h-1 bg-red-400/50 animate-scanLine pointer-events-none" />
 
-                        <div className="w-24 h-24 bg-red-600/20 border-2 border-red-500 rounded-full flex items-center justify-center mb-10 mx-auto shadow-[0_0_30px_rgba(220,38,38,0.4)] animate-pulse">
-                            <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <div className="max-w-4xl w-full bg-zinc-950/60 border border-red-500/30 p-16 rounded-[3rem] shadow-[0_0_150px_rgba(239,68,68,0.15)] relative overflow-hidden backdrop-blur-md">
+                        {/* Decorative Corner Brackets */}
+                        <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-red-500/40 rounded-tl-xl" />
+                        <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-red-500/40 rounded-tr-xl" />
+                        <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-red-500/40 rounded-bl-xl" />
+                        <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-red-500/40 rounded-br-xl" />
+
+                        <div className="relative mb-12">
+                            <div className="w-28 h-28 bg-red-500/10 border-2 border-red-500/50 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(239,68,68,0.3)] animate-pulse">
+                                <svg className="w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                            </div>
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-red-500 text-zinc-950 text-[10px] font-black uppercase tracking-[0.3em] rounded-full">System Breach</div>
                         </div>
 
-                        <h1 className="text-7xl font-black text-red-500 tracking-[0.2em] mb-6 uppercase drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">Critical Breach</h1>
-                        <p className="text-xl text-red-200/80 max-w-xl mx-auto mb-16 leading-relaxed font-medium">The OTP was compromised. Grandpa's legacy fund has been completely drained by a coordinated transfer.</p>
+                        <h1 className="text-8xl font-black text-red-500 tracking-[0.1em] mb-4 uppercase drop-shadow-[0_0_20px_rgba(239,68,68,0.4)] italic">Critical Loss</h1>
+                        <div className="h-1 w-48 bg-gradient-to-r from-transparent via-red-500/50 to-transparent mx-auto mb-8" />
 
-                        <button
-                            className="group relative px-12 py-6 bg-red-600 hover:bg-red-500 text-white font-black tracking-[0.3em] uppercase rounded-xl shadow-2xl transition-all hover:scale-105 active:scale-95"
-                            onClick={() => { setGameState('calling_1930'); setCallOutcome('lost'); }}
-                        >
-                            <span className="relative z-10">Emergency: Call 1930</span>
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
-                        </button>
+                        <p className="text-2xl text-red-100/80 max-w-2xl mx-auto mb-16 leading-relaxed font-medium tracking-wide">
+                            Security Failure. The OTP was compromised, resulting in an unauthorized transfer of ₹4,200,000.00.
+                        </p>
+
+                        <div className="flex flex-col items-center gap-6">
+                            <button
+                                className="group relative px-16 py-7 bg-white hover:bg-zinc-100 text-zinc-950 font-black tracking-[0.4em] uppercase rounded-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 border-b-8 border-red-200"
+                                onClick={() => { setGameState('dialer_1930'); setCallOutcome('lost'); }}
+                            >
+                                <span className="relative z-10 text-lg italic">Emergency Callback</span>
+                                <div className="absolute inset-0 bg-red-400/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
+                            </button>
+                            <span className="text-[10px] font-mono text-red-500/60 uppercase tracking-[0.5em] animate-pulse italic">Initiating Priority Link to Cyber Crime Unit...</span>
+                        </div>
                     </div>
                 </div>
             )}
 
             {gameState === 'victory' && (
-                <div className="absolute inset-0 bg-emerald-950/40 z-[500] backdrop-blur-xl text-white flex flex-col items-center justify-center p-12 text-center animate-fadeIn">
-                    <div className="max-w-3xl bg-black/60 border border-emerald-500/30 p-16 rounded-[2rem] shadow-[0_0_100px_rgba(16,185,129,0.2)] relative overflow-hidden">
-                        <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.4)_0%,transparent_70%)]" />
+                <div className="absolute inset-0 bg-emerald-950/60 z-[500] backdrop-blur-2xl text-white flex flex-col items-center justify-center p-12 text-center animate-fadeIn overflow-hidden">
+                    {/* Atmospheric Overlays */}
+                    <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #10b981 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-emerald-500/10 pointer-events-none" />
+                    <div className="absolute top-0 left-0 w-full h-1 bg-emerald-400/50 animate-scanLine pointer-events-none" />
 
-                        <div className="w-24 h-24 bg-emerald-600/20 border-2 border-emerald-500 rounded-full flex items-center justify-center mb-10 mx-auto shadow-[0_0_30px_rgba(16,185,129,0.4)]">
-                            <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                    <div className="max-w-4xl w-full bg-zinc-900/40 border border-emerald-500/30 p-16 rounded-[3rem] shadow-[0_0_150px_rgba(16,185,129,0.15)] relative overflow-hidden backdrop-blur-md">
+                        {/* Decorative Corner Brackets */}
+                        <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-emerald-500/40 rounded-tl-xl" />
+                        <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-emerald-500/40 rounded-tr-xl" />
+                        <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-emerald-500/40 rounded-bl-xl" />
+                        <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-emerald-500/40 rounded-br-xl" />
+
+                        <div className="relative mb-12">
+                            <div className="w-28 h-28 bg-emerald-500/10 border-2 border-emerald-500/50 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(16,185,129,0.3)] animate-pulse">
+                                <svg className="w-14 h-14 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            </div>
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-emerald-500 text-zinc-950 text-[10px] font-black uppercase tracking-[0.3em] rounded-full">Secure Session</div>
                         </div>
 
-                        <h1 className="text-7xl font-black text-emerald-400 tracking-[0.2em] mb-6 uppercase drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]">Case Closed</h1>
-                        <p className="text-xl text-emerald-200/80 max-w-xl mx-auto mb-16 leading-relaxed font-medium">You identified the scam and secured the assets. Grandpa would be proud of your digital vigilance.</p>
+                        <h1 className="text-8xl font-black text-emerald-400 tracking-[0.1em] mb-4 uppercase drop-shadow-[0_0_20px_rgba(16,185,129,0.4)] italic">Case Closed</h1>
+                        <div className="h-1 w-48 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent mx-auto mb-8" />
+                        
+                        <p className="text-2xl text-emerald-100/90 max-w-2xl mx-auto mb-16 leading-relaxed font-medium tracking-wide">
+                            Verification Complete. You've successfully identified the scam sequence and secured the primary account assets.
+                        </p>
 
-                        <button
-                            className="group relative px-12 py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-[0.3em] uppercase rounded-xl shadow-2xl transition-all hover:scale-105 active:scale-95"
-                            onClick={() => { setGameState('calling_1930'); setCallOutcome('won'); }}
-                        >
-                            <span className="relative z-10">Formal Report: 1930</span>
-                            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
-                        </button>
+                        <div className="flex flex-col items-center gap-6">
+                            <button
+                                className="group relative px-16 py-7 bg-white hover:bg-emerald-50 text-zinc-950 font-black tracking-[0.4em] uppercase rounded-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 border-b-8 border-emerald-200"
+                                onClick={() => { setGameState('dialer_1930'); setCallOutcome('won'); }}
+                            >
+                                <span className="relative z-10 text-lg italic">File Formal Report</span>
+                                <div className="absolute inset-0 bg-emerald-400/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
+                            </button>
+                            <span className="text-[10px] font-mono text-emerald-500/60 uppercase tracking-[0.5em] animate-pulse italic">Connecting to National Cyber Crime Reporting Portal...</span>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1330,6 +1493,11 @@ const Level1 = () => {
                     100% { opacity: 0; }
                 }
             ` }} />
+
+            {/* Global Interaction Hint for Dialogue */}
+            {isTypingDone && !isAudioPlaying && !showingOptions && gameState === 'active_call' && (
+                <InteractionPrompt text="Continue" />
+            )}
         </div>
     );
 };

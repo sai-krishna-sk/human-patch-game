@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGameState } from '../context/GameStateContext';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const Level3 = () => {
     const { assets, completeLevel, adjustAssets, adjustLives, playTitleCardSound } = useGameState();
@@ -36,6 +37,10 @@ const Level3 = () => {
     const [usedClueBoard, setUsedClueBoard] = useState(false);
     const [introCinematicState, setIntroCinematicState] = useState(false);
     const [outroStep, setOutroStep] = useState(0);
+
+    // REPORT PORTAL STATE
+    const [portalAttached, setPortalAttached] = useState(false);
+    const [portalSubmitting, setPortalSubmitting] = useState(false);
 
     // INITIAL EMAILS
     const TRANSFER_EMAIL = {
@@ -211,19 +216,16 @@ SecureMail Support Team`,
                     />
 
                     {/* Hint */}
-                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn fade-in">
-                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
-                        <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">
-                            Inspect the computer
-                        </div>
-                    </div>
+                    {!isHoveringLaptop && (
+                        <InteractionPrompt text="Click the computer" showKey={false} />
+                    )}
 
                     {/* Interactive Monitor Hitbox */}
                     <button
                         onMouseEnter={() => setIsHoveringLaptop(true)}
                         onMouseLeave={() => setIsHoveringLaptop(false)}
                         onClick={() => triggerTransition('laptop_ui')}
-                        className="absolute left-[36%] top-[39%] w-[27%] h-[27%] bg-transparent cursor-pointer group z-40 outline-none"
+                        className="absolute left-[43.5%] top-[39%] w-[27%] h-[27%] bg-transparent cursor-pointer group z-40 outline-none"
                         title="Check Computer"
                         aria-label="Check Computer"
                     >
@@ -233,7 +235,7 @@ SecureMail Support Team`,
 
                     {/* Soft pulse on hit zone when not hovered to draw attention passively */}
                     {!isHoveringLaptop && (
-                        <div className="absolute left-[36%] top-[39%] w-[27%] h-[27%] border-2 border-cyan-400/20 rounded-sm animate-pulse pointer-events-none"></div>
+                        <div className="absolute left-[43.5%] top-[39%] w-[27%] h-[27%] border-2 border-cyan-400/20 rounded-sm animate-pulse pointer-events-none"></div>
                     )}
                 </div>
             </div>
@@ -242,7 +244,7 @@ SecureMail Support Team`,
 
     if (gameState === 'intro_cinematic') {
         return (
-            <div className="absolute inset-0 z-[1000] bg-black flex flex-col justify-center items-center animate-cinematic-sequence">
+            <div className="absolute inset-0 z-[1000] bg-black flex flex-col justify-center items-center">
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="relative group text-center animate-fadeInSlow">
@@ -251,8 +253,7 @@ SecureMail Support Team`,
                     <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
                         Level 3
                         {/* Chromatic aberration layers */}
-                        <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-[aberration_3s_infinite]">Level 3</span>
-                        <span className="absolute inset-0 text-cyan-400 opacity-60 -translate-x-1 -z-10 animate-[aberration-alt_3s_infinite]">Level 3</span>
+                        <span className="absolute inset-0 text-red-500 opacity-60 translate-x-1 -z-10 animate-aberration">Level 3</span>
                     </h2>
                     <h3 className="text-red-500 text-lg font-mono tracking-[0.8em] uppercase opacity-80 font-bold drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
                         The Phishing Net
@@ -270,7 +271,8 @@ SecureMail Support Team`,
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 {/* Feedback Toast */}
                 {feedbackMsg && (
-                    <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-xl shadow-[0_15px_30px_rgba(37,99,235,0.4)] z-[1000] font-bold text-center animate-bounce border border-blue-400">
+                    <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-zinc-900/90 backdrop-blur-md text-emerald-400 px-6 py-3 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[1000] font-black text-center animate-bounce border border-emerald-500/30 uppercase tracking-widest text-xs flex items-center gap-3">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         {feedbackMsg}
                     </div>
                 )}
@@ -348,11 +350,11 @@ SecureMail Support Team`,
                                                         if (!introCinematicState && gameState !== 'intro_cinematic') {
                                                             triggerTransition('intro_cinematic');
                                                         } else {
-                                                            if (gameState !== 'email_view') triggerTransition('email_view');
+                                                            if (gameState !== 'email_view') setGameState('email_view');
                                                         }
                                                     } else {
                                                         setIsClueButtonVisible(false);
-                                                        if (gameState !== 'email_view') triggerTransition('email_view');
+                                                        if (gameState !== 'email_view') setGameState('email_view');
                                                     }
                                                 }}
                                             >
@@ -418,16 +420,19 @@ SecureMail Support Team`,
                                             </div>
                                         </div>
 
-                                        <div className="fixed bottom-0 left-0 right-0 bg-[#f8f9fa] border-t border-gray-100 p-4 text-[10px] text-gray-400 flex justify-center gap-10">
+                                        <div className="absolute bottom-0 left-0 right-0 bg-[#f8f9fa] border-t border-gray-100 p-4 text-[10px] text-gray-400 flex justify-center gap-10">
                                             <span>Privacy Policy</span>
                                             <span>Terms of Service</span>
                                             <span>Customer Service</span>
                                         </div>
                                     </div>
                                 ) : !activeEmailId ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#F8F9FA]">
+                                    <div className="flex-1 flex flex-col items-center justify-center bg-[#F8F9FA] relative">
                                         <div className="w-48 h-48 bg-white rounded-full flex items-center justify-center shadow-lg border border-gray-100 mb-6 font-bold text-6xl opacity-10">📥</div>
-                                        <h2 className="text-xl font-black text-[#BDC1C6] uppercase tracking-[0.2em]">Select an email</h2>
+                                        <h2 className="text-xl font-black text-[#BDC1C6] uppercase tracking-[0.2em] mb-4">Click an email to investigate</h2>
+                                        <div className="absolute bottom-10 left-10">
+                                            <InteractionPrompt text="Select an email from the inbox" showKey={false} />
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="flex-1 overflow-y-auto p-12 relative flex flex-col animate-fadeIn bg-white custom-scrollbar">
@@ -521,9 +526,24 @@ SecureMail Support Team`,
                                     const data = JSON.parse(e.dataTransfer.getData('application/json'));
                                     if (data && !clues.find(c => c.id === data.id)) {
                                         setClues(prev => [...prev, data]);
-                                        setUsedClueBoard(true); // SYNC STATE FOR NO-PENALTY
+                                        setUsedClueBoard(true);
                                         setFeedbackMsg('📌 Evidence Pinned!');
                                         setTimeout(() => setFeedbackMsg(null), 2000);
+                                        // Pin click sound
+                                        try {
+                                            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                                            const osc = ctx.createOscillator();
+                                            const gain = ctx.createGain();
+                                            osc.type = 'sine';
+                                            osc.frequency.setValueAtTime(520, ctx.currentTime);
+                                            osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.06);
+                                            gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                                            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+                                            osc.connect(gain);
+                                            gain.connect(ctx.destination);
+                                            osc.start();
+                                            osc.stop(ctx.currentTime + 0.1);
+                                        } catch(e) {}
                                     }
                                 } catch (err) { }
                             }}>
@@ -596,61 +616,182 @@ SecureMail Support Team`,
 
     if (gameState === 'final_decision') {
         return (
-            <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center relative p-8 overflow-hidden">
+            <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center relative p-8 overflow-hidden">
                 {/* GLOBAL TRANSITION FADE */}
-                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none animate-cinematic-sequence ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
-                {/* Background FX */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                {/* Soft warm/cool blobs */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-900/20 rounded-full blur-[100px]"></div>
-                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-900/20 rounded-full blur-[100px]"></div>
+                    <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-200/40 rounded-full blur-[100px]"></div>
+                    <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-200/40 rounded-full blur-[100px]"></div>
                 </div>
 
-                <div className="w-full max-w-4xl bg-slate-900/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] p-12 select-none z-10">
-                    <div className="flex flex-col items-center mb-12">
-                        <div className="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-6 border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                <div className="w-full max-w-4xl bg-white border border-slate-200 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.10)] p-12 select-none z-10">
+                    <div className="flex flex-col items-center mb-10">
+                        <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center mb-5 border border-amber-200 shadow-sm">
                             <span className="text-3xl">⚖️</span>
                         </div>
-                        <h2 className="text-4xl font-black text-white uppercase tracking-[0.2em] text-center mb-4">Critical Decision</h2>
-                        <p className="text-slate-400 text-xl text-center leading-relaxed max-w-2xl font-light">
+                        <h2 className="text-3xl font-black text-slate-800 uppercase tracking-[0.15em] text-center mb-3">Critical Decision</h2>
+                        <p className="text-slate-500 text-lg text-center leading-relaxed max-w-2xl">
                             You have reviewed the email from 'SBI Security Team'.<br />
-                            <span className="text-amber-400 font-medium inline-block mt-2">Do you trust it with your grandfather's life savings?</span>
+                            <span className="text-amber-600 font-semibold inline-block mt-2">Do you trust it with your grandfather's life savings?</span>
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-8">
+                    <div className="grid grid-cols-2 gap-6">
                         {/* Wrong Choice */}
                         <button
-                            className="bg-slate-950/50 hover:bg-slate-800 border-2 border-slate-700/50 hover:border-red-500/80 p-10 rounded-2xl transition-all duration-300 group flex flex-col items-center text-center relative overflow-hidden"
+                            className="bg-red-50 hover:bg-red-100 border-2 border-red-200 hover:border-red-400 p-8 rounded-2xl transition-all duration-200 group flex flex-col items-center text-center relative overflow-hidden"
                             onClick={() => {
                                 triggerTransition('scam_outcome');
                                 const basePenalty = 550000;
-                                const finalPenalty = usedClueBoard ? basePenalty : basePenalty * 1.1; // 10% penalty for no board
+                                const finalPenalty = usedClueBoard ? basePenalty : basePenalty * 1.1;
                                 adjustAssets(-finalPenalty);
                                 if (!usedClueBoard) adjustLives(-1);
                             }}
                         >
-                            <div className="absolute inset-0 bg-red-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
-                            <span className="text-5xl mb-6 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] transition-all relative z-10">🔗</span>
-                            <h3 className="text-2xl font-black text-white mb-3 tracking-wide relative z-10">Click Link & Login</h3>
-                            <p className="text-slate-400 leading-relaxed relative z-10 font-medium">Verify your details immediately to prevent the 24-hour permanent suspension.</p>
+                            <span className="text-5xl mb-5 group-hover:scale-110 transition-all">🔗</span>
+                            <h3 className="text-xl font-black text-red-700 mb-2 tracking-wide">Click Link &amp; Login</h3>
+                            <p className="text-red-500/80 leading-relaxed font-medium text-sm">Verify your details immediately to prevent the 24-hour permanent suspension.</p>
                         </button>
 
                         <button
-                            className={`bg-slate-950/50 hover:bg-slate-800 border-2 border-slate-700/50 hover:border-emerald-500/80 p-10 rounded-2xl transition-all duration-300 flex flex-col items-center text-center group relative overflow-hidden ${usedClueBoard ? 'border-emerald-500/40 shadow-[0_0_30px_rgba(16,185,129,0.15)] bg-emerald-950/10' : ''}`}
+                            className={`bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 hover:border-emerald-400 p-8 rounded-2xl transition-all duration-200 flex flex-col items-center text-center group relative overflow-hidden ${usedClueBoard ? 'border-emerald-400 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]' : ''}`}
                             onClick={() => {
-                                triggerTransition('outro_pov');
+                                triggerTransition('report_phishing');
                             }}
                         >
-                            <div className="absolute inset-0 bg-emerald-500/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></div>
-                            <span className="text-5xl mb-6 group-hover:scale-110 group-hover:drop-shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all relative z-10">🛡️</span>
-                            <h3 className="text-2xl font-black text-white mb-3 tracking-wide relative z-10">Delete & Report</h3>
-                            <p className="text-slate-400 leading-relaxed relative z-10 font-medium">Mark as phishing and forward to report.phishing@sbi.co.in. Do not click.</p>
+                            <span className="text-5xl mb-5 group-hover:scale-110 transition-all">🛡️</span>
+                            <h3 className="text-xl font-black text-emerald-700 mb-2 tracking-wide">Delete &amp; Report</h3>
+                            <p className="text-emerald-600/80 leading-relaxed font-medium text-sm">Mark as phishing and forward to report.phishing@sbi.co.in. Do not click.</p>
                             {usedClueBoard && (
-                                <span className="absolute top-4 right-4 text-[10px] bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 px-3 py-1.5 rounded-full font-bold uppercase tracking-widest animate-pulse backdrop-blur-sm shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                                <span className="absolute top-3 right-3 text-[10px] bg-emerald-500 text-white px-3 py-1 rounded-full font-bold uppercase tracking-widest">
                                     Confirmed by Evidence
                                 </span>
                             )}
                         </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (gameState === 'report_phishing') {
+        const handlePortalSubmit = () => {
+            setPortalSubmitting(true);
+            setTimeout(() => {
+                setPortalSubmitting(false);
+                triggerTransition('outro_pov');
+            }, 2000);
+        };
+
+        return (
+            <div className="w-full h-full bg-zinc-900 flex items-center justify-center relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+
+                <div className="max-w-4xl w-full h-[92vh] bg-white rounded-t-2xl shadow-[0_-20px_80px_rgba(0,0,0,0.6)] flex flex-col overflow-hidden animate-slideUp">
+                    {/* Fake Browser Chrome */}
+                    <div className="bg-zinc-200 h-10 border-b border-zinc-300 flex items-center px-4 gap-4 shrink-0">
+                        <div className="flex gap-1.5">
+                            <div className="w-3 h-3 rounded-full bg-red-400" />
+                            <div className="w-3 h-3 rounded-full bg-amber-400" />
+                            <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                        </div>
+                        <div className="flex-1 bg-white rounded-md h-6 px-3 flex items-center shadow-sm text-xs font-mono text-zinc-600">
+                            🔒 https://cybercrime.gov.in/report-phishing
+                        </div>
+                    </div>
+
+                    {/* Portal Header */}
+                    <div className="bg-[#0b1f52] p-6 text-white flex items-center gap-6 border-b-4 border-amber-500 shrink-0">
+                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center font-serif text-3xl font-bold text-[#0b1f52] shrink-0">In</div>
+                        <div>
+                            <h1 className="text-xl md:text-2xl font-black uppercase tracking-wider font-serif">National Cyber Crime Reporting Portal</h1>
+                            <p className="text-cyan-200 text-xs md:text-sm italic font-medium">Ministry of Home Affairs, Government Of India</p>
+                        </div>
+                        <div className="ml-auto flex flex-col items-end gap-1">
+                            <div className="text-[10px] text-amber-300 font-bold uppercase tracking-widest">Report ID</div>
+                            <div className="text-white font-mono text-sm">#NCB-2026-{Math.floor(Math.random() * 90000 + 10000)}</div>
+                        </div>
+                    </div>
+
+                    {/* Portal Content */}
+                    <div className="flex-1 p-6 md:p-10 overflow-y-auto bg-slate-50 custom-scrollbar">
+                        <div className="bg-white p-6 md:p-8 rounded-xl border border-slate-200 shadow-sm">
+                            <h2 className="text-lg md:text-xl font-bold text-slate-800 border-b-2 border-slate-100 pb-4 mb-6 uppercase flex items-center gap-3">
+                                <span>📧</span> File a Phishing Email Report
+                            </h2>
+
+                            <div className="space-y-6">
+                                {/* Sender domain */}
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Sender Email / Suspect Domain <span className="text-red-500">*</span></label>
+                                    <input type="text" readOnly value="security-alert@sbiindia-verify.com" className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 font-mono text-sm" />
+                                </div>
+
+                                {/* Category */}
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Category of Cybercrime <span className="text-red-500">*</span></label>
+                                    <select disabled className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 font-medium text-sm">
+                                        <option>Phishing / Email Fraud (Financial)</option>
+                                    </select>
+                                </div>
+
+                                {/* Incident details */}
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Incident Description <span className="text-red-500">*</span></label>
+                                    <textarea readOnly rows={4} className="w-full bg-slate-100 border border-slate-300 rounded-lg py-3 px-4 text-slate-600 text-sm resize-none" value={`Received a phishing email impersonating SBI Security Team from domain "sbiindia-verify.com". Email contained a fraudulent login portal link (sbi-secure-login.verify247.in) designed to steal banking credentials. Email used generic greeting, fake IP scare tactics, and urgent pressure language to manipulate the recipient into clicking the link.`} />
+                                </div>
+
+                                {/* Evidence attachment */}
+                                <div>
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 mb-2">Evidence Logs <span className="text-red-500">*</span></label>
+                                    {!portalAttached ? (
+                                        <button
+                                            className="w-full bg-amber-100 hover:bg-amber-200 border-2 border-dashed border-amber-400 text-amber-800 font-bold py-6 rounded-xl flex items-center justify-center gap-3 transition-colors outline-none"
+                                            onClick={() => setPortalAttached(true)}
+                                        >
+                                            <span className="text-2xl">📋</span>
+                                            <span>Attach Evidence Board ({clues.length > 0 ? clues.length : 'No'} Clue{clues.length !== 1 ? 's' : ''} Collected)</span>
+                                        </button>
+                                    ) : (
+                                        <div className="w-full bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between">
+                                            <div className="flex items-center gap-3 text-emerald-700 font-bold">
+                                                <span className="text-2xl">✅</span>
+                                                <span className="text-sm md:text-base">phishing_evidence.zip ({clues.length} item{clues.length !== 1 ? 's' : ''} attached)</span>
+                                            </div>
+                                            <span className="text-xs text-emerald-600 font-mono">{(clues.length * 0.3 + 0.4).toFixed(1)}MB</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Tips box */}
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex gap-3">
+                                    <span className="text-xl shrink-0">💡</span>
+                                    <div>
+                                        <p className="text-[12px] font-bold text-blue-800 mb-1 uppercase tracking-wide">Why Report?</p>
+                                        <p className="text-[12px] text-blue-700 leading-relaxed">Reporting phishing emails helps the Cyber Crime Cell take down fake domains, warn other users, and in some cases freeze fraudulent accounts before more victims are targeted. You can also call the <strong>1930 Cyber Helpline</strong> for urgent fraud.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Submit */}
+                        <div className="mt-8 flex justify-end">
+                            <button
+                                disabled={!portalAttached || portalSubmitting}
+                                onClick={handlePortalSubmit}
+                                className={`font-black py-4 px-8 md:px-12 rounded-lg text-sm md:text-lg uppercase tracking-widest transition-all outline-none ${
+                                    !portalAttached
+                                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                        : portalSubmitting
+                                        ? 'bg-cyan-600 text-white animate-pulse cursor-wait'
+                                        : 'bg-[#0b1f52] hover:bg-blue-900 text-white shadow-lg shadow-blue-900/40 hover:scale-105 active:scale-95'
+                                }`}
+                            >
+                                {portalSubmitting ? 'Submitting to Cyber Cell...' : 'Submit Phishing Report'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -823,49 +964,7 @@ SecureMail Support Team`,
         );
     }
 
-    return (
-        <style dangerouslySetInnerHTML={{
-            __html: `
-        .animate-strikeThrough { animation: strikeThrough 1s forwards; }
-        .animate-scanLine { animation: scanLine 2s linear infinite; }
-        .animate-surge { animation: surge 2s infinite; }
-        .animate-fadeIn { animation: fadeIn 0.5s forwards; }
-        .animate-width { animation: width 1.5s ease-in-out forwards; }
-        .animate-cinematic-sequence { animation: cinematic-sequence 3.5s forwards; }
-        .animate-aberration { animation: aberration 1.5s infinite; }
-        .animate-aberration-alt { animation: aberration-alt 1.5s infinite; }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes width { from { width: 0; opacity: 0; } to { width: 12rem; opacity: 0.8; } }
-        @keyframes scanLine { from { transform: translateY(-100%); } to { transform: translateY(200%); } }
-        @keyframes fieldZoom { from { transform: scale(1); } to { transform: scale(1.1); } }
-        @keyframes shimmerWidth { from { width: 0; } to { width: 8rem; } }
-        @keyframes strikeThrough { from { width: 0; } to { width: 120%; } }
-        @keyframes surge {
-            0%, 100% { transform: scale(1); filter: brightness(1); }
-            50% { transform: scale(1.08); filter: brightness(1.3); drop-shadow: 0 0 40px rgba(255,255,255,0.4); }
-        }
-        @keyframes fadeInSlow { from { opacity: 0; } 30% { opacity: 1; } to { opacity: 1; } }
-        @keyframes aberration {
-            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
-            25% { transform: translate(-4px, 2px); opacity: 0.8; }
-            50% { transform: translate(4px, -2px); opacity: 0.6; }
-            75% { transform: translate(-2px, -4px); opacity: 0.8; }
-        }
-        @keyframes aberration-alt {
-            0%, 100% { transform: translate(0, 0); opacity: 0.6; }
-            25% { transform: translate(4px, -2px); opacity: 0.8; }
-            50% { transform: translate(-4px, 2px); opacity: 0.6; }
-            75% { transform: translate(2px, 4px); opacity: 0.8; }
-        }
-        @keyframes cinematic-sequence {
-            0% { opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-    ` }} />
-    );
+    return null;
 };
 
 export default Level3;

@@ -59,6 +59,52 @@ const LevelLivingRoom = () => {
     const playerCompRef = useRef(null);
     const [interactionTarget, setInteractionTarget] = useState(null);
     const [feedbackMsg, setFeedbackMsg] = useState(null);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const isTransitioningRef = useRef(false);
+
+    // Audio Refs
+    const audioCtxRef = useRef(null);
+    const footstepAudioRef = useRef(null);
+
+    useEffect(() => {
+        footstepAudioRef.current = new Audio('/audio/foot.m4a');
+        footstepAudioRef.current.loop = true;
+        footstepAudioRef.current.volume = 0.6;
+        
+        return () => {
+            if (footstepAudioRef.current) {
+                footstepAudioRef.current.pause();
+                footstepAudioRef.current = null;
+            }
+        };
+    }, []);
+
+    // Stop footstep audio if changing phases away from walking
+    useEffect(() => {
+        if (phase !== 'walking_living' && phase !== 'walking_study') {
+            if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                footstepAudioRef.current.pause();
+            }
+        }
+    }, [phase]);
+
+    const getAudioContext = () => {
+        if (!audioCtxRef.current) {
+            audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtxRef.current;
+    };
+
+    const playSynthSound = (type) => {
+        try {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+
+            switch (type) {
+
+            }
+        } catch(e) { console.error(e) }
+    };
 
     const showMessage = (msg) => {
         setFeedbackMsg(msg);
@@ -79,7 +125,7 @@ const LevelLivingRoom = () => {
 
     useEffect(() => {
         let animationFrameId;
-        const SPEED = 12;
+        const SPEED = 6; // Reduced walking speed
 
         const gameLoop = () => {
             if (phase !== 'walking_living' && phase !== 'walking_study') {
@@ -90,6 +136,7 @@ const LevelLivingRoom = () => {
             const keys = keysRef.current;
             
             setPlayerPos(prev => {
+                if (isTransitioningRef.current) return prev;
                 let newX = prev.x;
                 let newY = prev.y;
 
@@ -116,13 +163,33 @@ const LevelLivingRoom = () => {
                     if (newX !== prev.x) playerCompRef.current.setFacing(newX > prev.x ? 'right' : 'left');
                 }
 
+                if (moved) {
+                    if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                        footstepAudioRef.current.play().catch(() => {});
+                    }
+                } else {
+                    if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                        footstepAudioRef.current.pause();
+                    }
+                }
+
                 // Interaction Checks
                 if (phase === 'walking_living') {
                     const isNearRightDoor = newX > ROOM_WIDTH - 200 && Math.abs(newY - ROOM_HEIGHT / 2) < 150;
                     setInteractionTarget(isNearRightDoor ? 'room_door' : null);
-                    if (isNearRightDoor && keys['e']) {
-                        setPhase('walking_study');
-                        return { x: 800, y: 950 };
+                    if (isNearRightDoor && keys['e'] && !isTransitioningRef.current) {
+                        isTransitioningRef.current = true;
+                        setIsTransitioning(true);
+                        new Audio('/audio/home door.mp3').play().catch(() => {});
+                        setTimeout(() => {
+                            setPhase('walking_study');
+                            setPlayerPos({ x: 800, y: 950 });
+                            setTimeout(() => {
+                                setIsTransitioning(false);
+                                isTransitioningRef.current = false;
+                            }, 100);
+                        }, 800);
+                        return prev;
                     }
                 } else if (phase === 'walking_study') {
                     const nearGrandpa = Math.abs(newX - 800) < 120 && Math.abs(newY - 600) < 120;
@@ -185,6 +252,18 @@ const LevelLivingRoom = () => {
             }
         }
     };
+    // Key-based interaction for dialogue advancement
+    useEffect(() => {
+        if (phase !== 'dialogue') return;
+        const handleKeyDown = (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'e' || key === ' ' || key === 'enter') {
+                handleDialogueInteraction();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [phase, dialogueIndex, isTyping]);
 
     // ═══ RENDER ═══
 
@@ -197,6 +276,11 @@ const LevelLivingRoom = () => {
 
     return (
         <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-mono">
+            {/* Screen Transition Overlay */}
+            <div 
+                className="absolute inset-0 bg-black z-[9999] pointer-events-none transition-opacity duration-[800ms] ease-in-out"
+                style={{ opacity: isTransitioning ? 1 : 0 }}
+            />
             {/* Viewport Container */}
             <div
                 className="relative border-8 border-zinc-800 shadow-2xl overflow-hidden bg-slate-900"
@@ -292,15 +376,6 @@ const LevelLivingRoom = () => {
                                 </div>
                             </div>
 
-                            {/* MISSION HINT */}
-                            {interactionTarget !== 'room_door' && (
-                                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-                                    <div className="bg-slate-950/80 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 shadow-2xl flex items-center gap-4">
-                                        <span className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></span>
-                                        <span className="text-white/70 text-[10px] font-black tracking-[0.3em] uppercase">Objective: Find Grandpa in the Study</span>
-                                    </div>
-                                </div>
-                            )}
                         </>
                     )}
 
@@ -315,11 +390,15 @@ const LevelLivingRoom = () => {
                 {/* --- HUD LAYER (Fixed relative to viewport) --- */}
 
                 {/* Interaction Prompts (Outside camera, inside viewport) */}
-                {phase === 'walking_living' && interactionTarget === 'room_door' && (
-                    <InteractionPrompt text="Press E to Enter Study Room" />
+                {phase === 'walking_living' && (
+                    interactionTarget === 'room_door' 
+                        ? <InteractionPrompt text="Press E to Enter Study Room" />
+                        : <InteractionPrompt text="Walk to the study room on right" showKey={false} />
                 )}
-                {phase === 'walking_study' && interactionTarget === 'grandpa' && (
-                    <InteractionPrompt text="Press E to Talk to Grandfather" />
+                {phase === 'walking_study' && (
+                    interactionTarget === 'grandpa'
+                        ? <InteractionPrompt text="Press E to Talk to Grandfather" />
+                        : <InteractionPrompt text="Walk to Grandpa" showKey={false} />
                 )}
 
                 {/* Feedback Overlay (Level 2 Style) */}

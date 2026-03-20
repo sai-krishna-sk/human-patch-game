@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Player from '../components/Player';
 import { useGameState } from '../context/GameStateContext';
 import InteractionPrompt from '../components/InteractionPrompt';
@@ -55,8 +55,13 @@ const Level4 = () => {
     const [isTransitioning, setIsTransitioning] = useState(true);
     const [titleCardStep, setTitleCardStep] = useState(0);
     const [phonePickupStep, setPhonePickupStep] = useState(0);
+    const [outroSuccess, setOutroSuccess] = useState(false);
     const [outroStep, setOutroStep] = useState(0);
-    const [outroSuccess, setOutroSuccess] = useState(true);
+
+    // PORTAL STATE
+    const [portalStep, setPortalStep] = useState(0);
+    const [portalAttached, setPortalAttached] = useState(false);
+    const [isPortalSubmitting, setIsPortalSubmitting] = useState(false);
 
     // MINI GAME STATE
     const [miniGameOver, setMiniGameOver] = useState(false);
@@ -123,10 +128,15 @@ const Level4 = () => {
         const handleKey = (e) => {
             if (e.key.toLowerCase() === 'e') {
                 if (gameState === 'study_pov') triggerTransition('study_walk');
-                else if (gameState === 'study_walk' && interactionTarget === 'exit') triggerTransition('living_room');
-                else if (gameState === 'living_room' && interactionTarget === 'bedroom') triggerTransition('bedroom_walk');
-                else if (gameState === 'bedroom_walk' && interactionTarget === 'sleep') triggerTransition('sleep_pov');
-                else if (gameState === 'phone_pickup_pov' && phonePickupStep >= 4) triggerTransition('sms_ui');
+                else if (gameState === 'study_walk' && interactionTarget === 'exit') {
+                    playDoorSound();
+                    triggerTransition('living_room');
+                } else if (gameState === 'living_room' && interactionTarget === 'bedroom') {
+                    playDoorSound();
+                    triggerTransition('bedroom_walk');
+                } else if (gameState === 'bedroom_walk' && interactionTarget === 'sleep') {
+                    triggerTransition('sleep_pov');
+                } else if (gameState === 'phone_pickup_pov' && phonePickupStep >= 4) triggerTransition('sms_ui');
                 else if (gameState === 'outro_pov_1') triggerTransition('outro_pov_2');
                 else if (gameState === 'walk' && canInteract) setGameState('sms_ui'); // Legacy check
             }
@@ -134,6 +144,112 @@ const Level4 = () => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [gameState, interactionTarget, canInteract, phonePickupStep]);
+
+    const footstepAudioRef = useRef(null);
+
+    useEffect(() => {
+        const audio = new Audio('/audio/foot.m4a');
+        audio.loop = true;
+        audio.volume = 0.5;
+        footstepAudioRef.current = audio;
+        return () => {
+            audio.pause();
+            audio.src = '';
+        };
+    }, []);
+
+    useEffect(() => {
+        const isWalkingState = ['walk', 'study_walk', 'living_room', 'bedroom_walk'].includes(gameState);
+        const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'] || 
+                         keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright'];
+        
+        if (isWalkingState && isMoving) {
+            if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                footstepAudioRef.current.play().catch(e => console.log('Audio play failed:', e));
+            }
+        } else {
+            if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                footstepAudioRef.current.pause();
+            }
+        }
+    }, [keys, gameState]);
+
+    // PROCEDURAL AUDIO SYNTHESIZER
+    const audioCtxRef = useRef(null);
+
+    const getAudioContext = () => {
+        if (!audioCtxRef.current) {
+            audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return audioCtxRef.current;
+    };
+
+    const playSynthSound = (type) => {
+        try {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+
+            switch (type) {
+                case 'noti_buzz': {
+                    const osc1 = ctx.createOscillator();
+                    const osc2 = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc1.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc2.frequency.setValueAtTime(1320, ctx.currentTime);
+                    gain.gain.setValueAtTime(0, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.9, ctx.currentTime + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+                    osc1.connect(gain);
+                    osc2.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc1.start();
+                    osc2.start();
+                    osc1.stop(ctx.currentTime + 0.5);
+                    osc2.stop(ctx.currentTime + 0.5);
+                    break;
+                }
+                case 'noti_vibration': {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    const mod = ctx.createOscillator();
+                    const modGain = ctx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(80, ctx.currentTime);
+
+                    mod.type = 'square';
+                    mod.frequency.setValueAtTime(10, ctx.currentTime);
+                    modGain.gain.setValueAtTime(0.5, ctx.currentTime);
+
+                    gain.gain.setValueAtTime(0, ctx.currentTime);
+                    // Double pulse pattern
+                    gain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.05);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+                    gain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 0.25);
+                    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+
+                    mod.connect(modGain);
+                    modGain.connect(osc.frequency);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.start();
+                    mod.start();
+                    osc.stop(ctx.currentTime + 0.45);
+                    mod.stop(ctx.currentTime + 0.45);
+                    break;
+                }
+            }
+        } catch(e) { console.error('Synth sound failed', e); }
+    };
+
+    const playDoorSound = () => {
+        try {
+            const audio = new Audio('/audio/home door.mp3');
+            audio.volume = 0.6;
+            audio.play().catch(e => console.log('Door sound failed:', e));
+        } catch(e) {}
+    };
 
     useEffect(() => {
         if (!['walk', 'study_walk', 'living_room', 'bedroom_walk'].includes(gameState)) return;
@@ -236,9 +352,8 @@ const Level4 = () => {
         }
         if (gameState === 'phone_pickup_pov') {
             const t1 = setTimeout(() => {
-                const au = new Audio('/assets/notification.mp3');
-                au.volume = 0.5;
-                au.play().catch(e => console.log('Audio error:', e));
+                playSynthSound('noti_buzz');
+                playSynthSound('noti_vibration');
                 setPhonePickupStep(1);
             }, 1000);
             const t2 = setTimeout(() => setPhonePickupStep(2), 3000);
@@ -268,7 +383,8 @@ const Level4 = () => {
     // NEW INTRO SEQUENCE STATES
     // ═══════════════════════════════════════════
 
-    if (gameState === 'study_pov') {
+    const renderContent = () => {
+        if (gameState === 'study_pov') {
         return (
             <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-fadeIn">
                 {/* GLOBAL TRANSITION FADE */}
@@ -293,14 +409,9 @@ const Level4 = () => {
                 <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                     <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/study.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
-                    <div className="absolute top-[130px] left-4 z-20 flex flex-col items-center">
-                        <div className="w-20 relative" style={{ height: 72 }}>
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-5 bg-red-800 rounded-b-lg rounded-t-sm border-2 border-red-900" />
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-1 h-10 bg-green-900" />
-                            <div className="absolute bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 bg-green-700 rounded-full opacity-80" style={{ filter: 'blur(2px)' }} />
-                            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 w-10 h-10 bg-green-600 rounded-full opacity-70" style={{ filter: 'blur(1px)' }} />
-                        </div>
-                    </div>
+                    {!interactionTarget && (
+                        <InteractionPrompt showKey={false} text="Go to the living room" />
+                    )}
 
                     <Player x={playerPos.x} y={playerPos.y} />
 
@@ -325,23 +436,57 @@ const Level4 = () => {
                 {/* GLOBAL TRANSITION FADE */}
                 <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
-                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: 'black' }}>
+                    <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: '#2c3e50', willChange: 'transform' }}>
+                        {/* Wood Floor */}
                         <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/60 pointer-events-none z-10"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none z-10"></div>
 
-                        {/* Top Return Door */}
-                        <div className={`absolute top-0 right-0 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 opacity-80 transition-all`} />
+                        {/* Top Double Door (Main Exit) */}
+                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 ${Math.abs(livingRoomPlayerPos.x - 800) < 120 && livingRoomPlayerPos.y < 150 ? 'opacity-100 scale-105' : 'opacity-80'} transition-all`}>
+                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">EXIT</div>
+                            <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
+                                <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            </div>
+                            <div className="absolute top-[40px] left-[110px] w-4 h-1 bg-black"></div>
+                            <div className="absolute top-[40px] right-[110px] w-4 h-1 bg-black"></div>
+                        </div>
+
+                        {/* Right Single Door (Return to Study) */}
+                        <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-r-0 p-3 flex flex-col items-center justify-center z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] opacity-80 transition-all`}>
+                            <div className="text-[9px] text-white/60 font-black rotate-90 mb-8 tracking-[0.3em]">STUDY</div>
+                            <div className="w-[30px] h-[80px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            <div className="absolute left-2 bottom-6 w-1 h-6 bg-black"></div>
+                        </div>
+
                         {/* Bottom Double Door (Bedroom Exit) */}
                         <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-b-0 flex z-10 ${interactionTarget === 'bedroom' ? 'opacity-100 scale-105' : 'opacity-80'} transition-all`}>
                             <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">BEDROOM</div>
                             <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
                                 <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
                             </div>
+                            <div className="absolute top-[40px] left-[110px] w-4 h-1 bg-black"></div>
+                            <div className="absolute top-[40px] right-[110px] w-4 h-1 bg-black"></div>
                         </div>
 
-                        {/* RUGS FROM LEVEL 9 */}
-                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0"></div>
-                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0"></div>
+                        {/* HORIZONTAL RED RUG */}
+                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0">
+                            <div className="flex flex-col justify-between h-full -ml-2 absolute left-0 py-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
+                            </div>
+                            <div className="flex flex-col justify-between h-full -mr-2 absolute right-0 py-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
+                            </div>
+                        </div>
+
+                        {/* VERTICAL RED RUG */}
+                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0">
+                            <div className="flex justify-between w-full -mt-2 absolute top-0 px-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
+                            </div>
+                            <div className="flex justify-between w-full -mb-2 absolute bottom-0 px-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
+                            </div>
+                        </div>
 
                         {/* SOFA */}
                         <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start z-20 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
@@ -354,8 +499,10 @@ const Level4 = () => {
                             <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black shadow-inner"></div>
                             <div className="absolute -bottom-8 left-4 right-4 h-8 bg-black/40 blur-xl rounded-full -z-10"></div>
                         </div>
+
                         {/* COFFEE TABLE */}
                         <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-2xl flex items-center justify-center">
+                            <div className="w-[80px] h-[160px] border border-white/10"></div>
                             <div className="absolute top-full left-2 right-2 h-6 bg-black/40 blur-xl rounded-full -z-10"></div>
                         </div>
 
@@ -394,6 +541,10 @@ const Level4 = () => {
 
                         <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
                     </div>
+
+                    {!interactionTarget && (
+                        <InteractionPrompt showKey={false} text="Go to the bedroom" />
+                    )}
 
                     {interactionTarget === 'bedroom' && (
                         <InteractionPrompt text="Press E to enter bedroom" />
@@ -661,7 +812,6 @@ const Level4 = () => {
                             <div className="w-6 h-6 bg-emerald-500 rounded-md shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                             <span className="text-white font-bold tracking-wider text-sm">Play Store</span>
                         </div>
-                        <div className="text-slate-400 text-[11px] font-mono">Click on suspicious elements to circle them</div>
                     </div>
 
                     {/* App Cards */}
@@ -670,7 +820,7 @@ const Level4 = () => {
 
                         <div className="grid grid-cols-2 gap-5">
                             {/* App A — Official */}
-                            <div className="bg-white rounded-2xl p-5 shadow-xl">
+                            <div className="bg-white rounded-2xl p-5 shadow-xl flex flex-col">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="w-14 h-14 bg-gradient-to-br from-blue-700 to-blue-900 rounded-2xl flex items-center justify-center text-white font-black text-xs shadow-lg">YONO</div>
                                     <div>
@@ -683,15 +833,15 @@ const Level4 = () => {
                                     <div className="bg-slate-100 p-2 rounded"><p className="font-bold text-slate-800">100M+</p><p className="text-slate-500">Downloads</p></div>
                                     <div className="bg-slate-100 p-2 rounded"><p className="font-bold text-slate-800">Mar 2024</p><p className="text-slate-500">Updated</p></div>
                                 </div>
-                                <p className="text-slate-600 text-xs mb-4">Official banking app by State Bank of India. Manage accounts, transfers, and investments securely.</p>
-                                <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg"
-                                    onClick={() => setGameState('report_ui')}>
-                                    ✅ INSTALL OFFICIAL
+                                <p className="text-slate-600 text-xs mb-4 flex-1">Official banking app by State Bank of India. Manage accounts, transfers, and investments securely.</p>
+                                <button className={`w-full font-bold py-3 rounded-xl transition-all shadow-lg ${cluesFound.length < 5 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}
+                                    onClick={() => { if (cluesFound.length >= 5) setGameState('report_ui'); }}>
+                                    {cluesFound.length < 5 ? '🔒 INSTALL OFFICIAL' : '✅ INSTALL OFFICIAL'}
                                 </button>
                             </div>
 
                             {/* App B — Fake (clickable elements, NO visual hints) */}
-                            <div className="bg-white rounded-2xl p-5 shadow-xl relative">
+                            <div className="bg-white rounded-2xl p-5 shadow-xl relative flex flex-col">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center text-white font-black text-[10px] shadow-lg leading-tight text-center">YONO<br />PRO</div>
                                     <div>
@@ -712,15 +862,30 @@ const Level4 = () => {
                                         <Circleable clueId={4}><p className="font-bold text-slate-800">Apr 2023</p><p className="text-slate-500">Updated</p></Circleable>
                                     </div>
                                 </div>
-                                <Circleable clueId={3} className="text-slate-500 text-[11px] block mb-3">
+                                <Circleable clueId={3} className="text-slate-500 text-[11px] block mb-3 flex-1">
                                     Permissions: READ_SMS, READ_CONTACTS, RECORD_AUDIO, ACCESS_FINE_LOCATION, BIND_DEVICE_ADMIN
                                 </Circleable>
 
-                                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-colors"
-                                    onClick={() => setGameState('permission_cascade')}>
-                                    📥 INSTALL PRO VERSION
+                                <button className={`w-full font-bold py-3 rounded-xl transition-all shadow-lg ${cluesFound.length < 5 ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
+                                    onClick={() => { if (cluesFound.length >= 5) setGameState('permission_cascade'); }}>
+                                    {cluesFound.length < 5 ? '🔒 INSTALL PRO VERSION' : '📥 INSTALL PRO VERSION'}
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Instruction Prompt below cards */}
+                        <div className="mt-12 mb-8 flex flex-col items-center justify-center py-8 border-t border-slate-800/50">
+                            {cluesFound.length < 5 ? (
+                                <div className="text-white font-mono text-sm animate-pulse tracking-[0.2em] uppercase bg-slate-800/60 px-10 py-4 rounded-full border border-slate-700 shadow-[0_0_20px_rgba(255,255,255,0.05)] flex items-center gap-3">
+                                    <span className="text-amber-400">🔍</span>
+                                    <span>Click on suspicious elements to circle them ({cluesFound.length}/5 FOUND)</span>
+                                </div>
+                            ) : (
+                                <div className="text-white font-mono text-sm animate-[bounce_2s_infinite] tracking-[0.2em] uppercase bg-emerald-900/40 px-10 py-4 rounded-full border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.1)] flex items-center gap-3">
+                                    <span className="text-emerald-400">✅</span>
+                                    <span>All clues found! Now install the correct version</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -809,8 +974,9 @@ const Level4 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'report_ui') {
         return (
-            <div className="w-full h-full bg-slate-900 p-8 flex flex-col items-center justify-center text-white">
-                <div className="bg-slate-800 p-10 rounded-2xl shadow-2xl max-w-md text-center border border-slate-700">
+            <div className="w-full h-full bg-cover bg-center p-8 flex flex-col items-center justify-center text-white relative" style={{ backgroundImage: "url('/assets/bed.png')" }}>
+                <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-[2px] z-0" />
+                <div className="bg-slate-800/90 p-10 rounded-2xl shadow-2xl max-w-md text-center border border-slate-700 relative z-10 backdrop-blur-md">
                     <div className="text-5xl mb-6">✅</div>
                     <h2 className="text-2xl font-bold mb-4 uppercase tracking-widest">Official App Installed</h2>
                     <p className="text-slate-400 mb-8 text-sm leading-relaxed">You've installed the real SBI YONO app from the Play Store. Now report the scam SMS to protect others.</p>
@@ -823,27 +989,169 @@ const Level4 = () => {
     }
 
     // ═══════════════════════════════════════════
-    // REPORT FINAL — Cyber Cell Filing
+    // REPORT FINAL — Mobile Cyber Cell Portal
     // ═══════════════════════════════════════════
     if (gameState === 'report_ui_final') {
+        const handlePortalSubmit = () => {
+            setIsPortalSubmitting(true);
+            setTimeout(() => {
+                setIsPortalSubmitting(false);
+                setOutroSuccess(true);
+                triggerTransition('outro_pov_1');
+            }, 2000);
+        };
+
         return (
-            <div className="w-full h-full bg-slate-950 p-8 flex items-center justify-center">
-                <div className="w-[500px] bg-slate-900 border border-slate-700 rounded-3xl p-8 shadow-2xl">
-                    <div className="text-center mb-8">
-                        <div className="text-5xl mb-4">👮</div>
-                        <h2 className="text-xl font-bold text-white uppercase tracking-widest">CYBER CELL REPORT</h2>
-                        <p className="text-slate-500 text-xs mt-2">cybercrime.gov.in</p>
+            <div className="w-full h-full flex items-center justify-center bg-zinc-950 p-4 relative overflow-hidden">
+                {/* GLOBAL TRANSITION FADE */}
+                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bed.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3)' }} />
+
+                <div className="z-10 w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col">
+                    {/* Status bar */}
+                    <div className="w-full flex justify-between items-center px-8 pt-3 pb-1 text-[10px] text-slate-400 font-mono bg-white">
+                        <span className="text-black">9:45 AM</span>
+                        <span className="text-black">●●●● 5G 🔋</span>
                     </div>
-                    <div className="space-y-4 mb-8">
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Incident Type</p><p className="text-white font-mono text-sm">Phishing / Malicious APK Distribution via SMS</p></div>
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Sender ID</p><p className="text-white font-mono text-sm">VM-SBINFO</p></div>
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Malicious URL</p><p className="text-red-400 font-mono text-xs">https://sbi-kyc-update24.app/download</p></div>
-                        <div className="bg-slate-800 p-4 rounded-xl border border-slate-700"><p className="text-slate-500 text-xs uppercase mb-1">Evidence Collected</p><p className="text-amber-400 font-mono text-sm">{cluesFound.length} / 6 clues documented</p></div>
+
+                    {/* Browser Address Bar */}
+                    <div className="w-full bg-slate-100 border-b border-slate-300 px-4 py-2 flex items-center gap-2">
+                        <div className="bg-white border border-slate-300 rounded-full flex-1 px-3 py-1 flex items-center gap-2 text-[10px] text-slate-600">
+                            <span>🔒</span>
+                            <span className="truncate">cybercrime.gov.in/report</span>
+                        </div>
+                        <span className="text-slate-400 text-sm">⋮</span>
                     </div>
-                    <button className="w-full bg-emerald-600 py-4 rounded-xl font-bold text-white shadow-lg hover:bg-emerald-500 transition-colors"
-                        onClick={() => { setOutroSuccess(true); triggerTransition('outro_pov_1'); }}>
-                        ✅ SUBMIT COMPLAINT
-                    </button>
+
+                    {/* Portal Header */}
+                    <div className="bg-[#0b1f52] p-4 text-white flex items-center gap-3 border-b-2 border-amber-500 shrink-0">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center font-serif text-xl font-bold text-[#0b1f52] shrink-0">In</div>
+                        <div>
+                            <h1 className="text-[10px] font-black uppercase tracking-wider font-serif leading-tight">National Cyber Crime Reporting Portal</h1>
+                            <p className="text-cyan-200 text-[7px] italic font-medium">Ministry of Home Affairs, Govt. of India</p>
+                        </div>
+                    </div>
+
+                    {/* Portal Content Scroll Area */}
+                    <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col custom-scrollbar">
+                        {portalStep === 0 && (
+                            <div className="p-5 animate-fadeIn">
+                                <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-4">
+                                    <h2 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                        <span className="text-lg">📢</span> IMPORTANT
+                                    </h2>
+                                    <p className="text-[11px] text-slate-600 leading-relaxed mb-4">
+                                        Report any cybercrime including online financial fraud, phishing, or malicious applications. Your report helps protect others.
+                                    </p>
+                                    <button
+                                        className="w-full bg-[#0b1f52] text-white py-3 rounded-lg text-xs font-bold uppercase tracking-widest shadow-md hover:bg-blue-900 transition-colors"
+                                        onClick={() => setPortalStep(1)}
+                                    >
+                                        File a Complaint
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-white p-3 rounded-lg border border-slate-100 text-center">
+                                        <div className="text-xl mb-1">📞</div>
+                                        <p className="text-[8px] font-bold text-slate-400 uppercase">Helpline</p>
+                                        <p className="text-xs font-black text-blue-900">1930</p>
+                                    </div>
+                                    <div className="bg-white p-3 rounded-lg border border-slate-100 text-center">
+                                        <div className="text-xl mb-1">🕒</div>
+                                        <p className="text-[8px] font-bold text-slate-400 uppercase">Status</p>
+                                        <p className="text-xs font-black text-blue-900">Track</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {portalStep === 1 && (
+                            <div className="p-5 animate-fadeIn">
+                                <h2 className="text-xs font-black text-slate-800 mb-4 uppercase flex items-center gap-2">
+                                    <span className="text-blue-900">Step 1:</span> Incident Details
+                                </h2>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Incident Category</label>
+                                        <div className="bg-slate-100 border border-slate-200 rounded p-2 text-[11px] text-slate-700 font-medium">
+                                            Phishing / Malicious App
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Suspect Sender (SMS)</label>
+                                        <div className="bg-slate-100 border border-slate-200 rounded p-2 text-[11px] text-slate-700 font-mono">
+                                            VM-SBINFO
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Malicious Link</label>
+                                        <div className="bg-red-50 border border-red-100 rounded p-2 text-[9px] text-red-600 font-mono break-all leading-tight">
+                                            https://sbi-kyc-update24.app/download
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Incident Description</label>
+                                        <textarea
+                                            className="w-full bg-white border border-slate-200 rounded p-2 text-[10px] text-slate-700 resize-none h-20"
+                                            readOnly
+                                            value="Received suspicious SMS impersonating SBI bank. Link leads to a fake app store page distributed via malicious APK. Attempted to harvest banking credentials and device permissions."
+                                        />
+                                    </div>
+                                    <button
+                                        className="w-full bg-[#0b1f52] text-white py-3 rounded-lg text-xs font-bold uppercase tracking-widest"
+                                        onClick={() => setPortalStep(2)}
+                                    >
+                                        Next: Evidence
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {portalStep === 2 && (
+                            <div className="p-5 animate-fadeIn flex-1 flex flex-col">
+                                <h2 className="text-xs font-black text-slate-800 mb-4 uppercase flex items-center gap-2">
+                                    <span className="text-blue-900">Step 2:</span> Evidence Upload
+                                </h2>
+
+                                <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center text-center mb-6">
+                                    {!portalAttached ? (
+                                        <>
+                                            <div className="text-3xl mb-2">📎</div>
+                                            <p className="text-[10px] text-slate-500 font-medium mb-4">Attach investigation clues found during Play Store inspection</p>
+                                            <button
+                                                className="bg-amber-100 text-amber-800 border border-amber-300 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider"
+                                                onClick={() => setPortalAttached(true)}
+                                            >
+                                                Attach Digital Evidence ({cluesFound.length}/5)
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="text-3xl mb-2">✅</div>
+                                            <p className="text-[10px] text-emerald-600 font-black mb-1">Evidence.zip Attached</p>
+                                            <p className="text-[8px] text-slate-400 font-mono">{cluesFound.length} items collected</p>
+                                        </>
+                                    )}
+                                </div>
+
+                                <div className="mt-auto space-y-3">
+                                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex gap-2">
+                                        <span className="text-sm">💡</span>
+                                        <p className="text-[9px] text-blue-800 leading-tight">Evidence helps authorities identify and take down malicious infrastructure used by scammers.</p>
+                                    </div>
+                                    <button
+                                        disabled={!portalAttached || isPortalSubmitting}
+                                        className={`w-full py-4 rounded-lg text-xs font-black uppercase tracking-[0.2em] shadow-lg transition-all ${!portalAttached ? 'bg-slate-300 text-slate-500' : isPortalSubmitting ? 'bg-emerald-600 text-white animate-pulse' : 'bg-emerald-600 hover:bg-emerald-500 text-white'}`}
+                                        onClick={handlePortalSubmit}
+                                    >
+                                        {isPortalSubmitting ? 'Submitting...' : 'Submit Final Report'}
+                                    </button>
+                                    <button className="w-full py-2 text-[9px] font-bold text-slate-400 uppercase" onClick={() => setPortalStep(1)}>← Back</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -1141,6 +1449,15 @@ const Level4 = () => {
     }
 
     return null;
+    }; // end of renderContent
+
+    return (
+        <React.Fragment>
+            {/* GLOBAL TRANSITION FADE - Hoisted to root to prevent remount flash */}
+            <div className={`fixed inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+            {renderContent()}
+        </React.Fragment>
+    );
 };
 
 export default Level4;

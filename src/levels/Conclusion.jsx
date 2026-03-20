@@ -88,6 +88,18 @@ const Conclusion = () => {
             }
         }
     };
+    // Key-based interaction for dialogue advancement
+    useEffect(() => {
+        if (phase !== 'dialogue') return;
+        const handleKeyDown = (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'e' || key === ' ' || key === 'enter') {
+                handleDialogueInteraction();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [phase, dialogueIndex, isTyping, currentDialogues]);
 
     // ═══ RENDERERS ═══
     const renderDialogue = () => {

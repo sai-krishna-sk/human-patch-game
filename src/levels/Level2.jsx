@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
-import InteractionPrompt from '../components/InteractionPrompt';
 import Player from '../components/Player';
 
 const ROOM_WIDTH = 1600;
@@ -161,83 +160,113 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
     };
 
     return (
-        <div className="fixed inset-0 z-[3000] bg-zinc-950/90 backdrop-blur-2xl flex flex-col items-center justify-center p-6 text-white overflow-y-auto">
-            <div className="w-full max-w-4xl bg-zinc-900 border border-white/10 rounded-3xl p-12 shadow-2xl relative overflow-hidden animate-in scale-in-95 duration-500">
-                <div className="flex justify-between items-start mb-12">
-                    <div>
-                        <h2 className="text-4xl font-black uppercase tracking-tighter text-white mb-2 italic">Secure Your Account</h2>
-                        <p className="text-cyan-500 font-mono text-[10px] uppercase tracking-[0.3em] font-black">Authentication Shield v2.0</p>
+        <div className="fixed inset-0 z-[3000] bg-zinc-950/90 backdrop-blur-2xl flex items-center justify-center p-4 text-white">
+            <div className="w-full max-w-4xl bg-zinc-900 border border-white/10 rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.8)] relative overflow-hidden animate-in scale-in-95 duration-500">
+                
+                {/* Header Bar */}
+                <div className="px-8 py-5 bg-gradient-to-r from-zinc-800/80 to-zinc-900 border-b border-white/5 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-cyan-500/10 border border-cyan-500/30 rounded-xl flex items-center justify-center">
+                            <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black uppercase tracking-wider text-white">Secure Your Account</h2>
+                            <p className="text-cyan-500 font-mono text-[9px] uppercase tracking-[0.3em] font-black">Authentication Shield v2.0</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${entropy > 85 ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : entropy > 40 ? 'bg-amber-400' : 'bg-red-400'} animate-pulse`}></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">{entropy > 85 ? 'Strong' : entropy > 40 ? 'Moderate' : 'Weak'}</span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                    <div className="space-y-10">
-                        <div>
-                            <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4">Set New Passphrase:</label>
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    playSynthSound('keyboard_click');
-                                }}
-                                className="w-full bg-black border-2 border-white/10 rounded-2xl px-8 py-6 text-3xl font-black text-white focus:border-cyan-500 outline-none transition-all placeholder:text-zinc-800"
-                                placeholder="........"
-                            />
+                {/* Main Content */}
+                <div className="p-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Left Column: Input + Rules */}
+                        <div className="space-y-6">
+                            {/* Password Input */}
+                            <div>
+                                <label className="block text-[9px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-3">Set New Passphrase</label>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={password}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        playSynthSound('keyboard_click');
+                                    }}
+                                    className="w-full bg-black border-2 border-white/10 rounded-xl px-6 py-4 text-xl font-black text-white focus:border-cyan-500 outline-none transition-all placeholder:text-zinc-800"
+                                    placeholder="Enter passphrase..."
+                                />
+                            </div>
+
+                            {/* Rules Compact List */}
+                            <div className="bg-white/[0.02] border border-white/5 p-5 rounded-xl">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-[9px] font-black uppercase text-zinc-500 tracking-[0.3em]">Grandfather's Rules</span>
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-cyan-400">{rulesFound}/4 Found</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {['rule_symbols', 'rule_length', 'rule_pii', 'rule_patterns'].map((r, i) => (
+                                        <div key={r} className={`flex items-center gap-3 px-4 py-3 rounded-lg border transition-all ${rulesFound > i ? 'bg-emerald-500/[0.04] border-emerald-500/15' : 'bg-black/20 border-white/[0.03] opacity-50'}`}>
+                                            <div className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[8px] font-black ${rulesFound > i ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-600'}`}>
+                                                {rulesFound > i ? '✓' : i + 1}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <span className={`text-[10px] font-black tracking-wider uppercase block truncate ${rulesFound > i ? 'text-white' : 'text-zinc-600'}`}>
+                                                    {rulesFound > i ? CLUE_INFO[r].title : 'Rule Undiscovered'}
+                                                </span>
+                                                {rulesFound > i && (
+                                                    <p className="text-[9px] text-zinc-500 truncate italic">{CLUE_INFO[r].desc.substring(0, 60)}...</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="bg-white/5 border border-white/5 p-8 rounded-3xl backdrop-blur-md">
-                            <h3 className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.3em] mb-6 flex justify-between">
-                                <span>Grandfather's Rules</span>
-                                <span className="text-cyan-400">{rulesFound}/4 FOUND</span>
-                            </h3>
-                            <div className="space-y-6">
-                                {['rule_symbols', 'rule_length', 'rule_pii', 'rule_patterns'].map((r, i) => (
-                                    <div key={r} className={`flex gap-4 ${rulesFound > i ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                                        <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-black border mt-1 ${rulesFound > i ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : 'bg-black/40 border-white/5'}`}>
-                                            {rulesFound > i ? '✓' : i + 1}
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <span className={`text-[11px] font-black tracking-widest uppercase ${rulesFound > i ? 'text-white' : ''}`}>
-                                                {rulesFound > i ? CLUE_INFO[r].title : 'RULE UNDISCOVERED'}
-                                            </span>
-                                            {rulesFound > i && (
-                                                <p className="text-[10px] text-zinc-400 leading-relaxed italic">
-                                                    {CLUE_INFO[r].desc}
-                                                </p>
-                                            )}
-                                        </div>
+                        {/* Right Column: Metrics + Button */}
+                        <div className="flex flex-col gap-6">
+                            {/* Breach Resilience Display */}
+                            <div className="flex-1 bg-zinc-950 border border-white/5 rounded-2xl p-8 relative overflow-hidden group text-center flex flex-col items-center justify-center">
+                                <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none" />
+                                <span className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.5em] block mb-4">Breach Resilience</span>
+                                <div className={`text-4xl font-black transition-all duration-700 ${entropy > 85 ? 'text-emerald-400' : entropy > 40 ? 'text-amber-400' : 'text-white'}`}>
+                                    {crackTime}
+                                </div>
+                                <div className="mt-8 w-full">
+                                    <div className="flex justify-between text-[9px] font-black uppercase text-zinc-500 mb-2 tracking-widest">
+                                        <span>Entropy Level</span>
+                                        <span className={`${entropy > 85 ? 'text-emerald-400' : entropy > 40 ? 'text-amber-400' : 'text-red-400'}`}>{entropy}%</span>
                                     </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col justify-between">
-                        <div className="text-center bg-zinc-950 border border-white/5 rounded-[3rem] p-12 relative overflow-hidden group shadow-2xl">
-                            <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent pointer-events-none" />
-                            <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.5em] block mb-6">Breach Resilience</span>
-                            <div className="text-5xl font-black text-white group-hover:scale-110 transition-transform duration-700">
-                                {crackTime}
-                            </div>
-                            <div className="mt-12">
-                                <div className="flex justify-between text-[10px] font-black uppercase text-zinc-500 mb-3 tracking-widest">
-                                    <span>Entropy Level</span>
-                                    <span className="text-cyan-400">{entropy}%</span>
+                                    <div className="h-2.5 bg-zinc-900 rounded-full overflow-hidden">
+                                        <div className={`h-full transition-all duration-700 rounded-full ${entropy > 85 ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)]' : entropy > 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${entropy}%` }} />
+                                    </div>
                                 </div>
-                                <div className="h-3 bg-zinc-900 rounded-full overflow-hidden p-0.5">
-                                    <div className="h-full bg-cyan-500 transition-all duration-700 rounded-full" style={{ width: `${entropy}%` }} />
+                                
+                                {/* Strength Indicator Dots */}
+                                <div className="mt-5 flex gap-2 justify-center">
+                                    {[20, 40, 60, 80, 100].map((threshold) => (
+                                        <div key={threshold} className={`w-2 h-2 rounded-full transition-all duration-500 ${entropy >= threshold ? (entropy > 85 ? 'bg-emerald-400' : entropy > 40 ? 'bg-amber-400' : 'bg-red-400') : 'bg-zinc-800'}`}></div>
+                                    ))}
                                 </div>
                             </div>
-                        </div>
 
-                        <button
-                            onClick={handleConfirm}
-                            className="w-full py-4 bg-white text-black font-black uppercase tracking-[0.3em] rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-xl text-[11px]"
-                        >
-                            Update Credentials
-                        </button>
+                            {/* Update Credentials Button */}
+                            <button
+                                onClick={handleConfirm}
+                                className="w-full py-5 rounded-xl font-black uppercase tracking-[0.3em] text-[11px] transition-all active:scale-[0.98] shadow-xl group relative overflow-hidden"
+                                style={{ background: 'linear-gradient(135deg, #06b6d4, #0e7490)' }}
+                            >
+                                <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-all"></div>
+                                <span className="relative z-10 text-white drop-shadow-sm flex items-center justify-center gap-3">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                                    Update Credentials
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -509,6 +538,397 @@ const BookshelfSearch = ({ onComplete, hasClue, discoveredClues, discoverClue })
                         </button>
                     )}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const PhotoFrameSearch = ({ onComplete, discoverClue, discoveredClues }) => {
+    const [rotation, setRotation] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [isLetterOpen, setIsLetterOpen] = useState(false);
+    const [clueCollected, setClueCollected] = useState(discoveredClues.includes('rule_pii'));
+    const frameRef = useRef(null);
+
+    const handleMouseMove = (e) => {
+        if (!isDragging || isLetterOpen) return;
+        setRotation(prev => ({
+            x: prev.x - e.movementY * 0.5,
+            y: prev.y + e.movementX * 0.5
+        }));
+    };
+
+    const handleLetterClick = (e) => {
+        e.stopPropagation();
+        if (!isLetterOpen && !clueCollected) {
+            setIsLetterOpen(true);
+            // Auto-discover clue and update archive when letter is opened
+            setTimeout(() => {
+                discoverClue('rule_pii');
+                setClueCollected(true);
+            }, 800);
+        }
+    };
+
+    const handleCloseLetterOverlay = () => {
+        setIsLetterOpen(false);
+    };
+
+    return (
+        <div 
+            className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/95 backdrop-blur-3xl overflow-hidden select-none cursor-grab active:cursor-grabbing"
+            onMouseMove={handleMouseMove}
+            onMouseDown={() => !isLetterOpen && setIsDragging(true)}
+            onMouseUp={() => setIsDragging(false)}
+            onMouseLeave={() => setIsDragging(false)}
+        >
+            {/* Left-side instructions */}
+            <div className="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col items-start gap-3 pointer-events-none z-10">
+                <span className="text-[10px] font-black uppercase tracking-[0.6em] text-zinc-500">Inspection Mode</span>
+                <h2 className="text-3xl font-light text-zinc-300 tracking-wider">Family Photo<br/>Frame</h2>
+                <div className="h-px w-12 bg-zinc-700 mt-2"></div>
+                <p className="text-[10px] text-zinc-500 mt-2 uppercase tracking-[0.2em] leading-relaxed">Click and drag<br/>to rotate the frame</p>
+                <div className="mt-6 flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-sm bg-[#3d2b1f] border border-zinc-600"></div>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest">Front — Photo</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-sm bg-[#f5e6d0] border border-zinc-600"></div>
+                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest">Back — Letter</span>
+                    </div>
+                </div>
+            </div>
+
+            <div style={{ perspective: '2000px' }} className="w-full h-full flex items-center justify-center">
+                <div 
+                    ref={frameRef}
+                    className="relative w-[400px] h-[500px] transition-transform duration-100 ease-out"
+                    style={{ 
+                        transformStyle: 'preserve-3d',
+                        transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`
+                    }}
+                >
+                    {/* Front Face: The Photo */}
+                    <div 
+                        className="absolute inset-0 bg-[#3d2b1f] border-[20px] border-[#2c1d18] shadow-2xl rounded-sm"
+                        style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                    >
+                        <div className="w-full h-full bg-zinc-800 relative overflow-hidden flex items-center justify-center">
+                             <div className="absolute inset-4 border border-white/10 opacity-20"></div>
+                             <img 
+                                src="/assets/udk.jpeg" 
+                                alt="Grandpa" 
+                                className="w-full h-full object-cover opacity-80"
+                             />
+                             <div className="absolute inset-0 bg-gradient-to-tr from-black/40 to-white/5 opacity-30"></div>
+                        </div>
+                    </div>
+
+                    {/* Back Face: Sealed Letter */}
+                    <div 
+                        className="absolute inset-0 bg-[#2c1d18] border-[12px] border-[#1a110e] rounded-sm flex flex-col items-center justify-center shadow-2xl overflow-hidden"
+                        style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                    >
+                        {/* Wood Grain Texture */}
+                        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(0,0,0,0.2) 20px, rgba(0,0,0,0.2) 21px)' }}></div>
+                        
+                        {/* Decorative wires/brackets on back */}
+                        <div className="absolute inset-x-6 top-[30%] h-px bg-zinc-500/30 shadow-sm pointer-events-none"></div>
+                        <div className="absolute inset-x-6 bottom-[30%] h-px bg-zinc-500/30 shadow-sm pointer-events-none"></div>
+                        
+                        <div className="w-full h-full flex items-center justify-center p-10 relative">
+                            {/* Sealed Letter (clickable) */}
+                            <div 
+                                onClick={handleLetterClick}
+                                className={`relative w-[280px] h-[200px] transform -rotate-3 transition-all duration-500
+                                    ${clueCollected 
+                                        ? 'opacity-50 cursor-default' 
+                                        : 'cursor-pointer hover:scale-110 hover:-rotate-1 hover:shadow-[0_20px_60px_rgba(0,0,0,0.8)] active:scale-95'}
+                                `}
+                            >
+                                {/* Envelope body */}
+                                <div className="absolute inset-0 bg-[#f5e6d0] rounded-sm shadow-[0_8px_30px_rgba(0,0,0,0.5)] border border-[#d4c4a8]">
+                                    {/* Paper texture */}
+                                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}></div>
+                                    
+                                    {/* Envelope flap (triangular top) */}
+                                    <div className="absolute -top-[1px] inset-x-0 h-[80px] overflow-hidden">
+                                        <div className="w-full h-full bg-[#e8d5bc] border-b border-[#c4a882]" 
+                                             style={{ clipPath: 'polygon(0 0, 100% 0, 50% 100%)' }}>
+                                        </div>
+                                    </div>
+
+                                    {/* Wax seal */}
+                                    <div className="absolute top-[55px] left-1/2 -translate-x-1/2 z-10">
+                                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#8b1a1a] via-[#c0392b] to-[#6b1010] shadow-[0_4px_15px_rgba(139,26,26,0.6),inset_0_2px_4px_rgba(255,255,255,0.2)] flex items-center justify-center border-2 border-[#5a0f0f]">
+                                            <span className="text-[#ffd700] text-lg font-serif font-black drop-shadow-sm">G</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Center text on envelope */}
+                                    <div className="absolute bottom-8 inset-x-0 flex flex-col items-center gap-2">
+                                        <div className="text-[9px] font-black uppercase tracking-[0.4em] text-[#8b7355]">Confidential</div>
+                                        <div className="w-16 h-px bg-[#c4a882]"></div>
+                                        <div className="text-[11px] font-serif italic text-[#6b5a47]">Grandpa's Secret</div>
+                                    </div>
+                                </div>
+
+                                {/* Glow hint when not collected */}
+                                {!clueCollected && (
+                                    <div className="absolute -inset-4 rounded-lg bg-amber-500/10 blur-xl animate-pulse pointer-events-none"></div>
+                                )}
+                            </div>
+
+                            {/* Instruction text */}
+                            {!clueCollected && (
+                                <div className="absolute bottom-6 inset-x-0 flex flex-col items-center gap-2 pointer-events-none">
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400/60 animate-bounce">
+                                        ✉ Click the letter to read
+                                    </div>
+                                </div>
+                            )}
+                            {clueCollected && (
+                                <div className="absolute bottom-6 inset-x-0 flex flex-col items-center gap-2 pointer-events-none">
+                                    <div className="text-emerald-500/60 text-[10px] font-black uppercase tracking-widest">
+                                        ✓ Already Collected
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Side Edges for volume */}
+                    <div className="absolute top-0 bottom-0 left-0 w-[20px] bg-[#1a110e] origin-left" style={{ transform: 'rotateY(-90deg)' }}></div>
+                    <div className="absolute top-0 bottom-0 right-0 w-[20px] bg-[#1a110e] origin-right" style={{ transform: 'rotateY(90deg)' }}></div>
+                    <div className="absolute top-0 left-0 right-0 h-[20px] bg-[#1a110e] origin-top" style={{ transform: 'rotateX(90deg)' }}></div>
+                    <div className="absolute bottom-0 left-0 right-0 h-[20px] bg-[#1a110e] origin-bottom" style={{ transform: 'rotateX(-90deg)' }}></div>
+                </div>
+            </div>
+
+            {/* ═══════ LETTER CLUE REVEAL OVERLAY ═══════ */}
+            {isLetterOpen && (
+                <div className="fixed inset-0 z-[6000] flex items-center justify-center bg-black/90 backdrop-blur-2xl"
+                     style={{ animation: 'fadeIn 0.5s ease-out forwards' }}
+                >
+                    {/* Background click to close */}
+                    <div className="absolute inset-0" onClick={handleCloseLetterOverlay}></div>
+
+                    {/* Letter Content Card */}
+                    <div className="relative w-[520px] max-h-[85vh] flex flex-col"
+                         style={{ animation: 'zoomIn 0.6s cubic-bezier(0.16,1,0.3,1) forwards' }}
+                    >
+                        {/* Opened Letter / Parchment */}
+                        <div className="relative bg-[#fffef0] shadow-[0_30px_80px_rgba(0,0,0,0.7)] overflow-hidden">
+                            {/* Paper texture overlay */}
+                            <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/natural-paper.png')" }}></div>
+                            
+                            {/* Torn top edge effect */}
+                            <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-b from-[#e8d5bc] to-[#fffef0]"></div>
+
+                            {/* Content */}
+                            <div className="p-12 pt-10">
+                                {/* Header */}
+                                <div className="flex justify-between items-start mb-8">
+                                    <div className="flex flex-col gap-1 opacity-40">
+                                        <div className="w-14 h-1 bg-zinc-900"></div>
+                                        <div className="w-9 h-1 bg-zinc-900"></div>
+                                    </div>
+                                    <div className="text-[9px] font-black tracking-[0.4em] uppercase text-zinc-400">Secret Records</div>
+                                </div>
+
+                                {/* Rule icon and title */}
+                                <div className="flex flex-col items-center text-center mb-8">
+                                    <div className="w-16 h-16 bg-red-900/5 rounded-full flex items-center justify-center mb-5 text-3xl border border-red-900/10">
+                                        🖼️
+                                    </div>
+                                    <h3 className="text-zinc-900 font-serif font-black text-2xl tracking-tight mb-2"
+                                        style={{ animation: 'fadeIn 0.8s ease-out 0.3s both' }}
+                                    >
+                                        Grandpa's Legacy: Rule #3
+                                    </h3>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-700/70 mb-4">Family Secrets</div>
+                                    <div className="h-px w-20 bg-zinc-300"></div>
+                                </div>
+
+                                {/* The actual clue text */}
+                                <div className="bg-zinc-50/80 border border-zinc-200/60 rounded-xl p-8 mb-8"
+                                     style={{ animation: 'fadeIn 1s ease-out 0.6s both' }}
+                                >
+                                    <p className="text-zinc-800 font-serif italic text-lg leading-relaxed text-center">
+                                        "Never share our names with the digital winds."
+                                    </p>
+                                    <div className="h-px w-12 bg-zinc-300 mx-auto my-5"></div>
+                                    <p className="text-zinc-600 text-sm leading-relaxed text-center">
+                                        Avoid using <strong>PII</strong> (Personal Identifiable Information) like our family <strong>names</strong>, <strong>birthdays</strong>, or <strong>locations</strong> in passwords. Attackers can easily find and guess these.
+                                    </p>
+                                </div>
+
+                                {/* Collection confirmation */}
+                                <div className="flex flex-col items-center gap-4"
+                                     style={{ animation: 'fadeIn 1s ease-out 1s both' }}
+                                >
+                                    <div className="flex items-center gap-3 px-6 py-3 bg-emerald-50 rounded-full border border-emerald-200">
+                                        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                        </div>
+                                        <span className="text-emerald-700 text-[11px] font-black uppercase tracking-widest">Clue Added to Archive</span>
+                                    </div>
+                                </div>
+
+                                {/* Grandpa's signature */}
+                                <div className="mt-8 flex justify-end opacity-30">
+                                    <div className="flex flex-col items-end gap-1">
+                                        <div className="text-zinc-600 font-serif italic text-sm">— Grandpa</div>
+                                        <div className="w-20 h-px bg-zinc-400"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Close button */}
+                        <button
+                            onClick={handleCloseLetterOverlay}
+                            className="mt-6 mx-auto px-16 py-4 bg-white text-black font-black uppercase tracking-[0.3em] text-[11px] rounded-full transition-all hover:scale-105 active:scale-95 shadow-2xl"
+                        >
+                            Close Letter
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <button
+                onClick={onComplete}
+                className="absolute bottom-12 px-12 py-4 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-black uppercase tracking-[0.4em] text-[10px] rounded-full transition-all z-10"
+            >
+                {clueCollected ? 'Return to Room' : 'Finish Inspection'}
+            </button>
+        </div>
+    );
+};
+
+const DrawerSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) => {
+    const [isOpened, setIsOpened] = useState(false);
+    const [selectedLetter, setSelectedLetter] = useState(null);
+    const [found, setFound] = useState(false);
+
+    const letters = [
+        { id: 'l1', title: 'Utility Bill', content: 'Your electricity bill for March is due. Total: ₹2,450.', isCorrect: false, color: '#fef3c7', rotate: -2 },
+        { id: 'l2', title: 'Grandpa\'s Note', content: 'Rule #1: Mix Your Tools. A strong lock is built from different materials. Always use special characters (!@#$) and numbers.', isCorrect: true, color: '#fff', rotate: 1 },
+        { id: 'l3', title: 'Advertisement', content: 'Win a free vacation! Click here to claim your prize!', isCorrect: false, color: '#ebf8ff', rotate: 3 },
+        { id: 'l4', title: 'Bank Statement', content: 'Account summary for 4521-XXXX. Balance: ₹1,45,000.', isCorrect: false, color: '#f7fafc', rotate: -1 },
+    ];
+
+    useEffect(() => {
+        const timer = setTimeout(() => setIsOpened(true), 300);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleLetterClick = (letter) => {
+        setSelectedLetter(letter);
+        if (letter.isCorrect && !found) {
+            setFound(true);
+            setTimeout(() => discoverClue('rule_symbols'), 1500);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 overflow-hidden">
+            <div className="relative w-full max-w-4xl h-[700px] flex flex-col items-center">
+                
+                {/* Drawer Frame (Static) */}
+                <div className="absolute top-20 w-[600px] h-[400px] bg-[#1a110e] rounded-t-lg border-x-8 border-t-8 border-[#2c1d18] shadow-2xl z-0">
+                    <div className="absolute inset-0 bg-black/40 blur-sm"></div>
+                </div>
+
+                {/* Animated Drawer Box */}
+                <div 
+                    className={`relative w-[580px] h-[450px] bg-[#3d2b1f] rounded-lg border-4 border-[#2c1d18] shadow-2xl transition-all duration-1000 ease-out z-10 flex flex-col items-center p-8
+                        ${isOpened ? 'translate-y-40' : '-translate-y-10'}
+                    `}
+                    style={{
+                        boxShadow: 'inset 0 0 50px rgba(0,0,0,0.5), 0 20px 50px rgba(0,0,0,0.8)'
+                    }}
+                >
+                    {/* Drawer Handle */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-4 bg-[#b45309] rounded-full shadow-inner border border-white/10"></div>
+                    
+                    {/* Top Surface of Drawer Contents */}
+                    <div className="w-full h-full bg-[#1a110e]/50 rounded p-6 relative overflow-hidden">
+                        <div className="text-[10px] text-[#b45309]/30 font-black uppercase tracking-[1em] mb-4 text-center">Internal Storage</div>
+                        
+                        <div className="grid grid-cols-2 gap-6 mt-4">
+                            {letters.map((lib) => (
+                                <div
+                                    key={lib.id}
+                                    onClick={() => handleLetterClick(lib)}
+                                    className={`relative h-40 bg-white shadow-xl cursor-pointer transition-all hover:scale-105 hover:-translate-y-2 active:scale-95
+                                        ${selectedLetter?.id === lib.id ? 'ring-4 ring-emerald-500' : ''}
+                                    `}
+                                    style={{
+                                        backgroundColor: lib.color,
+                                        transform: `rotate(${lib.rotate}deg)`,
+                                        boxShadow: '2px 5px 15px rgba(0,0,0,0.3)'
+                                    }}
+                                >
+                                    <div className="absolute inset-2 border border-black/5"></div>
+                                    <div className="p-4 flex flex-col justify-between h-full">
+                                        <div className="w-8 h-8 bg-black/5 rounded-full flex items-center justify-center text-[10px]">✉️</div>
+                                        <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-tighter">{lib.title}</div>
+                                    </div>
+                                    {lib.isCorrect && found && (
+                                        <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
+                                            <span className="text-4xl">✓</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Inspection Overlay for Letter */}
+                {selectedLetter && (
+                    <div className="absolute inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-300">
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setSelectedLetter(null)}></div>
+                        <div className="relative w-[500px] bg-white rounded-sm shadow-[0_30px_100px_rgba(0,0,0,0.5)] p-12 flex flex-col animate-in zoom-in duration-500">
+                            <div className="absolute top-4 right-4 text-xs font-bold text-zinc-300 pointer-events-none">OFFICIAL RECORD</div>
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center text-2xl">📜</div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-zinc-900 tracking-tighter uppercase">{selectedLetter.title}</h3>
+                                    <div className="h-1 w-12 bg-[#b45309]"></div>
+                                </div>
+                            </div>
+                            <p className="text-lg font-serif text-zinc-800 leading-relaxed italic mb-10">
+                                "{selectedLetter.content}"
+                            </p>
+                            <button 
+                                onClick={() => setSelectedLetter(null)}
+                                className="mt-auto py-4 bg-zinc-900 text-white font-black uppercase tracking-widest text-xs hover:bg-zinc-800 transition-all"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Back Button */}
+                {!found ? (
+                    <button
+                        onClick={onComplete}
+                        className="absolute bottom-10 px-12 py-4 bg-red-900/20 border border-red-500/20 text-red-500 font-black uppercase tracking-[0.3em] text-[10px] rounded-full hover:bg-red-500/10 transition-all z-[60]"
+                    >
+                        Cancel Search
+                    </button>
+                ) : (
+                    <button
+                        onClick={onComplete}
+                        className="absolute bottom-10 px-12 py-4 bg-white text-black font-black uppercase tracking-[0.4em] text-[10px] rounded-full hover:scale-105 active:scale-95 shadow-2xl transition-all z-[60] animate-in slide-in-from-bottom duration-1000"
+                    >
+                        Return to Room
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -1170,6 +1590,12 @@ const Level2 = () => {
                             setGameState('terminal');
                             setInteractionTarget(null);
                         }
+                    } else if (interactionTarget === 'rule_symbols') {
+                        setGameState('drawer_search');
+                        setInteractionTarget(null);
+                    } else if (interactionTarget === 'rule_pii') {
+                        setGameState('photo_frame_search');
+                        setInteractionTarget(null);
                     } else if (interactionTarget === 'rule_patterns') {
                         setGameState('plant_search_left');
                         setInteractionTarget(null);
@@ -1213,13 +1639,84 @@ const Level2 = () => {
 
             {/* COMPLETION SCREENS - MOVED TO TOP AND MADE ROBUST */}
             {gameState === 'outcome' && (
-                <div className="fixed inset-0 z-[9500] bg-zinc-950/95 backdrop-blur-xl animate-in fade-in duration-700">
-                    <div className="w-full h-full flex flex-col items-center justify-center p-12 text-white text-center">
-                        <div className="w-20 h-20 bg-emerald-500/20 border-2 border-emerald-500 rounded-full flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(16,185,129,0.3)]">
-                            <svg className="w-10 h-10 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                <div className="fixed inset-0 z-[9500] bg-zinc-950 overflow-hidden" style={{ animation: 'fadeIn 1s ease-out forwards' }}>
+                    {/* Ambient background effects */}
+                    <div className="absolute inset-0 pointer-events-none">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-500/5 rounded-full blur-[150px]" style={{ animation: 'fadeIn 2s ease-out forwards' }}></div>
+                        <div className="absolute top-0 inset-x-0 h-1/3 bg-gradient-to-b from-emerald-900/10 to-transparent"></div>
+                        <div className="absolute bottom-0 inset-x-0 h-1/3 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        {/* Floating particles */}
+                        {[...Array(12)].map((_, i) => (
+                            <div key={i} className="absolute w-1 h-1 bg-emerald-400/30 rounded-full"
+                                style={{
+                                    left: `${15 + (i * 7) % 85}%`,
+                                    top: `${10 + (i * 13) % 80}%`,
+                                    animation: `fadeIn ${1 + i * 0.3}s ease-out ${i * 0.15}s both, surge ${3 + i % 3}s ease-in-out infinite`
+                                }}
+                            ></div>
+                        ))}
+                    </div>
+
+                    <div className="w-full h-full flex flex-col items-center justify-center p-8 relative z-10">
+                        {/* Shield Icon with animated rings */}
+                        <div className="relative mb-10" style={{ animation: 'zoomIn 0.8s cubic-bezier(0.16,1,0.3,1) forwards' }}>
+                            {/* Pulsing rings */}
+                            <div className="absolute inset-0 scale-[2.5] rounded-full border border-emerald-500/10" style={{ animation: 'surge 3s ease-in-out infinite' }}></div>
+                            <div className="absolute inset-0 scale-[2] rounded-full border border-emerald-500/15" style={{ animation: 'surge 3s ease-in-out 0.5s infinite' }}></div>
+                            <div className="absolute inset-0 scale-[1.5] rounded-full border border-emerald-500/20" style={{ animation: 'surge 3s ease-in-out 1s infinite' }}></div>
+                            
+                            {/* Shield shape */}
+                            <div className="relative w-28 h-28 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl rotate-45 shadow-[0_0_60px_rgba(16,185,129,0.4)]"></div>
+                                <svg className="w-14 h-14 text-white relative z-10 drop-shadow-lg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
                         </div>
-                        <h1 className="text-5xl font-black text-white mb-4 uppercase tracking-[0.2em]">Account Secured</h1>
-                        <p className="text-zinc-400 max-w-md mx-auto mb-12 font-medium tracking-wide">Grandpa's legacy is safe. You've successfully blocked the credential breach.</p>
+
+                        {/* Title */}
+                        <div style={{ animation: 'fadeIn 1s ease-out 0.3s both' }}>
+                            <div className="text-[10px] font-black uppercase tracking-[1em] text-emerald-500/60 mb-4 text-center pl-[1em]">Security Protocol</div>
+                            <h1 className="text-6xl font-black text-white mb-3 uppercase tracking-[0.15em] text-center" style={{ textShadow: '0 0 40px rgba(16,185,129,0.3)' }}>Account Secured</h1>
+                            <div className="h-1 w-24 bg-gradient-to-r from-transparent via-emerald-500 to-transparent mx-auto mb-6"></div>
+                            <p className="text-zinc-400 max-w-lg mx-auto text-center font-medium tracking-wide leading-relaxed text-sm">
+                                Grandpa's legacy is safe. You've applied all four rules and <br/>successfully blocked the credential breach.
+                            </p>
+                        </div>
+
+                        {/* Rules Recap Dashboard */}
+                        <div className="mt-10 w-full max-w-2xl" style={{ animation: 'fadeIn 1s ease-out 0.8s both' }}>
+                            <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-6 backdrop-blur-sm">
+                                <div className="flex items-center justify-between mb-5">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.5em] text-zinc-500">Rules Applied</span>
+                                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-emerald-400">4/4 Verified</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { icon: '⚙️', title: 'Mix Your Tools', desc: 'Special chars & numbers', delay: '1s' },
+                                        { icon: '🧱', title: 'The Great Wall', desc: '15+ character length', delay: '1.15s' },
+                                        { icon: '🖼️', title: 'Family Secrets', desc: 'No personal info', delay: '1.3s' },
+                                        { icon: '🗺️', title: 'No Straight Paths', desc: 'No keyboard patterns', delay: '1.45s' }
+                                    ].map((rule, i) => (
+                                        <div key={i} className="flex items-center gap-4 bg-emerald-500/[0.04] border border-emerald-500/10 rounded-xl px-5 py-4"
+                                             style={{ animation: `fadeIn 0.6s ease-out ${rule.delay} both` }}
+                                        >
+                                            <div className="text-xl shrink-0">{rule.icon}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 truncate">{rule.title}</div>
+                                                <div className="text-[10px] text-zinc-500 truncate">{rule.desc}</div>
+                                            </div>
+                                            <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center shrink-0">
+                                                <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+
+                        {/* CTA Button */}
                         <button
                             onClick={() => {
                                 setGameState('cinematic_outro');
@@ -1232,10 +1729,20 @@ const Level2 = () => {
                                     }, 4000);
                                 }, 2000);
                             }}
-                            className="px-16 py-5 bg-white text-black font-black text-xs uppercase tracking-[0.4em] rounded-full transition-all hover:scale-105 active:scale-95 shadow-2xl"
+                            className="mt-10 group relative px-20 py-5 rounded-full transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(16,185,129,0.2)]"
+                            style={{ animation: 'fadeIn 1s ease-out 2.2s both' }}
                         >
-                            Finalize
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full"></div>
+                            <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 rounded-full transition-all"></div>
+                            <span className="relative z-10 text-black font-black text-xs uppercase tracking-[0.4em] flex items-center gap-3">Next Level <span className="text-lg">→</span></span>
                         </button>
+
+                        {/* Bottom metadata line */}
+                        <div className="mt-8 flex items-center gap-4 opacity-30" style={{ animation: 'fadeIn 1s ease-out 2.5s both' }}>
+                            <div className="h-px w-12 bg-zinc-700"></div>
+                            <span className="text-[8px] font-mono text-zinc-600 uppercase tracking-[0.5em]">Session // Breach Neutralized</span>
+                            <div className="h-px w-12 bg-zinc-700"></div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -1308,7 +1815,12 @@ const Level2 = () => {
                         </div>
 
                         {/* Ultra-Minimalist Cinematic Prompt */}
-                        <InteractionPrompt text="Press E to get up from the chair" />
+                        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-fadeIn">
+                            <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                            <div className="text-white/80 font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-md">
+                                Press E to get up from the chair
+                            </div>
+                        </div>
 
 
 
@@ -1464,7 +1976,7 @@ const Level2 = () => {
                                 <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-in fade-in duration-500">
                                     <div className="bg-slate-950/80 backdrop-blur-md px-8 py-3 rounded-full border border-white/10 shadow-2xl flex items-center gap-4">
                                         <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                                        <span className="text-white font-black tracking-[0.3em] uppercase text-[10px]">Secure the account on the laptop in the Study</span>
+                                        <span className="text-white font-black tracking-[0.3em] uppercase text-[10px]">Go near the laptop and inspect the Photo Frame</span>
                                     </div>
                                 </div>
                             )}
@@ -1515,6 +2027,8 @@ const Level2 = () => {
                     <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
                         {gameState === 'alert' && <GmailAlert onProceed={() => setGameState('room')} />}
                         {gameState === 'terminal' && <SecurityTerminal onComplete={() => setGameState('outcome')} onFail={showFeedback} rulesFound={rulesFoundCount} playSynthSound={playSynthSound} />}
+                        {gameState === 'drawer_search' && <DrawerSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
+                        {gameState === 'photo_frame_search' && <PhotoFrameSearch discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
                         {gameState === 'plant_search_left' && <PlantSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
                         {gameState === 'plant_search_right' && <PlantSearch hasClue={false} discoveredClues={cluesFound} discoverClue={() => { }} onComplete={() => setGameState('room')} />}
                         {gameState === 'bookshelf_search_left' && <BookshelfSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
@@ -1612,28 +2126,62 @@ const Level2 = () => {
 
                             {/* Journal Overlay */}
                             {isDetectiveModeOpen && (
-                                <div className="absolute inset-y-12 right-12 w-[400px] z-[1000] bg-zinc-950/95 border-2 border-white/10 shadow-2xl rounded-3xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-500 backdrop-blur-xl">
-                                    <div className="p-8 border-b border-white/10 flex justify-between items-center">
-                                        <h3 className="text-white font-bold uppercase tracking-widest">Archive</h3>
-                                        <button onClick={() => setIsDetectiveModeOpen(false)} className="text-zinc-500 hover:text-white">✕</button>
+                                <div className="absolute inset-y-12 right-12 w-[420px] z-[1000] bg-[#0c0c0c] border border-white/5 shadow-[0_0_100px_rgba(0,0,0,0.8)] rounded-3xl flex flex-col overflow-hidden animate-in slide-in-from-right duration-500 backdrop-blur-3xl font-sans">
+                                    <div className="p-10 pb-6 flex justify-between items-center bg-gradient-to-b from-white/[0.02] to-transparent">
+                                        <div>
+                                            <h3 className="text-white font-black uppercase tracking-[0.4em] text-xs">Security Log</h3>
+                                            <div className="h-0.5 w-8 bg-cyan-500 mt-2"></div>
+                                        </div>
+                                        <button 
+                                            onClick={() => setIsDetectiveModeOpen(false)} 
+                                            className="w-10 h-10 rounded-full hover:bg-white/5 flex items-center justify-center text-zinc-500 hover:text-white transition-colors"
+                                        >✕</button>
                                     </div>
-                                    <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+                                    
+                                    <div className="flex-1 p-8 space-y-6 overflow-y-auto custom-scrollbar">
                                         {Object.keys(CLUE_INFO).map(cid => {
                                             const found = cluesFound.includes(cid);
                                             return (
-                                                <div key={cid} className={`p-6 rounded-2xl border transition-all ${found ? 'bg-white/5 border-white/10' : 'bg-transparent border-white/5 opacity-50 filter grayscale'}`}>
-                                                    <div className="flex gap-4 items-start">
-                                                        <div className="text-3xl">{found ? CLUE_INFO[cid].icon : '🔒'}</div>
-                                                        <div>
-                                                            <div className="text-[10px] font-bold text-cyan-400 uppercase mb-2">{found ? CLUE_INFO[cid].title : 'UNKNOWN'}</div>
-                                                            <p className="text-xs text-zinc-400 italic">
-                                                                {found ? <span>"{CLUE_INFO[cid].desc}"</span> : <span>Search near: {CLUE_INFO[cid].hint}</span>}
+                                                <div 
+                                                    key={cid} 
+                                                    className={`group relative p-8 rounded-[2rem] border transition-all duration-500 
+                                                        ${found 
+                                                            ? 'bg-[#1a1a1a] border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.3)]' 
+                                                            : 'bg-black/40 border-white/[0.03] opacity-60'}`}
+                                                >
+                                                    <div className="flex gap-6 items-start">
+                                                        <div className={`text-4xl transition-transform duration-500 ${found ? 'scale-110' : 'opacity-40 grayscale'}`}>
+                                                            {found ? CLUE_INFO[cid].icon : '🔒'}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <div className={`text-[11px] font-black uppercase tracking-[0.2em] mb-3 
+                                                                ${found ? (cid === 'alert_received' ? 'text-cyan-400' : 'text-emerald-400') : 'text-zinc-600'}`}>
+                                                                {found ? CLUE_INFO[cid].title : 'UNKNOWN'}
+                                                            </div>
+                                                            <p className={`text-[11px] leading-relaxed font-medium 
+                                                                ${found ? 'text-zinc-300' : 'text-zinc-600 italic'}`}>
+                                                                {found ? CLUE_INFO[cid].desc : `Search near: ${CLUE_INFO[cid].hint}`}
                                                             </p>
                                                         </div>
                                                     </div>
+                                                    
+                                                    {/* Subtle divider decoration */}
+                                                    {found && (
+                                                        <div className="absolute left-6 top-1/2 -translate-y-1/2 w-0.5 h-12 bg-cyan-500/30 rounded-full blur-[1px]"></div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
+                                    </div>
+                                    
+                                    <div className="p-8 bg-black/60 border-t border-white/5">
+                                        <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            <span>Progress</span>
+                                            <span>{cluesFound.length} / 5 Found</span>
+                                        </div>
+                                        <div className="mt-3 h-1 bg-zinc-900 rounded-full overflow-hidden">
+                                            <div className="h-full bg-cyan-500 transition-all duration-1000" style={{ width: `${(cluesFound.length / 5) * 100}%` }}></div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1664,18 +2212,13 @@ const Level2 = () => {
 
                 {/* Global Ultra-Minimalist Cinematic Prompt & Cutscene Dialogue */}
                 {(notificationStep > 0 || (interactionTarget && notificationStep === 0 && ['room', 'room_intro', 'living_room', 'return_to_room'].includes(gameState))) && (
-                    <>
-                        {notificationStep === 1 && (
-                            <InteractionPrompt text="What was that notification? — Press E" />
-                        )}
-                        {notificationStep === 2 && (
-                            <InteractionPrompt text="Let's check the phone. — Press E" />
-                        )}
-                        {notificationStep === 3 && (
-                            <InteractionPrompt text="Press E to check the phone" />
-                        )}
-                        {notificationStep === 0 && interactionTarget && (
-                            <InteractionPrompt text={`Press E to ${(() => {
+                    <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-[8000] animate-in fade-in duration-500">
+                        <div className="h-[2px] w-12 bg-white/30 mb-3" />
+                        <div className="text-white font-mono text-[11px] uppercase tracking-[0.4em] drop-shadow-[0_0_10px_rgba(0,0,0,0.8)] text-center max-w-[400px]">
+                            {notificationStep === 1 && "What was that notification?"}
+                            {notificationStep === 2 && "Let's check the phone."}
+                            {notificationStep === 3 && "Press E to check the phone"}
+                            {notificationStep === 0 && interactionTarget && `Press E to ${(() => {
                                 switch (interactionTarget) {
                                     case 'laptop': return cluesFound.includes('alert_received') ? "Terminal" : "Check Alert";
                                     case 'rule_symbols': return "Search Draws";
@@ -1689,9 +2232,14 @@ const Level2 = () => {
                                     case 'exit_house': return "Front Door";
                                     default: return "Inspect";
                                 }
-                            })()}`} />
+                            })()}`}
+                        </div>
+                        {(notificationStep === 1 || notificationStep === 2) && (
+                            <div className="text-white/50 font-mono text-[9px] uppercase tracking-widest mt-4 animate-pulse">
+                                Press E for next
+                            </div>
                         )}
-                    </>
+                    </div>
                 )}
 
 
