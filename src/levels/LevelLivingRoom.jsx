@@ -6,37 +6,44 @@ import InteractionPrompt from '../components/InteractionPrompt';
 const dialogues = [
     {
         speaker: 'GRANDPA',
-        text: "You're finally here! Good. I don't have much time, my taxi to the airport arrives in ten minutes.",
+        text: "There you are! I don’t have much time—my taxi’s almost here.",
+        audio: '/Dia_audio/prologue/std_g2_01.mp3',
         portrait: '/assets/grandstudy.jpg',
     },
     {
         speaker: 'PLAYER',
-        text: "You really are going, aren't you? Hawaii... that's halfway across the world!",
+        text: "You’re really going, huh?",
+        audio: '/Dia_audio/prologue/std_p2_01.mp3',
         portrait: '/assets/protagonist.png',
     },
     {
         speaker: 'GRANDPA',
-        text: "It's a long overdue vacation, my boy. But I can't leave my affairs in just anyone's hands.",
+        text: "Yes! But before I go, I’m trusting you with 42 Lakhs.",
+        audio: '/Dia_audio/prologue/std_g2_02.mp3',
         portrait: '/assets/grandstudy.jpg',
     },
     {
         speaker: 'GRANDPA',
-        text: "I've left 42 Lakhs in your care. This is a test. The digital world is full of vultures waiting to pick you clean.",
+        text: "Think of it as a small test. Be careful—there are people out there trying to trick you.",
+        audio: '/Dia_audio/prologue/std_g2_03.mp3',
         portrait: '/assets/grandstudy.jpg',
     },
     {
         speaker: 'GRANDPA',
-        text: "Protect this money. Show me you have the discipline and the wisdom to survive. If you can keep this safe until I return, my entire empire will be yours.",
+        text: "I don’t have time to explain everything now—just keep it safe. Once I reach back, I’ll explain in detail.",
+        audio: '/Dia_audio/prologue/std_g2_04.mp3',
         portrait: '/assets/grandstudy.jpg',
     },
     {
         speaker: 'PLAYER',
-        text: "I won't let you down, Grandfather! I'll be vigilant. Enjoy your trip!",
+        text: "Don’t worry, I’ll take care of it.",
+        audio: '/Dia_audio/prologue/std_p2_02.mp3',
         portrait: '/assets/protagonist.png',
     },
     {
         speaker: 'GRANDPA',
-        text: "That's my son. Now, I must go. Remember—don't trust anyone who calls you out of the blue. The world is changing...",
+        text: "I know you will. Take care, my dear. See you soon!",
+        audio: '/Dia_audio/prologue/std_g2_05.mp3',
         portrait: '/assets/grandstudy.jpg',
     }
 ];
@@ -65,6 +72,7 @@ const LevelLivingRoom = () => {
     // Audio Refs
     const audioCtxRef = useRef(null);
     const footstepAudioRef = useRef(null);
+    const dialogueAudioRef = useRef(null);
 
     useEffect(() => {
         footstepAudioRef.current = new Audio('/audio/foot.m4a');
@@ -78,6 +86,16 @@ const LevelLivingRoom = () => {
             }
         };
     }, []);
+
+    const playDialogueAudio = (audioUrl) => {
+        if (!audioUrl) return;
+        if (!dialogueAudioRef.current) {
+            dialogueAudioRef.current = new Audio();
+        }
+        dialogueAudioRef.current.pause();
+        dialogueAudioRef.current.src = audioUrl;
+        dialogueAudioRef.current.play().catch(e => console.error("Audio block:", e));
+    };
 
     // Stop footstep audio if changing phases away from walking
     useEffect(() => {
@@ -178,6 +196,12 @@ const LevelLivingRoom = () => {
                     const isNearRightDoor = newX > ROOM_WIDTH - 200 && Math.abs(newY - ROOM_HEIGHT / 2) < 150;
                     setInteractionTarget(isNearRightDoor ? 'room_door' : null);
                     if (isNearRightDoor && keys['e'] && !isTransitioningRef.current) {
+                        if (dialogueAudioRef.current) {
+                            dialogueAudioRef.current.play().then(() => {
+                                dialogueAudioRef.current.pause();
+                                dialogueAudioRef.current.currentTime = 0;
+                            }).catch(() => {});
+                        }
                         isTransitioningRef.current = true;
                         setIsTransitioning(true);
                         new Audio('/audio/home door.mp3').play().catch(() => {});
@@ -197,6 +221,12 @@ const LevelLivingRoom = () => {
                     setInteractionTarget(nearGrandpa ? 'grandpa' : null);
 
                     if (keys['e'] && nearGrandpa) {
+                        if (dialogueAudioRef.current) {
+                            dialogueAudioRef.current.play().then(() => {
+                                dialogueAudioRef.current.pause();
+                                dialogueAudioRef.current.currentTime = 0;
+                            }).catch(() => {});
+                        }
                         setPhase('dialogue');
                     }
                 }
@@ -219,6 +249,7 @@ const LevelLivingRoom = () => {
         setIsTyping(true);
 
         const currentText = dialogues[dialogueIndex].text;
+        playDialogueAudio(dialogues[dialogueIndex].audio);
         let i = 0;
 
         const typeChar = () => {

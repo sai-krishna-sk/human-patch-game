@@ -440,30 +440,43 @@ const Level1 = () => {
     const [typingTarget, setTypingTarget] = useState(''); // full text being typed
 
     // 1930 CALL CONVERSATION DATA
-    const callConversation = callOutcome === 'won' ? [
-        { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
-        { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?', audio: '/Dia_audio/lvl1/L1_DIA_024.mp3' },
-        { speaker: 'YOU', text: 'I just received a suspicious call from someone claiming to be from SBI Bank. They asked me for my OTP.' },
-        { speaker: 'OFFICER', text: 'Good that you called us. Did you share the OTP with them?', audio: '/Dia_audio/lvl1/L1_DIA_026.mp3' },
-        { speaker: 'YOU', text: 'No, I refused to share it. I identified multiple red flags in their conversation.' },
-        { speaker: 'OFFICER', text: 'Excellent awareness! You did the right thing. We will trace this number and add it to our database. Always remember — no bank will ever ask for your OTP over a phone call.', audio: '/Dia_audio/lvl1/L1_DIA_028.mp3' },
-        { speaker: 'SYSTEM', text: '✅ Complaint registered successfully. Case ID: CYB-2024-4829' },
-        { speaker: 'SYSTEM', text: '🎉 You have completed Level 1: The OTP Trap!' },
-    ] : [
-        { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
-        { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?', audio: '/Dia_audio/lvl1/L1_DIA_024.mp3' }, // Reusing 24 as suggested
-        { speaker: 'YOU', text: 'I shared my OTP with someone who claimed to be from SBI. I think I\'ve been scammed.' },
-        { speaker: 'OFFICER', text: 'I understand this is stressful. We are registering your complaint immediately. Please contact your bank RIGHT NOW and request an emergency freeze on your account.', audio: '/Dia_audio/lvl1/L1_DIA_031.mp3' },
-        { speaker: 'OFFICER', text: 'In the future, remember: No bank employee will ever ask for your OTP. If someone does, hang up immediately and call us at 1930.', audio: '/Dia_audio/lvl1/L1_DIA_032.mp3' },
-        { speaker: 'SYSTEM', text: '⚠️ Complaint registered. Case ID: CYB-2024-4830' },
-        { speaker: 'SYSTEM', text: 'Level 1 complete. Learn from this experience — stay vigilant!' },
-    ];
+    const getCallConversation = (outcome) => {
+        return outcome === 'won' ? [
+            { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
+            { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?', audio: '/Dia_audio/lvl1/L1_DIA_024.mp3' },
+            { speaker: 'YOU', text: 'I just got a suspicious call from someone claiming to be from SBI. They asked for my OTP.', audio: '/Dia_audio/lvl1/L1_DIA_025.mp3' },
+            { speaker: 'OFFICER', text: 'You did the right thing by calling us. Did you share the OTP?', audio: '/Dia_audio/lvl1/L1_DIA_026.mp3' },
+            { speaker: 'YOU', text: 'No, I didn’t. It felt suspicious.', audio: '/Dia_audio/lvl1/L1_DIA_027.mp3' },
+            { speaker: 'OFFICER', text: 'Excellent awareness! That was the correct decision.', audio: '/Dia_audio/lvl1/L1_DIA_028.mp3' },
+            { speaker: 'OFFICER', text: 'We’ll report and track this number. Always remember—no bank will ever ask for your OTP over a call.', audio: '/Dia_audio/lvl1/L1_DIA_029.mp3' },
+            { speaker: 'OFFICER', text: 'Stay alert and don’t hesitate to contact us again. You handled this very well.', audio: '/Dia_audio/lvl1/L1_DIA_030.mp3' },
+            { speaker: 'SYSTEM', text: '✅ Complaint registered successfully. Case ID: CYB-2024-4829' },
+            { speaker: 'SYSTEM', text: '🎉 You have completed Level 1: The OTP Trap!' },
+        ] : [
+            { speaker: 'SYSTEM', text: '📞 Connecting to National Cyber Crime Helpline...' },
+            { speaker: 'OFFICER', text: 'National Cyber Crime Helpline, this is Officer Sharma. How can I help you?', audio: '/Dia_audio/lvl1/L1_DIA_024.mp3' },
+            { speaker: 'YOU', text: 'I shared my OTP with someone claiming to be from SBI… I think I got scammed.', audio: '/Dia_audio/lvl1/L1_DIA_032.mp3' },
+            { speaker: 'OFFICER', text: 'I understand—please stay calm. We’ll help you through this.', audio: '/Dia_audio/lvl1/L1_DIA_033.mp3' },
+            { speaker: 'OFFICER', text: 'First, contact your bank immediately and request an emergency freeze on your account.', audio: '/Dia_audio/lvl1/L1_DIA_034.mp3' },
+            { speaker: 'OFFICER', text: 'We are registering your complaint and will start tracking the fraud.', audio: '/Dia_audio/lvl1/L1_DIA_035.mp3' },
+            { speaker: 'OFFICER', text: 'For future reference—no bank employee will ever ask for your OTP. If anyone does, disconnect the call and report it to 1930.', audio: '/Dia_audio/lvl1/L1_DIA_036.mp3' },
+            { speaker: 'SYSTEM', text: '⚠️ Complaint registered. Case ID: CYB-2024-4830' },
+            { speaker: 'SYSTEM', text: 'Level 1 complete. Learn from this experience — stay vigilant!' },
+        ];
+    };
 
-    useEffect(() => {
-        if (gameState === 'calling_1930' && callConversation[callStep] && callConversation[callStep].audio) {
-            playDialogueAudio(callConversation[callStep].audio);
+    const callConversation = getCallConversation(callOutcome);
+
+    const advanceCallStep = () => {
+        const nextStep = callStep + 1;
+        if (nextStep < callConversation.length) {
+            setCallStep(nextStep);
+            const nextMsg = callConversation[nextStep];
+            if (nextMsg && nextMsg.audio) {
+                playDialogueAudio(nextMsg.audio);
+            }
         }
-    }, [gameState, callStep, callConversation]);
+    };
 
     // AUDIO PLAYBACK
     const playDialogueAudio = (audioUrl) => {
@@ -493,6 +506,16 @@ const Level1 = () => {
                 setIsAudioPlaying(false);
             });
         }
+    };
+
+    const primeDialogueAudio = () => {
+        if (!dialogueAudioRef.current) {
+            dialogueAudioRef.current = new Audio();
+        }
+        dialogueAudioRef.current.play().then(() => {
+            dialogueAudioRef.current.pause();
+            dialogueAudioRef.current.currentTime = 0;
+        }).catch(() => { });
     };
 
     const startTyping = (fullText) => {
@@ -607,7 +630,7 @@ const Level1 = () => {
                 if (isTypingDone && !isAudioPlaying && !showingOptions && gameState === 'active_call') {
                     handleContinue();
                 } else if (gameState === 'calling_1930' && callStep < callConversation.length - 1) {
-                    setCallStep(prev => prev + 1);
+                    advanceCallStep();
                 }
             }
         };
@@ -779,6 +802,7 @@ const Level1 = () => {
                                         setDialerInput(newInput);
                                         playSynthSound('wood_tap');
                                         if (newInput === '1930') {
+                                            primeDialogueAudio();
                                             setTimeout(() => setGameState('ringing_1930'), 500);
                                         }
                                     }
@@ -836,49 +860,79 @@ const Level1 = () => {
     if (gameState === 'calling_1930') {
         return (
             <div className="w-full h-full flex items-center justify-center bg-cover bg-center p-4 relative" style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}>
-                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-                <div className="w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
-                    <div className="w-full bg-emerald-900 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-emerald-700">
-                        <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-white text-xl mb-2">🛡️</div>
-                        <h2 className="text-lg font-bold text-emerald-300 tracking-widest">CYBER CRIME HELPLINE</h2>
-                        <p className="text-emerald-400 font-mono text-sm">1930</p>
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+                <div className="w-[380px] h-[750px] bg-zinc-950 border-x-[10px] border-t-[8px] border-b-[20px] border-black rounded-[3.2rem] shadow-2xl relative overflow-hidden flex flex-col items-center">
+                    {/* Secure Header */}
+                    <div className="w-full bg-gradient-to-b from-[#064e3b] to-[#065f46] flex flex-col items-center py-6 pb-8 rounded-b-[2rem] shadow-lg border-b border-emerald-500/30 z-[60] relative">
+                         {/* Header Decoration */}
+                         <div className="absolute top-1 left-1/2 -translate-x-1/2 w-24 h-5 bg-black rounded-b-2xl mb-4" />
+                        <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center border border-white/20 mb-3 mt-4">
+                            <svg className="w-6 h-6 text-emerald-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+                        </div>
+                        <h2 className="text-[10px] font-black text-emerald-300 tracking-[0.4em] uppercase mb-1">Cyber Crime Helpline</h2>
+                        <p className="text-white font-mono text-xl tracking-[0.2em]">1930</p>
                     </div>
-                    <div className="flex-1 w-full flex flex-col justify-start p-4 pb-20 gap-3 overflow-y-auto custom-scrollbar">
+
+                    {/* Chat Area */}
+                    <div className="flex-1 w-full flex flex-col justify-start p-5 gap-4 overflow-y-auto scroll-smooth pt-8 pb-32 no-scrollbar">
+                         <style dangerouslySetInnerHTML={{ __html: `.no-scrollbar::-webkit-scrollbar { display: none; }` }} />
                         {callConversation.map((msg, idx) => {
                             if (idx > callStep) return null;
-                            if (msg.speaker === 'SYSTEM') return <div key={idx} className="bg-zinc-800 text-center text-zinc-300 p-3 rounded-xl text-sm border border-zinc-700 font-mono">{msg.text}</div>;
-                            if (msg.speaker === 'OFFICER') return <div key={idx} className="bg-emerald-900/50 text-emerald-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-emerald-700/50"><span className="text-xs text-emerald-400 font-bold mb-1 block">OFFICER SHARMA</span>{msg.text}</div>;
-                            if (msg.speaker === 'YOU') return <div key={idx} className="w-full flex justify-end"><div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-sm">"{msg.text}"</div></div>;
+                            if (msg.speaker === 'SYSTEM') return (
+                                <div key={idx} className="bg-white/5 text-center text-zinc-400 py-2 px-4 rounded-full text-[10px] border border-white/10 font-mono tracking-wider animate-fadeIn my-2">
+                                    {msg.text}
+                                </div>
+                            );
+                            if (msg.speaker === 'OFFICER') return (
+                                <div key={idx} className="bg-zinc-800 border border-emerald-500/20 text-emerald-50 p-4 rounded-2xl rounded-tl-sm w-[88%] shadow-lg animate-slideUp">
+                                    <span className="text-[9px] text-emerald-400 font-black mb-1.5 block uppercase tracking-[0.2em]">Officer Sharma</span>
+                                    <p className="text-[13px] leading-relaxed font-medium">{msg.text}</p>
+                                </div>
+                            );
+                            if (msg.speaker === 'YOU') return (
+                                <div key={idx} className="w-full flex justify-end animate-slideUp">
+                                    <div className="bg-blue-600/90 text-white p-4 rounded-2xl rounded-tr-sm w-[88%] shadow-lg border border-white/10">
+                                        <p className="text-[13px] leading-relaxed font-medium">"{msg.text}"</p>
+                                    </div>
+                                </div>
+                            );
                             return null;
                         })}
-                            {callStep < callConversation.length - 1 ? (
-                                <button 
-                                    className="w-full py-4 bg-white hover:bg-zinc-100 text-zinc-950 font-black uppercase tracking-[0.3em] text-[11px] rounded-2xl mt-6 shadow-2xl transition-all hover:scale-[1.02] active:scale-95 animate-fadeIn flex items-center justify-center gap-3 group border-b-4 border-zinc-300" 
-                                    onClick={() => setCallStep(prev => prev + 1)}
-                                >
-                                    Continue <span className="group-hover:translate-x-1 transition-transform">→</span>
-                                </button>
-                            ) : (
-                            <button className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-bold text-sm rounded-lg mt-4 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-colors" onClick={() => {
-                                setGameState('cinematic_outro');
-                                setOutroStep(1);
-                                playSynthSound('wood_tap');
-                                setTimeout(() => {
-                                    setOutroStep(2);
-                                    setTimeout(() => {
-                                        setOutroStep(3);
-                                        setTimeout(() => {
-                                            completeLevel(callOutcome === 'won', callOutcome === 'won' ? 500 : 0, callOutcome === 'won' ? 0 : -4200000);
-                                        }, 4000);
-                                    }, 3000);
-                                }, 3500);
-                            }}>[ COMPLETE LEVEL ]</button>
-                        )}
                         <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
                     </div>
-                    {callStep < callConversation.length - 1 && (
-                        <InteractionPrompt text="Continue" />
-                    )}
+
+                    {/* Footer Actions */}
+                    <div className="absolute bottom-6 left-0 w-full px-6 flex flex-col gap-3 z-70">
+                        {callStep < callConversation.length - 1 ? (
+                            <button 
+                                className="w-full py-5 bg-white hover:bg-zinc-100 text-[#0a0a0a] font-black uppercase tracking-[0.3em] text-[11px] rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all hover:scale-[1.02] active:scale-95 animate-fadeIn flex items-center justify-center gap-4 group border-b-4 border-zinc-300" 
+                                onClick={advanceCallStep}
+                            >
+                                <span className="bg-zinc-200 px-2 py-0.5 rounded text-[8px] border border-zinc-300">E</span>
+                                Continue <span className="text-lg group-hover:translate-x-1.5 transition-transform">→</span>
+                            </button>
+                        ) : (
+                            <button 
+                                className="w-full py-5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.3em] text-[11px] rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all hover:scale-[1.02] active:scale-95 animate-fadeIn flex items-center justify-center gap-2 group border-b-4 border-emerald-700" 
+                                onClick={() => {
+                                    setGameState('cinematic_outro');
+                                    setOutroStep(1);
+                                    playSynthSound('wood_tap');
+                                    setTimeout(() => {
+                                        setOutroStep(2);
+                                        setTimeout(() => {
+                                            setOutroStep(3);
+                                            setTimeout(() => {
+                                                completeLevel(callOutcome === 'won', callOutcome === 'won' ? 500 : 0, callOutcome === 'won' ? 0 : -4200000);
+                                            }, 4000);
+                                        }, 3000);
+                                    }, 3500);
+                                }}
+                            >
+                                MISSION COMPLETE 🛡️
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         );
@@ -1373,33 +1427,33 @@ const Level1 = () => {
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/5 to-red-500/10 pointer-events-none" />
                     <div className="absolute top-0 left-0 w-full h-1 bg-red-400/50 animate-scanLine pointer-events-none" />
 
-                    <div className="max-w-4xl w-full bg-zinc-950/60 border border-red-500/30 p-16 rounded-[3rem] shadow-[0_0_150px_rgba(239,68,68,0.15)] relative overflow-hidden backdrop-blur-md">
+                    <div className="max-w-3xl w-full bg-zinc-950/80 border border-red-500/30 p-10 py-12 rounded-[3.5rem] shadow-[0_20px_80px_rgba(239,68,68,0.2)] relative overflow-hidden backdrop-blur-md">
                         {/* Decorative Corner Brackets */}
-                        <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-red-500/40 rounded-tl-xl" />
-                        <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-red-500/40 rounded-tr-xl" />
-                        <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-red-500/40 rounded-bl-xl" />
-                        <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-red-500/40 rounded-br-xl" />
+                        <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-red-500/40 rounded-tl-lg" />
+                        <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-red-500/40 rounded-tr-lg" />
+                        <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-red-500/40 rounded-bl-lg" />
+                        <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-red-500/40 rounded-br-lg" />
 
-                        <div className="relative mb-12">
-                            <div className="w-28 h-28 bg-red-500/10 border-2 border-red-500/50 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(239,68,68,0.3)] animate-pulse">
-                                <svg className="w-14 h-14 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                        <div className="relative mb-8">
+                            <div className="w-20 h-20 bg-red-500/10 border-2 border-red-500/50 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+                                <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
                             </div>
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-red-500 text-zinc-950 text-[10px] font-black uppercase tracking-[0.3em] rounded-full">System Breach</div>
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-red-500 text-zinc-950 text-[9px] font-black uppercase tracking-[0.3em] rounded-full">System Breach</div>
                         </div>
 
-                        <h1 className="text-8xl font-black text-red-500 tracking-[0.1em] mb-4 uppercase drop-shadow-[0_0_20px_rgba(239,68,68,0.4)] italic">Critical Loss</h1>
-                        <div className="h-1 w-48 bg-gradient-to-r from-transparent via-red-500/50 to-transparent mx-auto mb-8" />
+                        <h1 className="text-6xl font-black text-red-500 tracking-[0.1em] mb-4 uppercase italic">Critical Loss</h1>
+                        <div className="h-0.5 w-32 bg-gradient-to-r from-transparent via-red-500/50 to-transparent mx-auto mb-6" />
 
-                        <p className="text-2xl text-red-100/80 max-w-2xl mx-auto mb-16 leading-relaxed font-medium tracking-wide">
+                        <p className="text-lg text-red-100/70 max-w-xl mx-auto mb-12 leading-relaxed font-medium tracking-wide">
                             Security Failure. The OTP was compromised, resulting in an unauthorized transfer of ₹4,200,000.00.
                         </p>
 
-                        <div className="flex flex-col items-center gap-6">
+                        <div className="flex flex-col items-center gap-5">
                             <button
-                                className="group relative px-16 py-7 bg-white hover:bg-zinc-100 text-zinc-950 font-black tracking-[0.4em] uppercase rounded-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 border-b-8 border-red-200"
+                                className="group relative px-12 py-5 bg-white hover:bg-zinc-100 text-zinc-950 font-black tracking-[0.4em] uppercase rounded-2xl shadow-2xl transition-all hover:scale-[1.03] active:scale-95 border-b-4 border-red-200"
                                 onClick={() => { setGameState('dialer_1930'); setCallOutcome('lost'); }}
                             >
-                                <span className="relative z-10 text-lg italic">Emergency Callback</span>
+                                <span className="relative z-10 text-sm italic">Emergency Callback</span>
                                 <div className="absolute inset-0 bg-red-400/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
                             </button>
                             <span className="text-[10px] font-mono text-red-500/60 uppercase tracking-[0.5em] animate-pulse italic">Initiating Priority Link to Cyber Crime Unit...</span>
@@ -1415,33 +1469,33 @@ const Level1 = () => {
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-emerald-500/10 pointer-events-none" />
                     <div className="absolute top-0 left-0 w-full h-1 bg-emerald-400/50 animate-scanLine pointer-events-none" />
 
-                    <div className="max-w-4xl w-full bg-zinc-900/40 border border-emerald-500/30 p-16 rounded-[3rem] shadow-[0_0_150px_rgba(16,185,129,0.15)] relative overflow-hidden backdrop-blur-md">
+                    <div className="max-w-3xl w-full bg-zinc-900/60 border border-emerald-500/30 p-10 py-12 rounded-[3.5rem] shadow-[0_20px_80px_rgba(16,185,129,0.2)] relative overflow-hidden backdrop-blur-md">
                         {/* Decorative Corner Brackets */}
-                        <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-emerald-500/40 rounded-tl-xl" />
-                        <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-emerald-500/40 rounded-tr-xl" />
-                        <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-emerald-500/40 rounded-bl-xl" />
-                        <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-emerald-500/40 rounded-br-xl" />
+                        <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-emerald-500/40 rounded-tl-lg" />
+                        <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-emerald-500/40 rounded-tr-lg" />
+                        <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-emerald-500/40 rounded-bl-lg" />
+                        <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-emerald-500/40 rounded-br-lg" />
 
-                        <div className="relative mb-12">
-                            <div className="w-28 h-28 bg-emerald-500/10 border-2 border-emerald-500/50 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(16,185,129,0.3)] animate-pulse">
-                                <svg className="w-14 h-14 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                        <div className="relative mb-8">
+                            <div className="w-20 h-20 bg-emerald-500/10 border-2 border-emerald-500/50 rounded-full flex items-center justify-center mx-auto shadow-[0_0_50px_rgba(16,185,129,0.2)]">
+                                <svg className="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
                             </div>
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-emerald-500 text-zinc-950 text-[10px] font-black uppercase tracking-[0.3em] rounded-full">Secure Session</div>
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-emerald-500 text-zinc-950 text-[9px] font-black uppercase tracking-[0.3em] rounded-full">Secure Session</div>
                         </div>
 
-                        <h1 className="text-8xl font-black text-emerald-400 tracking-[0.1em] mb-4 uppercase drop-shadow-[0_0_20px_rgba(16,185,129,0.4)] italic">Case Closed</h1>
-                        <div className="h-1 w-48 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent mx-auto mb-8" />
+                        <h1 className="text-6xl font-black text-emerald-400 tracking-[0.1em] mb-4 uppercase italic">Case Closed</h1>
+                        <div className="h-0.5 w-32 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent mx-auto mb-6" />
                         
-                        <p className="text-2xl text-emerald-100/90 max-w-2xl mx-auto mb-16 leading-relaxed font-medium tracking-wide">
+                        <p className="text-lg text-emerald-100/70 max-w-xl mx-auto mb-12 leading-relaxed font-medium tracking-wide">
                             Verification Complete. You've successfully identified the scam sequence and secured the primary account assets.
                         </p>
 
-                        <div className="flex flex-col items-center gap-6">
+                        <div className="flex flex-col items-center gap-5">
                             <button
-                                className="group relative px-16 py-7 bg-white hover:bg-emerald-50 text-zinc-950 font-black tracking-[0.4em] uppercase rounded-2xl shadow-2xl transition-all hover:scale-105 active:scale-95 border-b-8 border-emerald-200"
+                                className="group relative px-12 py-5 bg-white hover:bg-emerald-50 text-zinc-950 font-black tracking-[0.4em] uppercase rounded-2xl shadow-2xl transition-all hover:scale-[1.03] active:scale-95 border-b-4 border-emerald-200"
                                 onClick={() => { setGameState('dialer_1930'); setCallOutcome('won'); }}
                             >
-                                <span className="relative z-10 text-lg italic">File Formal Report</span>
+                                <span className="relative z-10 text-sm italic">File Formal Report</span>
                                 <div className="absolute inset-0 bg-emerald-400/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
                             </button>
                             <span className="text-[10px] font-mono text-emerald-500/60 uppercase tracking-[0.5em] animate-pulse italic">Connecting to National Cyber Crime Reporting Portal...</span>

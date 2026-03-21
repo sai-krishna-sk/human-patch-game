@@ -74,13 +74,40 @@ const Level8 = () => {
   const [trustScoreLogs, setTrustScoreLogs] = useState([]);
   const [showWhatsAppWarn, setShowWhatsAppWarn] = useState(false);
   const [hasWarned, setHasWarned] = useState(false);
+  const [guidancePrompt, setGuidancePrompt] = useState(null);
+  const [feedbackMsg, setFeedbackMsg] = useState(null);
 
-  // Movement State
+  const showFeedback = (msg, color = 'cyan') => {
+    setFeedbackMsg({ text: msg, color });
+    setTimeout(() => setFeedbackMsg(null), 4000);
+  };
+
+  const keys = useRef({});
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+        keys.current[e.key.toLowerCase()] = true;
+    };
+    const handleKeyUp = (e) => {
+        delete keys.current[e.key.toLowerCase()];
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
+  // Movement State and Refs for game loop reading
   const [playerPos, setPlayerPos] = useState({ x: 750, y: 430 }); // Default living room pos
+  const playerPosRef = useRef({ x: 750, y: 430 });
   const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 800, y: 400 }); // Centered around car
-  const [keys, setKeys] = useState({});
+  const gardenPlayerPosRef = useRef({ x: 800, y: 400 });
+  
   const [interactionActive, setInteractionActive] = useState(false);
   const [interactionTarget, setInteractionTarget] = useState(null);
+  const interactionTargetRef = useRef(null);
   const [isCarExited, setIsCarExited] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [tvDialogueShown, setTvDialogueShown] = useState(false);
@@ -91,10 +118,17 @@ const Level8 = () => {
   const triggerTransition = (newState, newPos = null) => {
     setIsTransitioning(true);
     setTimeout(() => {
-        if (newState) setGameState(newState);
-        if (newPos) setPlayerPos(newPos);
-        setTimeout(() => setIsTransitioning(false), 500);
-    }, 500);
+      setGameState(newState);
+      setInteractionTarget(null);
+      interactionTargetRef.current = null;
+      if (newPos) {
+          setPlayerPos(newPos);
+          playerPosRef.current = newPos;
+          setGardenPlayerPos(newPos);
+          gardenPlayerPosRef.current = newPos;
+      }
+      setIsTransitioning(false);
+    }, 1000);
   };
 
   const handleClueDiscovery = useCallback((clueId) => {
@@ -159,17 +193,6 @@ const Level8 = () => {
   //   return () => clearTimeout(timer);
   // }, []);
 
-  // ═══ MOVEMENT LOGIC ═══
-  useEffect(() => {
-    const handleKeyDown = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: true }));
-    const handleKeyUp = (e) => setKeys(k => ({ ...k, [e.key.toLowerCase()]: false }));
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
 
   useEffect(() => {
     // Only process if no modal is active
@@ -182,74 +205,88 @@ const Level8 = () => {
 
     const gameLoop = () => {
       if (gameState === 'living-room') {
-        setPlayerPos(prev => {
-          let newX = prev.x;
-          let newY = prev.y;
+        const prev = playerPosRef.current;
+        let newX = prev.x;
+        let newY = prev.y;
 
-          if (keys['w'] || keys['arrowup']) newY -= speed;
-          if (keys['s'] || keys['arrowdown']) newY += speed;
-          if (keys['a'] || keys['arrowleft']) newX -= speed;
-          if (keys['d'] || keys['arrowright']) newX += speed;
+        if (keys.current['w'] || keys.current['arrowup']) newY -= speed;
+        if (keys.current['s'] || keys.current['arrowdown']) newY += speed;
+        if (keys.current['a'] || keys.current['arrowleft']) newX -= speed;
+        if (keys.current['d'] || keys.current['arrowright']) newX += speed;
 
-          // Simple boundaries matching the room walls
-          newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
-          newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
+        newX = Math.max(120, Math.min(newX, ROOM_WIDTH - 120));
+        newY = Math.max(120, Math.min(newY, ROOM_HEIGHT - 120));
 
-          // Interaction zone for the sofa to sit down
-          let target = null;
-          const nearSofa = Math.abs(newX - 740) < 150 && Math.abs(newY - 550) < 150;
-          if (nearSofa) target = 'sofa';
-          
-          setInteractionActive(nearSofa);
-          setInteractionTarget(target);
+        if (newX !== prev.x || newY !== prev.y) {
+            playerPosRef.current = { x: newX, y: newY };
+            setPlayerPos({ x: newX, y: newY });
+        }
 
-          return { x: newX, y: newY };
-        });
+        // Proximity checks for sofa
+        const nearSofa = Math.abs(newX - 980) < 250 && Math.abs(newY - 550) < 350;
+        if (nearSofa) {
+            if (interactionTargetRef.current !== 'sofa') {
+                interactionTargetRef.current = 'sofa';
+                setInteractionTarget('sofa');
+            }
+        } else {
+            if (interactionTargetRef.current !== null) {
+                interactionTargetRef.current = null;
+                setInteractionTarget(null);
+            }
+        }
+        
       } else if (gameState === 'garden') {
-        setGardenPlayerPos(prev => {
-          let newX = prev.x;
-          let newY = prev.y;
+        const prev = gardenPlayerPosRef.current;
+        let newX = prev.x;
+        let newY = prev.y;
 
-          if (keys['w'] || keys['arrowup']) newY -= speed;
-          if (keys['s'] || keys['arrowdown']) newY += speed;
-          if (keys['a'] || keys['arrowleft']) newX -= speed;
-          if (keys['d'] || keys['arrowright']) newX += speed;
+        if (keys.current['w'] || keys.current['arrowup']) newY -= speed;
+        if (keys.current['s'] || keys.current['arrowdown']) newY += speed;
+        if (keys.current['a'] || keys.current['arrowleft']) newX -= speed;
+        if (keys.current['d'] || keys.current['arrowright']) newX += speed;
 
-          const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
-          const currentRoomHeight = window.innerHeight; // Use window height for vertical bounds
-          
-          // Constrain movement based on car exit status
-          if (!isCarExited) {
-              // Stay inside car bounds
-              newX = currentRoomWidth / 2;
-              newY = currentRoomHeight / 2 + 100; // Place closer to bottom
-          } else {
-              newX = Math.max(0, Math.min(newX, currentRoomWidth - 40));
-              newY = Math.max(50, Math.min(newY, currentRoomHeight - 40));
-          }
+        const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
+        const currentRoomHeight = window.innerHeight;
+        
+        if (!isCarExited) {
+            newX = currentRoomWidth / 2;
+            newY = currentRoomHeight / 2 + 100;
+        } else {
+            newX = Math.max(0, Math.min(newX, currentRoomWidth - 40));
+            newY = Math.max(0, Math.min(newY, currentRoomHeight - 40));
+        }
 
-          let target = null;
-          // Entering the house zone
-          const doorZone = { x: currentRoomWidth / 2 - 100, y: 0, w: 200, h: 200 };
-          const px = newX;
-          const py = newY;
-          if (!isCarExited) {
-              target = 'exit_car';
-          } else if (px > doorZone.x && px < doorZone.x + doorZone.w && py < doorZone.y + doorZone.h) {
-              target = 'enter_house';
-          }
-          
-          setInteractionTarget(target);
+        if (newX !== prev.x || newY !== prev.y) {
+            gardenPlayerPosRef.current = { x: newX, y: newY };
+            setGardenPlayerPos({ x: newX, y: newY });
+        }
 
-          return { x: newX, y: newY };
-        });
+        const doorZone = { x: currentRoomWidth / 2 - 150, y: 0, w: 300, h: 400 };
+        if (!isCarExited) {
+            if (interactionTargetRef.current !== 'exit_car') {
+                interactionTargetRef.current = 'exit_car';
+                setInteractionTarget('exit_car');
+            }
+        } else if (newX > doorZone.x && newX < doorZone.x + doorZone.w && newY < doorZone.y + doorZone.h) {
+            if (interactionTargetRef.current !== 'enter_house') {
+                interactionTargetRef.current = 'enter_house';
+                setInteractionTarget('enter_house');
+            }
+        } else {
+            if (interactionTargetRef.current !== null) {
+                interactionTargetRef.current = null;
+                setInteractionTarget(null);
+            }
+        }
       }
       
       animationFrameId = requestAnimationFrame(gameLoop);
     };
+
     animationFrameId = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [keys, gameState, showWhatsApp, showWhatsAppWarn, isCarExited, phoneTriggered, hasWarned]);
+  }, [gameState, isCarExited, isTransitioning, showWhatsApp, showWhatsAppWarn]);
 
   // Handle Interaction Key 'E'
   useEffect(() => {
@@ -268,9 +305,8 @@ const Level8 = () => {
             }
         } else if (gameState === 'living-room' && interactionTarget === 'sofa') {
             triggerTransition('living-pov');
-            setKeys(k => ({ ...k, 'e': false }));
-        } else if (gameState === 'living-pov' && e.key.toLowerCase() === 'escape') {
-            triggerTransition('living-room');
+            setGuidancePrompt(null);
+            if (keys.current) keys.current['e'] = false;
         }
       }
     };
@@ -285,7 +321,7 @@ const Level8 = () => {
           setTvDialogueShown(true);
           // Small delay so transition finishes before the dialogue appears
           setTimeout(() => {
-              showFeedback("I feel like watching TV.", "cyan");
+              // Now handled by HUDOverlays based on gameState
           }, 800);
       }
   }, [gameState, tvDialogueShown]);
@@ -316,39 +352,39 @@ const Level8 = () => {
   // ═══ COMPONENTS ═══
 
   const LivingRoom = () => {
-    const VIEWPORT_WIDTH = 1200;
-    const VIEWPORT_HEIGHT = 800;
     const ROOM_WIDTH = 1600;
     const ROOM_HEIGHT = 1100;
 
-    const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
-    const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
+    const cameraX = Math.max(0, Math.min(playerPos.x - window.innerWidth / 2, ROOM_WIDTH - window.innerWidth));
+    const cameraY = Math.max(0, Math.min(playerPos.y - window.innerHeight / 2, ROOM_HEIGHT - window.innerHeight));
 
     return (
-      <div className={`w-full h-full flex items-center justify-center bg-[#0f172a] px-8 transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        {/* Viewport Container */}
-        <div
-          className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-slate-900"
-          style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
+      <div className={`w-full h-full flex items-center justify-center bg-zinc-950 relative transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <div 
+          className="relative bg-[#251e1a] shadow-2xl overflow-hidden cursor-none"
+          style={{ 
+            width: `${Math.min(ROOM_WIDTH, window.innerWidth)}px`, 
+            height: `${Math.min(ROOM_HEIGHT, window.innerHeight)}px`, 
+            borderRadius: '40px' 
+          }}
         >
-          {/* World Container (Camera) */}
-          <div
-            className="absolute inset-0 transition-transform duration-100 ease-out"
-            style={{
-              width: ROOM_WIDTH,
-              height: ROOM_HEIGHT,
-              transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-              backgroundColor: '#2c3e50'
-            }}
+          {/* Scrolling Container */}
+          <div 
+             className="absolute top-0 left-0 transition-transform duration-100 ease-out"
+             style={{ 
+               width: `${ROOM_WIDTH}px`, 
+               height: `${ROOM_HEIGHT}px`,
+               transform: `translate(${-cameraX}px, ${-cameraY}px)`,
+               backgroundColor: '#2c3e50' 
+             }}
           >
-
-            {/* Wood Floor (from Level 1) */}
+            {/* Wood Floor */}
             <div className="absolute inset-0 opacity-80" style={{
               backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
             }}></div>
 
             {/* DOORS AND OPENINGS */}
-            {/* Top Double Door (Solid, no glass) */}
+            {/* Top Double Door */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10">
               <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center">
                 <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
@@ -356,12 +392,11 @@ const Level8 = () => {
               <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
                 <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
               </div>
-              {/* Handles */}
               <div className="absolute top-[40px] left-[110px] w-4 h-1 bg-black"></div>
               <div className="absolute top-[40px] right-[110px] w-4 h-1 bg-black"></div>
             </div>
 
-            {/* Bottom Door (Solid, no glass) */}
+            {/* Bottom Door */}
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-b-0 flex z-10">
               <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center">
                 <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
@@ -369,7 +404,6 @@ const Level8 = () => {
               <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
                 <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
               </div>
-              {/* Handles */}
               <div className="absolute bottom-[40px] left-[110px] w-4 h-1 bg-black"></div>
               <div className="absolute bottom-[40px] right-[110px] w-4 h-1 bg-black"></div>
             </div>
@@ -377,45 +411,34 @@ const Level8 = () => {
             {/* Right Single Door */}
             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-r-0 p-3 flex items-center z-10">
               <div className="w-[30px] h-[140px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
-              {/* Handle */}
               <div className="absolute left-2 bottom-6 w-1 h-6 bg-black"></div>
             </div>
 
-            {/* HORIZONTAL RED RUG (Left to Right) */}
+            {/* RUGS */}
             <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black flex justify-between items-center px-0 z-0">
-              {/* Left Fringes */}
               <div className="flex flex-col justify-between h-[240px] -ml-2">
                 {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
               </div>
-              {/* Right Fringes */}
               <div className="flex flex-col justify-between h-[240px] -mr-2">
                 {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
               </div>
             </div>
-
-            {/* VERTICAL RED RUG (Top to Bottom) */}
             <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black flex flex-col justify-between items-center py-0 z-0">
-              {/* Top Fringes */}
               <div className="flex justify-between w-[240px] -mt-2">
                 {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
               </div>
-              {/* Bottom Fringes */}
               <div className="flex justify-between w-[240px] -mb-2">
                 {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
               </div>
             </div>
 
-            {/* SINGLE SOFA (Right side, facing left towards TV) */}
+            {/* SOFA */}
             <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start pr-4 pb-0 z-20 shadow-[0_20px_40px_rgba(0,0,0,0.6)]">
-              {/* Seating surface (left side of the component) */}
               <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
                 <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2"></div>
                 <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mb-2"></div>
               </div>
-              {/* Backrest (right side of the component) */}
               <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black"></div>
-
-              {/* Armrests (top and bottom of the component) */}
               <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black"></div>
               <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black"></div>
             </div>
@@ -425,38 +448,30 @@ const Level8 = () => {
               <div className="w-[80px] h-[160px] border border-white/10"></div>
             </div>
 
-            {/* WARM LAMPS WITH TABLES */}
-            {/* Top/Right Lamp Table */}
+            {/* LAMPS */}
             <div className="absolute right-[410px] top-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_20px_30px_rgba(0,0,0,0.5)]">
               <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
             </div>
-            {/* Bottom/Right Lamp Table */}
             <div className="absolute right-[410px] bottom-[330px] w-[50px] h-[50px] bg-[#383a48] border-2 border-black flex items-center justify-center z-10 shadow-[0_20px_30px_rgba(0,0,0,0.5)]">
               <div className="w-6 h-6 bg-[#d98536] rounded-full border-2 border-[#ffb969] shadow-[0_0_20px_#ffeb3b,inset_0_0_10px_#fff] animate-pulse"></div>
             </div>
 
-            {/* LEFT WALL TV UNIT */}
+            {/* TV UNIT */}
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[180px] h-[340px] bg-[#222938] border-4 border-l-0 border-black flex items-center z-20 shadow-[20px_0_40px_rgba(0,0,0,0.6)]">
               <div className="w-[120px] h-[260px] bg-[#1e4868] border-4 border-[#122336] ml-4 flex flex-col items-center justify-center relative overflow-hidden shadow-black">
-                {/* Glint on TV */}
                 <div className="w-[180px] h-[40px] bg-white/10 -rotate-45 absolute top-4 -left-8"></div>
                 <div className="w-[180px] h-[20px] bg-white/10 -rotate-45 absolute bottom-12 -left-8"></div>
-                {/* TV Screen Glow */}
                 <div className="absolute inset-x-0 bottom-0 h-[50%] bg-blue-500/20 blur-xl animate-pulse"></div>
               </div>
             </div>
 
-
-
-            {/* CORNER PLANTS */}
-            {/* Top Left */}
+            {/* PLANTS */}
             <div className="absolute left-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
               <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center">
                 <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
                 <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
               </div>
             </div>
-            {/* Top Right */}
             <div className="absolute right-[30px] top-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
               <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center">
                 <div className="w-[60px] h-[10px] bg-[#22c55e] rotate-45 absolute shadow-[0_0_10px_#22c55e]"></div>
@@ -464,24 +479,79 @@ const Level8 = () => {
                 <div className="w-[10px] h-[60px] bg-[#22c55e] absolute shadow-[0_0_10px_#22c55e]"></div>
               </div>
             </div>
-            {/* Bottom Left */}
             <div className="absolute left-[30px] bottom-[140px] w-[60px] h-[60px] bg-[#1d273a] rounded-full border-[3px] border-black flex items-center justify-center shadow-lg">
               <div className="w-[44px] h-[44px] rounded-full bg-[#1b2f4f] flex items-center justify-center">
                 <div className="w-[60px] h-[10px] bg-[#3a6b57] rotate-45 absolute"></div>
                 <div className="w-[60px] h-[10px] bg-[#3a6b57] -rotate-45 absolute"></div>
-                <div className="w-[10px] h-[60px] bg-[#3a6b57] absolute"></div>
               </div>
             </div>
 
-            {/* INTERACTION HINT UI */}
-            {interactionTarget === 'sofa' && (
-              <InteractionPrompt text="Press E to sit down" />
-            )}
-
-            {/* THE PLAYER AVATAR */}
-            {gameState === 'living-room' && <Player x={playerPos.x} y={playerPos.y} />}
+            {/* PLAYER */}
+            <Player x={playerPos.x} y={playerPos.y} />
           </div>
         </div>
+      </div>
+    );
+  };
+
+  const HUDOverlays = () => {
+    const renderPrompt = () => {
+      // Hide guidance during cinematic dialogues
+      if (activeDialogue) return null;
+      
+      // Prioritize Detective Board if open
+      if (showDetectiveBoard) {
+        return <InteractionPrompt text="Analyze the collected evidence" showKey={false} />;
+      }
+
+      // Prioritize interaction prompts
+      if (gameState === 'garden') {
+        if (interactionTarget === 'exit_car' && !isCarExited) return <InteractionPrompt text="Press E to exit car" />;
+        if (interactionTarget === 'enter_house') return <InteractionPrompt text="Press E to enter house" />;
+        return <InteractionPrompt text="Go to the house" showKey={false} />;
+      }
+      
+      if (gameState === 'living-room') {
+        if (interactionTarget === 'sofa') return <InteractionPrompt text="Press E to sit in sofa" />;
+        return <InteractionPrompt text="Go to sofa" showKey={false} />;
+      }
+      
+      if (gameState === 'living-pov') {
+        return <InteractionPrompt text="Check your phone" showKey={false} />;
+      }
+      
+      if (gameState === 'whatsapp') {
+        return <InteractionPrompt text="Analyze the link with Aunty Priya" showKey={false} />;
+      }
+      
+      if (gameState === 'website') {
+        if (cluesFound.length >= 3) return <InteractionPrompt text="Open Evidence Board to analyze clues" showKey={false} />;
+        return <InteractionPrompt text="Find suspicious clues on the website" showKey={false} />;
+      }
+      
+      if (gameState === 'outcome-pre') {
+        return <InteractionPrompt text="Choose how to proceed" showKey={false} />;
+      }
+      
+      if (gameState === 'cybercrime-portal') {
+        return <InteractionPrompt text="File the official report" showKey={false} />;
+      }
+      
+      return null;
+    };
+
+    return (
+      <div className="fixed bottom-0 left-0 right-0 pointer-events-none z-[6000]">
+        {renderPrompt()}
+        
+        {/* FEEDBACK OVERLAY */}
+        {feedbackMsg && (
+          <div className="absolute inset-x-0 bottom-32 flex justify-center z-[7000] pointer-events-none">
+            <div className={`px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-2xl animate-in slide-in-from-bottom duration-300 border-b-4 ${feedbackMsg.color === 'red' ? 'bg-red-600 border-red-800' : feedbackMsg.color === 'orange' ? 'bg-orange-500 border-orange-700' : feedbackMsg.color === 'emerald' ? 'bg-emerald-600 border-emerald-800' : 'bg-cyan-600 border-cyan-800'} text-white`}>
+              {feedbackMsg.text}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -522,6 +592,8 @@ const Level8 = () => {
           </div>
       )}
 
+      {/* Sofa interaction is permanent, no stand up hint */}
+
     </div>
   );
 
@@ -531,19 +603,15 @@ const Level8 = () => {
     const cameraX = Math.max(0, Math.min(gardenPlayerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
 
     return (
-      <div className={`w-full h-full flex flex-col bg-zinc-950 overflow-hidden relative font-sans transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
-        {interactionTarget === 'exit_car' && !isCarExited && (
-          <InteractionPrompt text="Press E to exit car" />
-        )}
-        {interactionTarget === 'enter_house' && (
-          <InteractionPrompt text="Press E to enter house" />
-        )}
-
-        <div className="relative flex-1" style={{ width: currentRoomWidth, transform: `translateX(${-cameraX}px)` }}>
-          <div className="absolute top-0 left-0 w-full h-full z-0">
-            <img src="/assets/aftergarden.png" alt="Garden Day" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
-          </div>
-
+      <div className={`w-full h-full bg-zinc-950 overflow-hidden relative transition-opacity duration-1000 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
+        <div 
+          className="absolute inset-0 transition-transform duration-100 ease-out z-0"
+          style={{ 
+            width: `${currentRoomWidth}px`,
+            transform: `translateX(${-cameraX}px)`
+          }}
+        >
+          <img src="/assets/aftergarden.png" alt="Garden Day" className="w-full h-full object-fill" />
           {isCarExited && <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />}
         </div>
       </div>
@@ -1899,6 +1967,8 @@ const Level8 = () => {
       {gameState === 'outcome' && <OutcomeFinal />}
       {gameState === 'epilogue' && <Epilogue />}
       {gameState === 'cybercrime-portal' && <CybercrimePortal />}
+      
+      {HUDOverlays()}
 
       {showWhatsApp && <WhatsAppThread />}
       {showWhatsAppWarn && <WhatsAppWarnThread />}

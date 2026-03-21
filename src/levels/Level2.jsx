@@ -7,7 +7,7 @@ const ROOM_HEIGHT = 1100;
 const VIEWPORT_WIDTH = 1200;
 const VIEWPORT_HEIGHT = 800;
 const PLAYER_SIZE = 40;
-const SPEED = 12;
+const SPEED = 8;
 
 // Interactive Area Constants (Relative to Room)
 const DESK_PARTS = [
@@ -273,6 +273,8 @@ const SecurityTerminal = ({ onComplete, onFail, rulesFound, playSynthSound }) =>
         </div>
     );
 };
+
+
 
 const BookshelfSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) => {
     // 4 Shelves - Compact verticality to fit 680px height safely
@@ -811,6 +813,7 @@ const DrawerSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) =>
     const [isOpened, setIsOpened] = useState(false);
     const [selectedLetter, setSelectedLetter] = useState(null);
     const [found, setFound] = useState(false);
+    const localAudioRef = useRef(null);
 
     const letters = [
         { id: 'l1', title: 'Utility Bill', content: 'Your electricity bill for March is due. Total: ₹2,450.', isCorrect: false, color: '#fef3c7', rotate: -2 },
@@ -820,7 +823,13 @@ const DrawerSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) =>
     ];
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsOpened(true), 300);
+        const timer = setTimeout(() => {
+            setIsOpened(true);
+            if (localAudioRef.current) {
+                localAudioRef.current.currentTime = 0;
+                localAudioRef.current.play().catch(e => console.warn('Draw audio failed:', e));
+            }
+        }, 300);
         return () => clearTimeout(timer);
     }, []);
 
@@ -833,7 +842,15 @@ const DrawerSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) =>
     };
 
     return (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 overflow-hidden">
+        <div className="fixed inset-0 z-[5000] flex items-center justify-center bg-black/90 backdrop-blur-xl p-4 overflow-hidden animate-in fade-in duration-500">
+            <audio ref={localAudioRef} src="/audio/draw.mp3" preload="auto" />
+            
+            {/* Close Button */}
+            <button 
+                onClick={onComplete}
+                className="absolute top-8 right-12 w-10 h-10 rounded-full bg-red-950/20 hover:bg-red-500/20 flex items-center justify-center text-red-500/70 hover:text-red-400 transition-all z-[6000] border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.1)]"
+            >✕</button>
+
             <div className="relative w-full max-w-4xl h-[700px] flex flex-col items-center">
                 
                 {/* Drawer Frame (Static) */}
@@ -953,8 +970,13 @@ const PlantSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) => 
         { id: 11, rot: 35, r: 0, scale: 1.0, x: 0, h: 210, color: '#10b981', z: 30, curve: 20 },
     ]);
     const [found, setFound] = React.useState(false);
+    const localAudioRef = useRef(null);
 
     const toggleLeaf = (id) => {
+        if (localAudioRef.current) {
+            localAudioRef.current.currentTime = 0;
+            localAudioRef.current.play().catch(e => console.warn('Bush audio failed:', e));
+        }
         setLeaves(prev => prev.map(leaf =>
             leaf.id === id
                 ? { ...leaf, r: leaf.r === 0 ? (leaf.rot < 0 ? -45 : 45) : 0 }
@@ -1097,6 +1119,9 @@ const PlantSearch = ({ onComplete, hasClue, discoveredClues, discoverClue }) => 
                 >
                     <span className="text-xl group-hover:scale-125 transition-transform">✕</span>
                 </button>
+
+                {/* Self-contained audio asset */}
+                <audio ref={localAudioRef} src="/audio/bush.mp3" preload="auto" />
             </div>
         </div>
     );
@@ -1129,8 +1154,50 @@ const Level2 = () => {
     const [isTransitioning, setIsTransitioning] = useState(true);
 
     const [screenShake, setScreenShake] = useState(0);
+    const footstepAudioRef = useRef(null);
+    const doorAudioRef = useRef(null);
+    const bushAudioRef = useRef(null);
+    const drawAudioRef = useRef(null);
+
+    useEffect(() => {
+        if (footstepAudioRef.current) footstepAudioRef.current.volume = 0.6;
+        if (doorAudioRef.current) doorAudioRef.current.volume = 0.7;
+        if (bushAudioRef.current) bushAudioRef.current.volume = 0.6;
+        if (drawAudioRef.current) drawAudioRef.current.volume = 0.6;
+
+        // Unlock audio on first interaction
+        const unlock = () => {
+            const ctx = getAudioContext();
+            if (ctx.state === 'suspended') ctx.resume();
+            
+            // Just a ping play/pause to satisfy browser gesture requirements
+            if (footstepAudioRef.current) footstepAudioRef.current.play().then(() => footstepAudioRef.current.pause()).catch(() => {});
+            if (doorAudioRef.current) doorAudioRef.current.play().then(() => doorAudioRef.current.pause()).catch(() => {});
+            if (bushAudioRef.current) bushAudioRef.current.play().then(() => bushAudioRef.current.pause()).catch(() => {});
+            if (drawAudioRef.current) drawAudioRef.current.play().then(() => drawAudioRef.current.pause()).catch(() => {});
+            
+            window.removeEventListener('click', unlock);
+            window.removeEventListener('keydown', unlock);
+        };
+        window.addEventListener('click', unlock);
+        window.addEventListener('keydown', unlock);
+
+        return () => {
+            window.removeEventListener('click', unlock);
+            window.removeEventListener('keydown', unlock);
+        };
+    }, []);
+
+    const playAudio = (type) => {
+        console.log(`Attempting to play audio: ${type}`);
+        if (type === 'door' && doorAudioRef.current) {
+            doorAudioRef.current.currentTime = 0;
+            doorAudioRef.current.play().catch(e => console.warn('Door audio fail:', e));
+        }
+    };
 
     const triggerTransition = (newState, newPos = null, newLivingPos = null) => {
+        playAudio('door');
         playSynthSound('transition_whoosh');
         setIsTransitioning(true);
         // Step 1: Wait for fade to black (500ms)
@@ -1139,7 +1206,7 @@ const Level2 = () => {
             if (newState) setGameState(newState);
             if (newPos) setPlayerPos(newPos);
             if (newLivingPos) setLivingRoomPlayerPos(newLivingPos);
-
+            
             // Step 3: Hold for stability (200ms)
             setTimeout(() => {
                 setIsTransitioning(false);
@@ -1452,6 +1519,19 @@ const Level2 = () => {
             if (gameState === 'room') {
                 setPlayerPos(p => {
                     let nx = p.x, ny = p.y;
+                    const isMoving = keys['w'] || keys['arrowup'] || keys['s'] || keys['arrowdown'] || keys['a'] || keys['arrowleft'] || keys['d'] || keys['arrowright'];
+                    
+                    if (isMoving) {
+                        if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                            console.log('Starting footsteps');
+                            footstepAudioRef.current.play().catch(e => console.warn('Walking audio fail:', e));
+                        }
+                    } else {
+                        if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                            footstepAudioRef.current.pause();
+                        }
+                    }
+
                     if (keys['w'] || keys['arrowup']) ny -= SPEED;
                     if (keys['s'] || keys['arrowdown']) ny += SPEED;
                     if (keys['a'] || keys['arrowleft']) nx -= SPEED;
@@ -1491,6 +1571,18 @@ const Level2 = () => {
             } else if (gameState === 'room_intro' && isChairExited) {
                 setPlayerPos(p => {
                     let nx = p.x, ny = p.y;
+                    const isMoving = keys['w'] || keys['arrowup'] || keys['s'] || keys['arrowdown'] || keys['a'] || keys['arrowleft'] || keys['d'] || keys['arrowright'];
+                    
+                    if (isMoving) {
+                        if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                            footstepAudioRef.current.play().catch(e => console.warn('Walking audio fail:', e));
+                        }
+                    } else {
+                        if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                            footstepAudioRef.current.pause();
+                        }
+                    }
+
                     if (keys['w'] || keys['arrowup']) ny -= SPEED;
                     if (keys['s'] || keys['arrowdown']) ny += SPEED;
                     if (keys['a'] || keys['arrowleft']) nx -= SPEED;
@@ -1517,6 +1609,18 @@ const Level2 = () => {
 
                 setLivingRoomPlayerPos(p => {
                     let nx = p.x, ny = p.y;
+                    const isMoving = keys['w'] || keys['arrowup'] || keys['s'] || keys['arrowdown'] || keys['a'] || keys['arrowleft'] || keys['d'] || keys['arrowright'];
+                    
+                    if (isMoving) {
+                        if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                            footstepAudioRef.current.play().catch(e => console.warn('Walking audio fail:', e));
+                        }
+                    } else {
+                        if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                            footstepAudioRef.current.pause();
+                        }
+                    }
+
                     if (keys['w'] || keys['arrowup']) ny -= SPEED;
                     if (keys['s'] || keys['arrowdown']) ny += SPEED;
                     if (keys['a'] || keys['arrowleft']) nx -= SPEED;
@@ -1632,6 +1736,10 @@ const Level2 = () => {
 
     return (
         <div className="w-screen h-screen bg-zinc-950 overflow-hidden relative">
+            {/* AUDIO ASSETS - DOM-bound for maximum reliability */}
+            <audio ref={footstepAudioRef} src="/audio/foot.m4a" loop preload="auto" style={{ display: 'none' }} />
+            <audio ref={doorAudioRef} src="/audio/home door.mp3" preload="auto" style={{ display: 'none' }} />
+
             {/* SCREEN TRANSITION OVERLAY - DEFINED DIRECTLY AS JSX TO PREVENT REMOUNT LAG */}
             <div
                 className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`}
@@ -2027,10 +2135,10 @@ const Level2 = () => {
                     <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8">
                         {gameState === 'alert' && <GmailAlert onProceed={() => setGameState('room')} />}
                         {gameState === 'terminal' && <SecurityTerminal onComplete={() => setGameState('outcome')} onFail={showFeedback} rulesFound={rulesFoundCount} playSynthSound={playSynthSound} />}
-                        {gameState === 'drawer_search' && <DrawerSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
+                        {gameState === 'drawer_search' && <DrawerSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} playSound={playAudio} />}
                         {gameState === 'photo_frame_search' && <PhotoFrameSearch discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
-                        {gameState === 'plant_search_left' && <PlantSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
-                        {gameState === 'plant_search_right' && <PlantSearch hasClue={false} discoveredClues={cluesFound} discoverClue={() => { }} onComplete={() => setGameState('room')} />}
+                        {gameState === 'plant_search_left' && <PlantSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} playSound={playAudio} />}
+                        {gameState === 'plant_search_right' && <PlantSearch hasClue={false} discoveredClues={cluesFound} discoverClue={() => { }} onComplete={() => setGameState('room')} playSound={playAudio} />}
                         {gameState === 'bookshelf_search_left' && <BookshelfSearch hasClue={true} discoveredClues={cluesFound} discoverClue={discoverClue} onComplete={() => setGameState('room')} />}
                         {gameState === 'bookshelf_search_right' && <BookshelfSearch hasClue={false} discoveredClues={cluesFound} discoverClue={() => { }} onComplete={() => setGameState('room')} />}
 

@@ -6,27 +6,32 @@ import InteractionPrompt from '../components/InteractionPrompt';
 const dialogues = [
     {
         speaker: 'PLAYER',
-        text: "Hello Grandpa?",
+        text: "Hey Grandpa!",
+        audio: '/Dia_audio/prologue/pro_p1_01.mp3',
         portrait: '/assets/protagonist.png',
     },
     {
         speaker: 'GRANDPA',
-        text: "Hello? ... Is this you? ... My son, it's me! I've got some amazing news. I'm finally doing it—I'm going to Hawaii!",
+        text: "Ah, my boy! Guess what—I’m finally going to Hawaii!",
+        audio: '/Dia_audio/prologue/pro_g1_01.mp3',
         portrait: '/assets/grandpa.jpg',
     },
     {
         speaker: 'GRANDPA',
-        text: "But listen, I'm heading to the airport soon and I need you to come home to the study room immediately. I have something important for you.",
+        text: "But listen, can you come home quickly? I need to show you something in the study.",
+        audio: '/Dia_audio/prologue/pro_g1_02.mp3',
         portrait: '/assets/grandpa.jpg',
     },
     {
         speaker: 'PLAYER',
-        text: "Grandfather? Hawaii? That's great! I'll be there as fast as I can. Wait for me!",
+        text: "Hawaii? That’s awesome! I’ll come right away.",
+        audio: '/Dia_audio/prologue/pro_p1_02.mp3',
         portrait: '/assets/protagonist.png',
     },
     {
         speaker: 'GRANDPA',
-        text: "Hurry now, my boy! The taxi is coming soon. The study... everything starts there...",
+        text: "Good, hurry up… it’s important.",
+        audio: '/Dia_audio/prologue/pro_g1_03.mp3',
         portrait: '/assets/grandpa.jpg',
     }
 ];
@@ -65,6 +70,7 @@ const Prologue = () => {
     const audioCtxRef = useRef(null);
     const footstepAudioRef = useRef(null);
     const drivingAudioRef = useRef(null);
+    const dialogueAudioRef = useRef(null);
 
     useEffect(() => {
         drivingAudioRef.current = new Audio('/audio/driving.mp3');
@@ -88,6 +94,16 @@ const Prologue = () => {
             }
         };
     }, []);
+
+    const playDialogueAudio = (audioUrl) => {
+        if (!audioUrl) return;
+        if (!dialogueAudioRef.current) {
+            dialogueAudioRef.current = new Audio();
+        }
+        dialogueAudioRef.current.pause();
+        dialogueAudioRef.current.src = audioUrl;
+        dialogueAudioRef.current.play().catch(e => console.error("Audio block:", e));
+    };
 
     // Stop footstep audio if changing phases away from walking
     useEffect(() => {
@@ -186,7 +202,31 @@ const Prologue = () => {
     useEffect(() => { isNearHouseDoorRef.current = isNearHouseDoor; }, [isNearHouseDoor]);
 
     // Handle Video Phase
-    const handleVideoEnd = () => setPhase('office');
+    const primeAudio = () => {
+        if (footstepAudioRef.current) {
+            footstepAudioRef.current.play().then(() => {
+                footstepAudioRef.current.pause();
+                footstepAudioRef.current.currentTime = 0;
+            }).catch(() => {});
+        }
+        if (drivingAudioRef.current) {
+            drivingAudioRef.current.play().then(() => {
+                drivingAudioRef.current.pause();
+                drivingAudioRef.current.currentTime = 0;
+            }).catch(() => {});
+        }
+        if (dialogueAudioRef.current) {
+            dialogueAudioRef.current.play().then(() => {
+                dialogueAudioRef.current.pause();
+                dialogueAudioRef.current.currentTime = 0;
+            }).catch(() => {});
+        }
+    };
+
+    const handleVideoEnd = () => {
+        primeAudio();
+        setPhase('office');
+    };
 
     // Handle Office Phase Prompt & Audio
     useEffect(() => {
@@ -212,6 +252,7 @@ const Prologue = () => {
 
             // Handle instantaneous interactions
             if (phaseRef.current === 'office' && key === 'e') {
+                primeAudio();
                 playSynthSound('noti_vibration'); // Give one last click sound conceptually
                 setPhase('dialogue');
             }
@@ -368,6 +409,7 @@ const Prologue = () => {
         setIsTyping(true);
 
         const currentText = dialogues[dialogueIndex].text;
+        playDialogueAudio(dialogues[dialogueIndex].audio);
         let i = 0;
 
         const typeChar = () => {

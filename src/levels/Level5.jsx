@@ -9,7 +9,7 @@ const LIVING_ROOM_WIDTH = 1600;
 const LIVING_ROOM_HEIGHT = 1100;
 const VIEWPORT_WIDTH = 1200;
 const VIEWPORT_HEIGHT = 800;
-const SPEED = 12;
+const SPEED = 7;
 const PLAYER_SIZE = 40;
 const SELVI_ZONE = { x: 800, y: 250, w: 300, h: 300 }; // Raised center-left stall area
 
@@ -68,6 +68,9 @@ const Level5 = () => {
     const [cluesFound, setCluesFound] = useState([]);
     const [pinInput, setPinInput] = useState('');
     const [stickerPeeled, setStickerPeeled] = useState(false);
+    const [gpayStep, setGpayStep] = useState('scan'); // 'scan' | 'amount' | 'pin' | 'success'
+    const [gpayAmount, setGpayAmount] = useState('');
+    const [gpayPin, setGpayPin] = useState('');
     const [inspectedZones, setInspectedZones] = useState([]);
     const [scamReported, setScamReported] = useState(false);
     const [complaintSubmitted, setComplaintSubmitted] = useState(false);
@@ -88,6 +91,69 @@ const Level5 = () => {
     const [isNearCar, setIsNearCar] = useState(false);
     const [gardenFadeOut, setGardenFadeOut] = useState(false);
     const [isGardenReturnCar, setIsGardenReturnCar] = useState(false);
+
+    // Audio Refs for movement - using useRef to ensure single instance
+    const walkAudioRef = React.useRef(null);
+    if (!walkAudioRef.current) {
+        walkAudioRef.current = new Audio('/audio/foot.m4a');
+        walkAudioRef.current.loop = true;
+    }
+    const walkAudio = walkAudioRef.current;
+
+    const drivingAudioRef = React.useRef(null);
+    if (!drivingAudioRef.current) {
+        drivingAudioRef.current = new Audio('/audio/driving.mp3');
+        drivingAudioRef.current.loop = true;
+    }
+    const drivingAudio = drivingAudioRef.current;
+
+    // Handle walking sound
+    useEffect(() => {
+        const isWalking = (
+            gameState === 'bedroom' || 
+            gameState === 'bedroom_freshened' || 
+            gameState === 'living_room' || 
+            gameState === 'garden' ||
+            gameState === 'market_walk' || 
+            gameState === 'market_return' || 
+            gameState === 'garden_return' ||
+            gameState === 'living_room_return' ||
+            gameState === 'room_walk'
+        ) && (keys['w'] || keys['s'] || keys['a'] || keys['d'] || keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright']);
+
+        if (isWalking) {
+            if (walkAudio.paused) {
+                walkAudio.play().catch(e => {});
+            }
+        } else {
+            walkAudio.pause();
+        }
+    }, [keys, gameState, walkAudio]);
+
+    // Handle driving sound
+    useEffect(() => {
+        if (gameState === 'travel' || gameState === 'travel_return') {
+            if (drivingAudio.paused) {
+                drivingAudio.play().catch(e => {});
+            }
+        } else {
+            drivingAudio.pause();
+        }
+    }, [gameState, drivingAudio]);
+
+    // Component unmount cleanup
+    useEffect(() => {
+        return () => {
+            walkAudio.pause();
+            drivingAudio.pause();
+        };
+    }, [walkAudio, drivingAudio]);
+
+    // Helper to play one-off sounds
+    const playSound = (path) => {
+        const audio = new Audio(path);
+        audio.play().catch(e => console.log("Play sound failed:", e));
+    };
 
     // Room walk state (post-payment room scene) - Using Level 2 constants
     const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 800, y: 950 });
@@ -196,12 +262,15 @@ const Level5 = () => {
                 } else if (gameState === 'bedroom' && bedroomInteractionTarget === 'bathroom') {
                     triggerTransition('bedroom_freshened');
                 } else if (gameState === 'bedroom_freshened' && bedroomInteractionTarget === 'living_room_door') {
+                    playSound('/audio/home door.mp3');
                     triggerTransition('living_room', null, { x: 800, y: 920 });
                 } else if (gameState === 'living_room' && (livingRoomStep === 1 || livingRoomStep === 2)) {
                     setLivingRoomStep(3);
                 } else if (gameState === 'living_room' && livingRoomInteractionTarget === 'main_door' && livingRoomStep === 3) {
+                    playSound('/audio/home door.mp3');
                     triggerTransition('title_card');
                 } else if (gameState === 'garden' && isNearCar) {
+                    playSound('/audio/car.mp3');
                     triggerTransition('travel');
                 } else if (canInteract && gameState === 'market_walk') {
                     setGameState('dialogue');
@@ -428,6 +497,7 @@ const Level5 = () => {
     useEffect(() => {
         const handleKey = (e) => {
             if (gameState === 'market_return' && e.key.toLowerCase() === 'e' && playerPos.x < 150) {
+                playSound('/audio/car.mp3');
                 triggerTransition('travel_return');
             }
         };
@@ -475,10 +545,12 @@ const Level5 = () => {
         const handleKey = (e) => {
             if (gameState === 'garden_return' && e.key.toLowerCase() === 'e') {
                 if (isGardenReturnCar) {
+                    playSound('/audio/car.mp3');
                     setIsGardenReturnCar(false);
                     const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
                     setGardenPlayerPos({ x: currentRoomWidth / 2 - 200, y: ROOM_HEIGHT / 2 });
                 } else if (gardenPlayerPos.y < 150) {
+                    playSound('/audio/home door.mp3');
                     triggerTransition('living_room_return', null, { x: 800, y: 150 });
                 }
             }
@@ -513,6 +585,7 @@ const Level5 = () => {
         const handleKey = (e) => {
             if (gameState === 'living_room_return' && e.key.toLowerCase() === 'e') {
                 if (livingRoomPlayerPos.x > 1400) {
+                    playSound('/audio/home door.mp3');
                     setRoomPlayerPos({ x: 800, y: 950 });
                     setGameState('room_walk');
                 }
@@ -1037,7 +1110,7 @@ const Level5 = () => {
                                 <span className="bg-amber-500/10 text-amber-500 px-4 py-1 rounded-full text-sm font-black uppercase tracking-widest border border-amber-500/20">Market Vendor</span>
                             </div>
                             <p className="text-white text-3xl leading-snug font-serif italic text-slate-100">
-                                "Rajan sir's grandson ah? Good boy you are. He always paid on time, very honest man. Please scan here sir — new digital payment. My son set it up last week. Very easy, no cash needed!"
+                                "Rajan sir's grandson ah? Good boy you are. He always paid on time, very honest man. That will be ₹150 for the vegetables. Please scan here sir — new UPI payment. My son Muthu set it up last week. Very easy, no cash needed!"
                             </p>
                         </div>
                         <div className="flex justify-end gap-6 mt-12">
@@ -1057,64 +1130,100 @@ const Level5 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'phone_home') {
         const apps = [
-            { name: 'WhatsApp', icon: '💬', color: 'bg-green-500' },
-            { name: 'Gallery', icon: '🖼️', color: 'bg-purple-500' },
-            { name: 'Settings', icon: '⚙️', color: 'bg-slate-500' },
-            { name: 'Camera', icon: '📷', color: 'bg-slate-700' },
-            { name: 'Messages', icon: '📬', color: 'bg-blue-500' },
-            { name: 'Chrome', icon: '🌐', color: 'bg-amber-500' },
-            { name: 'Phone', icon: '📞', color: 'bg-green-600' },
-            { name: 'Gmail', icon: '✉️', color: 'bg-red-500' },
-            { name: 'UPI Pay', icon: '💳', color: 'bg-indigo-500' },
-            { name: 'Clock', icon: '⏰', color: 'bg-teal-500' },
-            { name: 'Maps', icon: '🗺️', color: 'bg-green-400' },
-            { name: 'QR Scanner', icon: '📱', color: 'bg-cyan-500', action: 'qr_scan', highlight: true },
+            { name: 'WhatsApp', icon: '💬', color: 'bg-gradient-to-br from-green-400 to-green-600' },
+            { name: 'Gallery', icon: '🖼️', color: 'bg-gradient-to-br from-purple-400 to-purple-600' },
+            { name: 'Settings', icon: '⚙️', color: 'bg-gradient-to-br from-slate-400 to-slate-600' },
+            { name: 'Camera', icon: '📷', color: 'bg-gradient-to-br from-slate-600 to-slate-800' },
+            { name: 'Messages', icon: '📬', color: 'bg-gradient-to-br from-blue-400 to-blue-600' },
+            { name: 'Chrome', icon: '🌐', color: 'bg-gradient-to-br from-amber-400 to-amber-600' },
+            { name: 'Phone', icon: '📞', color: 'bg-gradient-to-br from-green-500 to-green-700' },
+            { name: 'Gmail', icon: '✉️', color: 'bg-gradient-to-br from-red-400 to-red-600' },
+            { name: 'UPI Pay', icon: '💳', color: 'bg-gradient-to-br from-indigo-400 to-indigo-600' },
+            { name: 'Clock', icon: '⏰', color: 'bg-gradient-to-br from-teal-400 to-teal-600' },
+            { name: 'Maps', icon: '🗺️', color: 'bg-gradient-to-br from-green-300 to-green-500' },
+            { name: 'QR Scanner', icon: '📱', color: 'bg-gradient-to-br from-cyan-400 to-cyan-600', action: 'qr_scan', highlight: true },
         ];
         return (
-            <div className="w-full h-full bg-[#1a1c1e] flex items-center justify-center p-4">
+            <div className="w-full h-full bg-[#0d0d0d] flex items-center justify-center p-4">
                 <FeedbackToast />
-                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
+                {/* Ambient background glow */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
+                </div>
 
-                {/* Phone Container */}
-                <div className="w-[360px] h-[700px] bg-black rounded-[3rem] p-3 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[6px] border-zinc-800">
-                    {/* Notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-black rounded-b-2xl z-50"></div>
-                    {/* Home Bar */}
-                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/30 rounded-full z-50"></div>
-
-                    {/* Screen */}
-                    <div className="w-full h-full bg-gradient-to-b from-slate-800 to-slate-900 rounded-[2.5rem] overflow-hidden flex flex-col relative">
-                        {/* Status Bar */}
-                        <div className="px-6 pt-10 pb-4 flex justify-between text-white/40 text-xs font-black">
-                            <span>8:15 AM</span>
-                            <div className="flex gap-2 font-mono"><span>5G</span><span>🔋 88%</span></div>
+                {/* Phone Container — Premium Design */}
+                <div className="w-[380px] h-[760px] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[3.5rem] p-[3px] relative shadow-[0_50px_100px_rgba(0,0,0,0.9),0_0_40px_rgba(0,0,0,0.5)]">
+                    {/* Inner bezel */}
+                    <div className="w-full h-full bg-black rounded-[3.3rem] p-3 relative">
+                        {/* Dynamic Island */}
+                        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-full z-50 flex items-center justify-center gap-2 border border-zinc-800">
+                            <div className="w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-700"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-700"></div>
                         </div>
+                        {/* Home Bar */}
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/20 rounded-full z-50"></div>
 
-                        {/* Date & Greeting */}
-                        <div className="px-6 pb-6">
-                            <p className="text-white/30 text-xs font-mono uppercase tracking-widest">Monday, March 3</p>
-                            <h3 className="text-white/80 font-bold text-lg mt-1">Select an app</h3>
-                        </div>
-
-                        {/* App Grid */}
-                        <div className="flex-1 px-6 pb-6">
-                            <div className="grid grid-cols-4 gap-4">
-                                {apps.map((app, i) => (
-                                    <button key={i}
-                                        onClick={() => app.action ? setGameState(app.action) : showFeedback(`📱 ${app.name} is not needed now`)}
-                                        className={`flex flex-col items-center gap-1.5 group transition-all ${app.highlight ? 'animate-pulse' : ''}`}>
-                                        <div className={`w-14 h-14 ${app.color} rounded-2xl flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform ${app.highlight ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(6,182,212,0.5)]' : ''}`}>
-                                            {app.icon}
-                                        </div>
-                                        <span className={`text-[10px] font-bold ${app.highlight ? 'text-cyan-400' : 'text-white/50'}`}>{app.name}</span>
-                                    </button>
-                                ))}
+                        {/* Screen */}
+                        <div className="w-full h-full bg-gradient-to-b from-[#0f1724] via-[#131d2e] to-[#0a1220] rounded-[2.5rem] overflow-hidden flex flex-col relative">
+                            {/* Wallpaper effects */}
+                            <div className="absolute inset-0 pointer-events-none">
+                                <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-blue-600/10 to-transparent"></div>
+                                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/40 to-transparent"></div>
                             </div>
-                        </div>
 
-                        {/* Hint at bottom */}
-                        <div className="px-6 pb-8 text-center">
-                            <p className="text-cyan-400/60 text-[10px] font-mono uppercase tracking-wider animate-bounce">↑ Tap QR Scanner to scan the payment code</p>
+                            {/* Status Bar */}
+                            <div className="px-8 pt-12 pb-2 flex justify-between text-white/50 text-[11px] font-semibold relative z-10">
+                                <span className="font-bold">8:15 AM</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[9px] font-bold bg-white/10 px-1.5 py-0.5 rounded">5G</span>
+                                    <div className="flex gap-[2px] items-end h-3">
+                                        <div className="w-[3px] h-1 bg-white/40 rounded-sm"></div>
+                                        <div className="w-[3px] h-1.5 bg-white/40 rounded-sm"></div>
+                                        <div className="w-[3px] h-2 bg-white/50 rounded-sm"></div>
+                                        <div className="w-[3px] h-3 bg-white/60 rounded-sm"></div>
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
+                                        <div className="w-6 h-3 border border-white/40 rounded-[3px] relative">
+                                            <div className="absolute inset-[1px] bg-green-400/80 rounded-[2px]" style={{width: '80%'}}></div>
+                                        </div>
+                                        <div className="w-[2px] h-1.5 bg-white/40 rounded-r-full"></div>
+                                    </div>
+                                    <span className="text-[10px] ml-0.5">88%</span>
+                                </div>
+                            </div>
+
+                            {/* Date & Time Widget */}
+                            <div className="px-8 py-4 relative z-10">
+                                <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/5">
+                                    <p className="text-white/30 text-[10px] font-medium uppercase tracking-[0.2em]">Monday, March 3</p>
+                                    <h3 className="text-white/90 font-bold text-xl mt-1">Good Morning 🌤️</h3>
+                                    <p className="text-white/30 text-[10px] mt-1">Open an app to proceed</p>
+                                </div>
+                            </div>
+
+                            {/* App Grid */}
+                            <div className="flex-1 px-6 pb-4 relative z-10">
+                                <div className="grid grid-cols-4 gap-x-4 gap-y-5">
+                                    {apps.map((app, i) => (
+                                        <button key={i}
+                                            onClick={() => app.action ? setGameState(app.action) : showFeedback(`📱 ${app.name} is not needed now`)}
+                                            className={`flex flex-col items-center gap-1.5 group transition-all ${app.highlight ? 'animate-pulse' : ''}`}>
+                                            <div className={`w-14 h-14 ${app.color} rounded-[16px] flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 group-active:scale-95 transition-transform ${app.highlight ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-[#131d2e] shadow-[0_0_25px_rgba(6,182,212,0.5)]' : 'shadow-[0_4px_12px_rgba(0,0,0,0.4)]'}`}>
+                                                {app.icon}
+                                            </div>
+                                            <span className={`text-[10px] font-medium ${app.highlight ? 'text-cyan-400' : 'text-white/50'}`}>{app.name}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Bottom Dock */}
+                            <div className="px-6 pb-8 relative z-10">
+                                <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-3 border border-white/5">
+                                    <p className="text-cyan-400/60 text-[10px] font-mono uppercase tracking-wider text-center">↑ Tap QR Scanner to scan the payment code</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1538,25 +1647,31 @@ const Level5 = () => {
 
                     <div className="flex-1 grid grid-cols-2 gap-12 min-h-0">
                         {/* Action Steps - scrollable */}
-                        <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="space-y-5 overflow-y-auto pr-2 custom-scrollbar">
                             {/* Step 1: Cancel */}
-                            <div className="p-6 rounded-[2rem] bg-emerald-900/20 border-2 border-emerald-500/50">
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter text-emerald-400">✓ Step 1: Cancel & Question</h4>
-                                <p className="text-slate-300 leading-relaxed text-sm">
+                            <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-900/40 to-emerald-950/30 border border-emerald-500/40 shadow-[0_4px_20px_rgba(16,185,129,0.1)] backdrop-blur-sm">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-sm font-black text-black shadow-md">✓</div>
+                                    <h4 className="font-black text-lg uppercase tracking-tight text-emerald-400">Step 1: Cancel & Question</h4>
+                                </div>
+                                <p className="text-slate-300 leading-relaxed text-sm pl-11">
                                     You tapped CANCEL on the collect request. You asked Selvi for her registered UPI ID: 'selvi.vegetables@oksbi'. The scanned ID was a random number.
                                 </p>
                             </div>
 
                             {/* Step 2: Physical Inspection */}
-                            <div className={`p-6 rounded-[2rem] transition-all border-4 ${hasVerifiedBoard ? 'bg-emerald-500 text-black border-transparent shadow-[0_10px_30px_rgba(16,185,129,0.3)]' : 'bg-white/5 border-white/10'}`}>
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">
-                                    {hasVerifiedBoard ? '✓ Step 2: Sticker Removed' : 'Step 2: Inspect Physical QR'}
-                                </h4>
-                                <p className={`text-sm leading-relaxed ${hasVerifiedBoard ? 'text-black/80' : 'text-slate-400'}`}>
+                            <div className={`p-5 rounded-2xl transition-all backdrop-blur-sm ${hasVerifiedBoard ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-black shadow-[0_8px_30px_rgba(16,185,129,0.35)]' : 'bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10'}`}>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shadow-md ${hasVerifiedBoard ? 'bg-black/20 text-white' : 'bg-white/10 text-white/40'}`}>{hasVerifiedBoard ? '✓' : '2'}</div>
+                                    <h4 className="font-black text-lg uppercase tracking-tight">
+                                        {hasVerifiedBoard ? 'Step 2: Sticker Removed' : 'Step 2: Inspect Physical QR'}
+                                    </h4>
+                                </div>
+                                <p className={`text-sm leading-relaxed pl-11 ${hasVerifiedBoard ? 'text-black/70' : 'text-slate-400'}`}>
                                     Look for tampered stickers on Selvi's payment board to prove the scam to her.
                                 </p>
                                 {!hasVerifiedBoard && (
-                                    <button className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-4 rounded-xl mt-4 text-sm shadow-xl transition-all active:scale-95"
+                                    <button className="w-full bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-black font-black py-4 rounded-xl mt-4 text-sm shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition-all active:scale-95 hover:shadow-[0_12px_32px_rgba(16,185,129,0.4)]"
                                         onClick={() => {
                                             setGameState('peeling_minigame');
                                         }}>
@@ -1566,22 +1681,25 @@ const Level5 = () => {
                             </div>
 
                             {/* Step 3: Correct Payment */}
-                            <div className={`p-6 rounded-[2rem] transition-all border-4 ${hasVerifiedBoard && stickerPeeled ? 'bg-blue-500 text-white border-transparent shadow-[0_10px_30px_rgba(59,130,246,0.3)]' : 'bg-white/5 border-white/10 opacity-50'}`}>
-                                <h4 className="font-black text-xl mb-2 uppercase tracking-tighter">
-                                    {stickerPeeled ? '✓ Step 3: Payment Sent' : 'Step 3: Pay Correctly'}
-                                </h4>
-                                <p className={`text-sm leading-relaxed ${stickerPeeled ? 'text-white/80' : 'text-slate-400'}`}>
-                                    Open BHIM app manually, type 'selvi.vegetables@oksbi', enter ₹150, confirm with PIN.
+                            <div className={`p-5 rounded-2xl transition-all backdrop-blur-sm ${hasVerifiedBoard && stickerPeeled ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_8px_30px_rgba(59,130,246,0.35)]' : 'bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 opacity-50'}`}>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shadow-md ${stickerPeeled ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'}`}>{stickerPeeled ? '✓' : '3'}</div>
+                                    <h4 className="font-black text-lg uppercase tracking-tight">
+                                        {stickerPeeled ? 'Step 3: Payment Sent' : 'Step 3: Pay Correctly'}
+                                    </h4>
+                                </div>
+                                <p className={`text-sm leading-relaxed pl-11 ${stickerPeeled ? 'text-white/80' : 'text-slate-400'}`}>
+                                    Open GPay, scan Selvi's real QR code, enter ₹150, and confirm with your UPI PIN.
                                 </p>
                                 {hasVerifiedBoard && !stickerPeeled && (
-                                    <button className="w-full bg-blue-500 hover:bg-blue-400 text-white font-black py-4 rounded-xl mt-4 text-sm shadow-xl transition-all active:scale-95"
+                                    <button className="w-full bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-400 hover:to-blue-300 text-white font-black py-4 rounded-xl mt-4 text-sm shadow-[0_8px_24px_rgba(59,130,246,0.3)] transition-all active:scale-95 hover:shadow-[0_12px_32px_rgba(59,130,246,0.4)]"
                                         onClick={() => {
-                                            setStickerPeeled(true);
-                                            showFeedback("💸 ₹150 Sent Safely!");
-                                            const msg = new SpeechSynthesisUtterance("Received one hundred and fifty rupees!");
-                                            window.speechSynthesis.speak(msg);
+                                            setGpayStep('scan');
+                                            setGpayAmount('');
+                                            setGpayPin('');
+                                            setGameState('gpay_payment');
                                         }}>
-                                        MANUALLY PAY IN BHIM APP ✨
+                                        OPEN GPAY & PAY ₹150 💳
                                     </button>
                                 )}
                             </div>
@@ -1594,10 +1712,10 @@ const Level5 = () => {
                                 <p className="text-white/30 font-black text-[10px] uppercase tracking-[0.4em] mb-4 border-b border-white/10 pb-2 sticky top-0 bg-black/40 backdrop-blur-sm">Dialogue Log</p>
                                 <div className="space-y-4">
                                     <div className="flex gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0 animate-pulse"></div>
+                                        <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0"></div>
                                         <p className="text-slate-300 text-lg font-serif italic">"Selvi akka, your QR code is asking me to COLLECT money. This is a scam! What is the UPI ID your son gave you?"</p>
                                     </div>
-                                    <div className="flex gap-4 animate-in slide-in-from-left duration-500 delay-200">
+                                    <div className="flex gap-4">
                                         <div className="w-10 h-10 border-2 border-amber-500/50 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 bg-amber-900/30">
                                             <img src="/assets/selvi_portrait.png" className="w-full h-full object-cover opacity-80" alt="Selvi" />
                                         </div>
@@ -1605,14 +1723,14 @@ const Level5 = () => {
                                     </div>
 
                                     {hasVerifiedBoard && (
-                                        <div className="flex gap-4 animate-in slide-in-from-right duration-500">
+                                        <div className="flex gap-4">
                                             <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0"></div>
                                             <p className="text-emerald-400/90 text-lg font-serif italic">"Look, someone pasted a fake sticker over yours. The scanner was reading '9944XXXXX@paytm'."</p>
                                         </div>
                                     )}
 
                                     {stickerPeeled && (
-                                        <div className="flex flex-col gap-4 animate-in slide-in-from-left duration-500">
+                                        <div className="flex flex-col gap-4">
                                             <div className="flex items-center gap-4 bg-emerald-950/40 p-3 rounded-2xl border border-emerald-500/20 w-max">
                                                 {/* Happy Sound Box */}
                                                 <div className="w-8 h-10 bg-blue-600 rounded flex flex-col items-center pt-1 border border-slate-800 drop-shadow-lg">
@@ -1641,14 +1759,10 @@ const Level5 = () => {
                         </div>
                     </div>
 
-                    {/* BACK button - always visible at bottom, outside the grid */}
+                    {/* BACK button - resized and centered */}
                     {stickerPeeled && (
-                        <div className="mt-6 flex-shrink-0 animate-in fade-in slide-in-from-bottom duration-500">
-                            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-3 mb-3 text-center">
-                                <p className="text-emerald-400 font-black text-sm uppercase tracking-widest">🎖️ Cyber Safety Score: +30</p>
-                                <p className="text-emerald-200 text-xs mt-1">Go back to your room and report this scam on the Cyber Crime Portal!</p>
-                            </div>
-                            <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-xl shadow-[0_10px_30px_rgba(16,185,129,0.4)] animate-pulse flex items-center justify-center gap-3 transition-all active:scale-95"
+                        <div className="mt-4 flex-shrink-0 flex justify-center animate-in fade-in slide-in-from-bottom duration-500">
+                            <button className="px-8 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white font-black py-3 rounded-xl text-base shadow-[0_8px_30px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 transition-all active:scale-[0.97] hover:shadow-[0_12px_40px_rgba(16,185,129,0.4)] border border-emerald-400/20"
                                 onClick={() => { setPlayerPos({ x: 800, y: 600 }); setGameState('market_return'); }}>
                                 ⬅ BACK — Go to Room & Report Scam
                             </button>
@@ -1844,6 +1958,215 @@ const Level5 = () => {
                         <p className="text-white/30 font-mono text-xs mt-2 tracking-[0.3em]">{Math.round(peelProgress)}% PEELED</p>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    // ═══════════════════════════════════════════
+    // GPAY PAYMENT FLOW (Step 3)
+    // ═══════════════════════════════════════════
+    if (gameState === 'gpay_payment') {
+        const handleGpayPinDigit = (digit) => {
+            if (gpayPin.length >= 4) return;
+            const next = gpayPin + digit;
+            setGpayPin(next);
+            if (next.length === 4) {
+                setTimeout(() => {
+                    setGpayStep('success');
+                    setStickerPeeled(true);
+                    showFeedback("💸 ₹150 Sent Safely!");
+                    window.speechSynthesis.cancel();
+                    const msg = new SpeechSynthesisUtterance("Received one hundred and fifty rupees!");
+                    window.speechSynthesis.speak(msg);
+                    setTimeout(() => {
+                        setGameState('correct_path');
+                    }, 3000);
+                }, 500);
+            }
+        };
+
+        return (
+            <div className="w-full h-full bg-[#0d0d0d] flex items-center justify-center p-4">
+                <FeedbackToast />
+                {/* Ambient background */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-green-500/5 rounded-full blur-3xl"></div>
+                </div>
+
+                {/* Phone Container */}
+                <div className="w-[380px] h-[760px] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[3.5rem] p-[3px] relative shadow-[0_50px_100px_rgba(0,0,0,0.9)]">
+                    <div className="w-full h-full bg-black rounded-[3.3rem] p-3 relative">
+                        {/* Dynamic Island */}
+                        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-full z-50 flex items-center justify-center gap-2 border border-zinc-800">
+                            <div className="w-2.5 h-2.5 rounded-full bg-zinc-800 border border-zinc-700"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-700"></div>
+                        </div>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/20 rounded-full z-50"></div>
+
+                        {/* Screen */}
+                        <div className="w-full h-full bg-[#f8f9fa] rounded-[2.5rem] overflow-hidden flex flex-col relative">
+
+                            {/* GPay Header */}
+                            <div className="bg-white px-6 pt-12 pb-4 flex items-center gap-3 border-b border-slate-200">
+                                <button className="text-slate-600 text-xl font-bold" onClick={() => setGameState('correct_path')}>←</button>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-green-500 to-yellow-500 flex items-center justify-center">
+                                        <span className="text-white font-black text-xs">G</span>
+                                    </div>
+                                    <span className="font-bold text-slate-800 text-lg">Pay</span>
+                                </div>
+                            </div>
+
+                            {/* SCAN QR STEP */}
+                            {gpayStep === 'scan' && (
+                                <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
+                                    <div className="w-full aspect-square max-w-[240px] border-4 border-blue-500/30 rounded-2xl relative overflow-hidden bg-white cursor-pointer"
+                                        onClick={() => setGpayStep('amount')}>
+                                        <div className="absolute inset-0 flex flex-col gap-0.5 p-4">
+                                            {originalQrPattern.map((row, i) => (
+                                                <div key={i} className="flex gap-0.5 flex-1">
+                                                    {row.map((filled, j) => (
+                                                        <div key={j} className={`flex-1 rounded-[1px] ${filled ? 'bg-black' : 'bg-transparent'}`}></div>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="absolute top-0 left-0 right-0 h-1 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.8)] animate-scan"></div>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-slate-800 font-bold text-base">Scanning Selvi's Real QR</p>
+                                        <p className="text-slate-500 text-xs mt-1">selvi.vegetables@oksbi</p>
+                                        <p className="text-green-600 text-[10px] mt-2 font-bold uppercase tracking-wider animate-pulse">✓ Verified Merchant • Tap to proceed</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* AMOUNT ENTRY STEP */}
+                            {gpayStep === 'amount' && (
+                                <div className="flex-1 flex flex-col px-6 pt-6">
+                                    {/* Payee Info */}
+                                    <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-xl shadow-sm">
+                                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                                            <span className="text-2xl">🥬</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-slate-800 font-bold">Selvi Vegetables</p>
+                                            <p className="text-slate-400 text-xs font-mono">selvi.vegetables@oksbi</p>
+                                        </div>
+                                        <div className="ml-auto bg-green-100 px-2 py-1 rounded-full">
+                                            <span className="text-green-700 text-[9px] font-bold uppercase">Verified</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Amount Display */}
+                                    <div className="flex-1 flex flex-col items-center justify-center mb-4">
+                                        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Enter Amount</p>
+                                        <div className="flex items-baseline gap-1">
+                                            <span className="text-slate-400 text-3xl font-bold">₹</span>
+                                            <span className="text-slate-900 text-6xl font-black font-mono">{gpayAmount || '0'}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Numpad */}
+                                    <div className="grid grid-cols-3 gap-2 mb-4">
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, '.', 0, '⌫'].map((d, i) => (
+                                            <button key={i}
+                                                className="h-14 bg-white rounded-xl text-slate-800 font-bold text-xl hover:bg-slate-100 transition-all active:scale-95 shadow-sm"
+                                                onClick={() => {
+                                                    if (d === '⌫') setGpayAmount(a => a.slice(0, -1));
+                                                    else if (gpayAmount.length < 6) setGpayAmount(a => a + String(d));
+                                                }}>
+                                                {d}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Pay Button */}
+                                    <button
+                                        className={`w-full py-4 rounded-2xl font-black text-lg transition-all mb-6 ${gpayAmount === '150' ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-[0_8px_24px_rgba(37,99,235,0.4)] active:scale-95' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                        onClick={() => { if (gpayAmount === '150') setGpayStep('pin'); }}
+                                        disabled={gpayAmount !== '150'}>
+                                        {gpayAmount === '150' ? 'PAY ₹150 →' : 'Enter ₹150'}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* PIN ENTRY STEP */}
+                            {gpayStep === 'pin' && (
+                                <div className="flex-1 flex flex-col items-center justify-center px-6">
+                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                                        <span className="text-3xl">🔒</span>
+                                    </div>
+                                    <h3 className="text-slate-800 font-bold text-lg mb-1">Enter UPI PIN</h3>
+                                    <p className="text-slate-400 text-xs mb-6">Paying ₹150 to Selvi Vegetables</p>
+
+                                    {/* PIN dots */}
+                                    <div className="flex gap-4 mb-8">
+                                        {[0, 1, 2, 3].map(i => (
+                                            <div key={i} className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center text-2xl font-black transition-all ${i < gpayPin.length ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                                {i < gpayPin.length ? '•' : ''}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Keypad */}
+                                    <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map((d, i) => (
+                                            d === '' ? <div key={i}></div> :
+                                                d === '⌫' ? (
+                                                    <button key={i} className="h-14 bg-white rounded-xl text-slate-400 font-bold text-xl hover:bg-slate-100 transition-all active:scale-90 shadow-sm"
+                                                        onClick={() => setGpayPin(p => p.slice(0, -1))}>{d}</button>
+                                                ) : (
+                                                    <button key={i} className="h-14 bg-white hover:bg-slate-50 rounded-xl text-slate-800 font-bold text-2xl transition-all active:scale-90 shadow-sm"
+                                                        onClick={() => handleGpayPinDigit(String(d))}>{d}</button>
+                                                )
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* SUCCESS STEP */}
+                            {gpayStep === 'success' && (
+                                <div className="flex-1 flex flex-col items-center justify-center px-6 animate-in zoom-in duration-500">
+                                    <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(34,197,94,0.4)]">
+                                        <span className="text-5xl">✓</span>
+                                    </div>
+                                    <h3 className="text-green-700 font-black text-2xl mb-1">Payment Successful!</h3>
+                                    <p className="text-slate-500 text-sm mb-2">₹150 sent to Selvi Vegetables</p>
+                                    <p className="text-slate-400 text-xs font-mono">selvi.vegetables@oksbi</p>
+
+                                    {/* Sound Box Indicator */}
+                                    <div className="mt-8 bg-green-50 border-2 border-green-200 rounded-2xl p-4 flex items-center gap-3 w-full max-w-[280px]">
+                                        <div className="w-10 h-14 bg-blue-600 rounded-lg flex flex-col items-center pt-2 border-2 border-slate-800 shadow-lg relative overflow-hidden">
+                                            <div className="w-5 h-5 bg-slate-800 rounded-full border border-slate-900 flex justify-center items-center">
+                                                <div className="w-3 h-3 bg-green-500/50 rounded-full animate-ping"></div>
+                                            </div>
+                                            <div className="mt-auto mb-1 w-full flex justify-end px-1">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-green-800 font-bold text-xs uppercase tracking-wider">Sound Box</p>
+                                            <p className="text-green-600 font-black text-sm italic">"Received ₹150!"</p>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-slate-400 text-[10px] mt-6 animate-pulse">Returning to safety report...</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                <style>{`
+                    @keyframes scan {
+                        0% { top: 0; }
+                        50% { top: calc(100% - 4px); }
+                        100% { top: 0; }
+                    }
+                    .animate-scan { animation: scan 2s ease-in-out infinite; }
+                `}</style>
             </div>
         );
     }
@@ -2841,3 +3164,25 @@ const Level5 = () => {
 };
 
 export default Level5;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

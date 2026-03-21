@@ -7,10 +7,9 @@ const ROOM_WIDTH = 1600;
 const ROOM_HEIGHT = 1100;
 const VIEWPORT_WIDTH = 1200;
 const VIEWPORT_HEIGHT = 800;
+// Level 10 is phone-only
 const PLAYER_SIZE = 40;
 const SPEED = 15;
-
-const LAPTOP_AREA = { x: 300, y: 350, w: 150, h: 150 }; // Placed in bedroom
 
 
 const checkCollision = (px, py, rect) => (
@@ -73,7 +72,7 @@ const Level10 = () => {
     const [callStatus, setCallStatus] = useState('idle'); // idle, ringing, active, hangup
     const [calledRealFriend, setCalledRealFriend] = useState(false);
     const [friendCallStep, setFriendCallStep] = useState(-1); // -1 = not started
-    const [laptopStep, setLaptopStep] = useState('portal'); // portal, reporting, submitted
+    const [reportCallStep, setReportCallStep] = useState(-1);
 
     const FRIEND_CONVERSATION = [
         { speaker: 'YOU', text: "Hey Arjun, it's me. I just got the weirdest call..." },
@@ -81,8 +80,17 @@ const Level10 = () => {
         { speaker: 'YOU', text: "Someone called me sounding EXACTLY like you. Said you had a bad accident and needed ₹50,000 urgently." },
         { speaker: 'ARJUN', text: "Bro WHAT?! That wasn't me! I'm sitting at home right now. I never called you!" },
         { speaker: 'YOU', text: "I thought so... they mentioned my sister — I don't even have one. And the voice had this weird metallic tone." },
-        { speaker: 'ARJUN', text: "Dude that's creepy. Must be one of those AI deepfake scams. Good thing you didn't pay. You should warn your family too and report this!" },
+        { speaker: 'ARJUN', text: "Dude that's creepy. Must be one of those AI deepfake scams. Good thing you didn't pay. You should warn your family too and report this on 1930!" },
         { speaker: 'SYSTEM', text: "✅ Arjun confirmed he never called you. This was a deepfake voice scam. Drag this to the evidence board!", isDraggable: true, clueId: 'real_call_confirmed' }
+    ];
+
+    const OFFICER_CONVERSATION = [
+        { speaker: 'OFFICER', text: "National Cyber Crime Helpline 1930. How can we help you?" },
+        { speaker: 'YOU', text: "I just got a suspicious call. Someone tried to clone my friend's voice using AI to ask for money." },
+        { speaker: 'OFFICER', text: "I see. This is becoming common. Did you identify any specific red flags or artifacts?" },
+        { speaker: 'YOU', text: "Yes, I've noted robotic artifacts and identity errors on my investigation board." },
+        { speaker: 'OFFICER', text: "Excellent work. We are logging the voice signature now. Your report will help us track this AI fraud network." },
+        { speaker: 'SYSTEM', text: `✅ REPORT FILED. Based on the ${cluesFound.length} piece(s) of evidence you provided, authorities can now trace the scam signature.`, isFinal: true }
     ];
 
     const showFeedback = (msg) => {
@@ -262,46 +270,10 @@ const Level10 = () => {
         return () => clearInterval(interval);
     }, [chatHistory, isTypingDone]);
 
-    // FIXED MOVEMENT LOGIC
+    // NO MOVEMENT NEEDED - PHONE ONLY
     useEffect(() => {
-        const handleKD = (e) => { keysRef.current[e.key.toLowerCase()] = true; };
-        const handleKU = (e) => { keysRef.current[e.key.toLowerCase()] = false; };
-        window.addEventListener('keydown', handleKD);
-        window.addEventListener('keyup', handleKU);
-
-        let rafId;
-        const loop = () => {
-            if (gameState === 'room') {
-                const keys = keysRef.current;
-                setPlayerPos(p => {
-                    let nx = p.x, ny = p.y;
-                    if (keys['w'] || keys['arrowup']) ny -= SPEED;
-                    if (keys['s'] || keys['arrowdown']) ny += SPEED;
-                    if (keys['a'] || keys['arrowleft']) nx -= SPEED;
-                    if (keys['d'] || keys['arrowright']) nx += SPEED;
-
-                    // Bedroom boundaries
-                    nx = Math.max(250, Math.min(nx, 1300));
-                    ny = Math.max(300, Math.min(ny, 650));
-
-                    // Interaction collision checks
-                    setCanInteractPhone(true); 
-                    setCanInteractLaptop(checkCollision(nx, ny, LAPTOP_AREA));
-
-
-                    return { x: nx, y: ny };
-                });
-            }
-            rafId = requestAnimationFrame(loop);
-        };
-        rafId = requestAnimationFrame(loop);
-
-        return () => {
-            window.removeEventListener('keydown', handleKD);
-            window.removeEventListener('keyup', handleKU);
-            cancelAnimationFrame(rafId);
-        };
-    }, [gameState]); // Only depends on gameState
+        if (gameState === 'room') setGameState('phone');
+    }, [gameState]);
 
     // Call vibration effect for pre_waking_up and ringing phase
     useEffect(() => {
@@ -338,21 +310,12 @@ const Level10 = () => {
                     setCallStatus('ringing');
                     setIsDetectiveModeOpen(true);
                 }
-
-
-
-                if (canInteractPhone && gameState === 'room') {
-                    setGameState('phone');
-                    setIsDetectiveModeOpen(true);
-                    if (callStatus === 'idle') setCallStatus('ringing');
-                }
-                if (canInteractLaptop && gameState === 'room' && calledRealFriend) setGameState('laptop');
             }
         };
 
         window.addEventListener('keydown', handleInteractions);
         return () => window.removeEventListener('keydown', handleInteractions);
-    }, [canInteractPhone, canInteractLaptop, gameState, calledRealFriend, callStatus]);
+    }, [gameState]);
 
     const handleOptionClick = (opt) => {
         setShowingOptions(false);
@@ -371,6 +334,7 @@ const Level10 = () => {
         if (nextIdx >= dialogueSequence.length) {
             setCallStatus('idle');
             setPhoneApp('home');
+            showFeedback('📞 I should call Arjun from my contacts to verify this!');
             return;
         }
 
@@ -397,6 +361,11 @@ const Level10 = () => {
         setPhoneApp('friendcall');
     };
 
+    const startReportCall = () => {
+        setReportCallStep(0);
+        setPhoneApp('reportcall');
+    };
+
     const advanceFriendCall = () => {
         const nextStep = friendCallStep + 1;
         if (nextStep >= FRIEND_CONVERSATION.length) {
@@ -405,6 +374,14 @@ const Level10 = () => {
             return;
         }
         setFriendCallStep(nextStep);
+    };
+
+    const advanceReportCall = () => {
+        const nextStep = reportCallStep + 1;
+        if (nextStep >= OFFICER_CONVERSATION.length) {
+            return;
+        }
+        setReportCallStep(nextStep);
     };
 
     // -------------------------------------------------------------------------
@@ -456,149 +433,8 @@ const Level10 = () => {
         </div>
     );
 
-    if (gameState === 'room') {
-        const cameraX = Math.max(0, Math.min(playerPos.x - VIEWPORT_WIDTH / 2, ROOM_WIDTH - VIEWPORT_WIDTH));
-        const cameraY = Math.max(0, Math.min(playerPos.y - VIEWPORT_HEIGHT / 2, ROOM_HEIGHT - VIEWPORT_HEIGHT));
-
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-black px-8">
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden font-sans bg-zinc-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
-                    <div className="absolute inset-0 transition-transform duration-100 ease-out" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT, transform: `translate(${-cameraX}px, ${-cameraY}px)` }}>
-                        <div className="absolute inset-0 bg-[#2c3e50] overflow-hidden">
-                            {/* Room Background Image - Updated to Bedroom */}
-                            <div
-                                className="absolute inset-0 z-0"
-                                style={{
-                                    backgroundImage: "url('/assets/morning_bed.png')",
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'south'
-                                }}
-                            />
-
-
-
-
-                            <Player x={playerPos.x} y={playerPos.y} />
-                        </div>
-                    </div>
-
-                    {/* Interaction Prompts */}
-                    {canInteractPhone && (
-                        <InteractionPrompt text="Press E to answer phone" />
-                    )}
-                    {canInteractLaptop && calledRealFriend && (
-                        <InteractionPrompt text="Press E to report cyber crime" />
-                    )}
-
-                    {/* Instruction HUD */}
-                    <div className="absolute top-4 left-4 text-emerald-500 font-mono text-xs z-[400] bg-black/60 p-2 rounded">
-                        Objective: Investigate the suspicious call.<br />Controls: W A S D to move.
-                    </div>
-
-                    {/* Detective Board Button */}
-                    <div className="fixed bottom-10 left-12 z-[500] flex gap-4">
-                        <button onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)} className="w-14 h-14 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.6)] border-2 border-amber-300 text-2xl">
-                            🔍
-                            {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-6 h-6 rounded-full flex justify-center items-center">{cluesFound.length}</span>}
-                        </button>
-                    </div>
-
-                    {isDetectiveModeOpen && (
-                        <div
-                            onDrop={handleClueDrop}
-                            onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('ring-4', 'ring-red-500/50'); }}
-                            onDragLeave={(e) => { e.currentTarget.classList.remove('ring-4', 'ring-red-500/50'); }}
-                            className="fixed inset-y-8 right-8 w-[600px] z-[600] shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col rounded-xl overflow-hidden"
-                            style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'200\' height=\'200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\' opacity=\'0.08\'/%3E%3C/svg%3E")', backgroundColor: '#c4956b' }}
-                        >
-                            {/* Board Header */}
-                            <div className="bg-[#2a1810] p-5 flex justify-between items-center border-b-4 border-[#1a0e08] shadow-lg">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-red-700 rounded-full flex items-center justify-center text-sm shadow-inner border-2 border-red-900">🕵️</div>
-                                    <div>
-                                        <h3 className="text-amber-200 font-black text-sm uppercase tracking-[0.2em]">Investigation Board</h3>
-                                        <p className="text-amber-400/60 text-[8px] font-mono tracking-widest">CASE #VOICE-1010 — AI VOICE SCAM</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setIsDetectiveModeOpen(false)} className="w-8 h-8 bg-red-900/60 hover:bg-red-800 text-white rounded-full flex items-center justify-center text-xs font-bold transition-colors">✕</button>
-                            </div>
-
-                            {/* Drop zone indicator */}
-                            <div className="mx-5 mt-4 p-3 border-2 border-dashed border-red-800/40 rounded-lg bg-red-900/10 text-center">
-                                <span className="text-[9px] text-red-900/70 font-bold uppercase tracking-widest">📌 Drag suspicious clues here to pin them</span>
-                            </div>
-
-                            {/* Clue Cards */}
-                            <div className="flex-1 grid grid-cols-2 gap-5 p-5 overflow-y-auto custom-scrollbar">
-                                {Object.keys(CLUE_INFO).map((cid, idx) => {
-                                    const isFound = cluesFound.includes(cid);
-                                    const rotations = [-2, 1.5, -1, 2, -1.5];
-                                    return (
-                                        <div key={cid} className={`relative transition-all duration-700 ${isFound ? 'scale-100 opacity-100' : 'scale-95 opacity-50'}`} style={{ transform: `rotate(${rotations[idx]}deg)` }}>
-                                            {/* Red pushpin */}
-                                            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-10">
-                                                <div className={`w-5 h-5 rounded-full shadow-lg ${isFound ? 'bg-red-600 border-2 border-red-800' : 'bg-zinc-500 border-2 border-zinc-600'}`}>
-                                                    <div className="absolute top-1 left-1 w-1.5 h-1.5 bg-white/40 rounded-full"></div>
-                                                </div>
-                                                <div className={`w-0.5 h-3 mx-auto -mt-0.5 ${isFound ? 'bg-zinc-600' : 'bg-zinc-500'}`}></div>
-                                            </div>
-                                            {/* Card */}
-                                            <div className={`mt-3 p-4 rounded shadow-[2px_4px_12px_rgba(0,0,0,0.3)] border transition-all duration-500 ${isFound ? 'bg-[#fffef5] border-amber-300/60' : 'bg-stone-200/80 border-stone-300'}`}>
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <span className="text-2xl">{isFound ? CLUE_INFO[cid].icon : '❓'}</span>
-                                                    {isFound && (
-                                                        <span className="px-2 py-0.5 bg-red-600 text-white text-[7px] font-black rounded uppercase tracking-wider">Found</span>
-                                                    )}
-                                                </div>
-                                                <div className={`text-[10px] font-black uppercase tracking-wider mb-1 ${isFound ? 'text-stone-800' : 'text-stone-500'}`}>
-                                                    {isFound ? CLUE_INFO[cid].title : 'CLASSIFIED'}
-                                                </div>
-                                                <div className="w-8 h-0.5 bg-red-500/40 mb-2"></div>
-                                                <p className={`text-[9px] leading-relaxed ${isFound ? 'text-stone-700 font-medium' : 'text-stone-400 italic'}`}>
-                                                    {isFound ? CLUE_INFO[cid].desc : `💡 ${CLUE_INFO[cid].hint}`}
-                                                </p>
-                                                {isFound && (
-                                                    <div className="mt-2 flex items-center gap-1">
-                                                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-                                                        <span className="text-[7px] text-green-700 font-bold uppercase tracking-widest">Verified Evidence</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Progress bar */}
-                            <div className="bg-[#2a1810] p-4 border-t-4 border-[#1a0e08]">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[9px] text-amber-300 font-black uppercase tracking-widest">Evidence Collected</span>
-                                    <span className="text-[11px] text-amber-200 font-black">{cluesFound.length} / {Object.keys(CLUE_INFO).length}</span>
-                                </div>
-                                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-red-600 to-amber-500 rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(239,68,68,0.6)]" style={{ width: `${(cluesFound.length / Object.keys(CLUE_INFO).length) * 100}%` }}></div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {feedbackMsg && (
-                        <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-4 rounded-xl shadow-[0_0_30px_rgba(239,68,68,0.8)] z-[500] font-bold text-center animate-bounce border-2 border-red-300">
-                            {feedbackMsg}
-                        </div>
-                    )}
-
-                    <style dangerouslySetInnerHTML={{
-                        __html: `
-                        @keyframes wiggle {
-                            0%, 100% { transform: rotate(-5deg); }
-                            50% { transform: rotate(5deg); }
-                        }
-                    ` }} />
-                </div>
-            </div>
-        );
-    }
+    // NO ROOM RENDER NEEDED
+    if (gameState === 'room') return null;
 
     if (gameState === 'pre_waking_up') {
         return (
@@ -610,9 +446,10 @@ const Level10 = () => {
 
                 <div className="relative z-10 space-y-8 text-center animate-pulse">
                     <div className="text-white/20 text-[10px] tracking-[1em] uppercase mb-4">Incoming Call Connection...</div>
-                    <div className="text-white text-3xl italic tracking-tighter">"how is calling me at this hour"</div>
-                        <InteractionPrompt text="Press E to pick up phone" />
+                    <div className="text-white text-3xl italic tracking-tighter">"who is calling me at this hour"</div>
                 </div>
+                {/* InteractionPrompt moved to main return */}
+                <InteractionPrompt text="Press E to pick up phone" />
                 {/* procedural vibration hum visual */}
                 <div className="absolute inset-x-0 bottom-0 h-1 bg-white/5 overflow-hidden z-20">
                     <div className="h-full bg-blue-500/20 w-1/3 animate-ping"></div>
@@ -643,9 +480,9 @@ const Level10 = () => {
                         <div className="w-14 h-14 bg-blue-500 rounded-2xl flex items-center justify-center text-2xl shadow-lg ring-4 ring-blue-500/20 group-hover:scale-110 transition-transform">👤</div>
                         <span className="text-[9px] font-black text-white uppercase tracking-tighter drop-shadow-md">Contacts</span>
                     </button>
-                    <button onClick={() => setPhoneApp('pay')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg ring-4 ring-indigo-600/20 group-hover:scale-110 transition-transform">💸</div>
-                        <span className="text-[9px] font-black text-white uppercase tracking-tighter drop-shadow-md">PayUp</span>
+                    <button onClick={() => setPhoneApp('upi')} className="flex flex-col items-center gap-2 group">
+                        <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg ring-4 ring-indigo-600/20 group-hover:scale-110 transition-transform text-white">₹</div>
+                        <span className="text-[9px] font-black text-white uppercase tracking-tighter drop-shadow-md">UPI Pay</span>
                     </button>
                 </div>
                 {callStatus === 'active' && (
@@ -712,7 +549,12 @@ const Level10 = () => {
                             return (
                                 <div key={idx}
                                     draggable={!!msg.clueId}
-                                    onDragStart={(e) => { if (msg.clueId) e.dataTransfer.setData('clueId', msg.clueId); }}
+                                    onDragStart={(e) => { 
+                                        if (msg.clueId) {
+                                            e.dataTransfer.setData('clueId', msg.clueId);
+                                            showFeedback("Dragging Evidence...");
+                                        }
+                                    }}
                                     className={`bg-amber-900/30 text-center text-amber-200 p-4 rounded-xl text-[11px] border border-amber-500/30 font-bold ${msg.clueId ? 'cursor-grab border-red-500 bg-red-900/20 text-red-200 animate-pulse border-2' : ''}`}
                                 >
                                     {msg.text}
@@ -744,7 +586,7 @@ const Level10 = () => {
                         </button>
                     ) : (
                         <button
-                            onClick={() => { setCalledRealFriend(true); setGameState('room'); showFeedback('💻 I should report this scam on my computer!'); }}
+                            onClick={() => { setCalledRealFriend(true); setPhoneApp('home'); showFeedback('🚨 I should report this on 1930 now!'); }}
                             className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white font-bold text-sm rounded-lg mt-2 shadow-[0_0_20px_rgba(16,185,129,0.5)] transition-colors"
                         >
                             [ End Call ]
@@ -755,37 +597,82 @@ const Level10 = () => {
             </div>
         );
 
-        const renderPayApp = () => (
-            <div className="flex-1 flex flex-col bg-black">
-                <div className="p-6 border-b border-blue-500/20 flex items-center justify-between bg-blue-600/5">
-                    <button onClick={() => setPhoneApp('home')} className="text-blue-400 text-xs font-bold">← Home</button>
-                    <span className="text-xs font-black text-white uppercase tracking-widest">PayUp Beta</span>
-                    <div className="w-8"></div>
+        const renderReportCallApp = () => (
+            <div className="flex-1 flex flex-col bg-slate-950">
+                <div className="bg-red-950 flex flex-col items-center py-4 rounded-b-3xl shadow-md border-b border-red-800">
+                    <button onClick={() => setPhoneApp('home')} className="absolute left-6 top-10 text-red-300 font-bold text-xs hover:text-red-200 transition-colors">← Home</button>
+                    <div className="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center text-2xl mb-2 shadow-lg animate-pulse">👮</div>
+                    <h2 className="text-lg font-bold text-red-300 tracking-widest leading-none">Cyber Helpline</h2>
+                    <p className="text-red-400 font-mono text-[10px] mt-1">DIALING 1930...</p>
                 </div>
-                <div className="flex-1 p-8 flex flex-col items-center justify-center text-center space-y-8 animate-in fade-in duration-700">
-                    <div className="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-4xl shadow-2xl ring-8 ring-blue-600/10">💸</div>
-                    <div className="space-y-2">
-                        <h2 className="text-white font-black text-xl uppercase tracking-tighter leading-none">Confirm Payment</h2>
-                        <p className="text-blue-300/40 text-[9px] font-black uppercase tracking-widest">Security ID: PK-88210-9X</p>
-                    </div>
-                    <div className="w-full bg-slate-900 p-8 rounded-[2rem] border border-white/5 space-y-6 shadow-2xl">
-                        <div className="flex flex-col gap-1 items-start text-left">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Receiver</span>
-                            <span className="text-white font-bold text-sm">Arjun_Med_Clearance</span>
-                        </div>
-                        <div className="flex justify-between items-baseline border-t border-white/5 pt-4">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-500">Total</span>
-                            <span className="text-white font-black text-xl tracking-tighter">₹50,000</span>
-                        </div>
+                <div className="flex-1 w-full flex flex-col justify-start p-4 pb-20 gap-3 overflow-y-auto custom-scrollbar">
+                    {OFFICER_CONVERSATION.map((msg, idx) => {
+                        if (idx > reportCallStep) return null;
+                        if (msg.speaker === 'SYSTEM') {
+                            return (
+                                <div key={idx} className="bg-emerald-900/30 text-center text-emerald-200 p-4 rounded-xl text-[11px] border border-emerald-500/30 font-bold animate-in fade-in zoom-in duration-500">
+                                    {msg.text}
+                                </div>
+                            );
+                        }
+                        if (msg.speaker === 'OFFICER') {
+                            return (
+                                <div key={idx} className="bg-slate-900 text-slate-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-slate-700">
+                                    <span className="text-[9px] text-red-400 font-black mb-1 block uppercase tracking-widest">OFFICER #882</span>
+                                    <span className="text-[11px] font-medium">{msg.text}</span>
+                                </div>
+                            );
+                        }
+                        return (
+                            <div key={idx} className="w-full flex justify-end">
+                                <div className="bg-blue-600/80 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-md border border-blue-500/50 text-[11px] font-medium">
+                                    {msg.text}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {reportCallStep < OFFICER_CONVERSATION.length - 1 ? (
                         <button
-                            onClick={() => {
-                                setGameState('scammed');
-                            }}
-                            className="w-full py-5 bg-blue-600 text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-blue-500 transition-all active:scale-95"
+                            onClick={advanceReportCall}
+                            className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-white font-mono text-sm rounded-xl mt-2 shadow-xl transition-all active:scale-95"
                         >
-                            Pay Now
+                            [ Continue Report... ]
                         </button>
+                    ) : (
+                        <button
+                            onClick={() => { setGameState('outcome'); }}
+                            className="w-full py-5 bg-red-600 hover:bg-red-500 border border-red-400 text-white font-black text-sm rounded-xl mt-2 shadow-[0_0_20px_rgba(239,68,68,0.5)] transition-all animate-bounce uppercase tracking-widest"
+                        >
+                            [ Finish Investigation ]
+                        </button>
+                    )}
+                    <div ref={(el) => { el?.scrollIntoView({ behavior: 'smooth' }) }} />
+                </div>
+            </div>
+        );
+
+        const renderUPIApp = () => (
+            <div className="flex-1 flex flex-col bg-slate-50">
+                <div className="p-6 bg-indigo-600 text-white flex items-center gap-4">
+                    <button onClick={() => setPhoneApp('home')} className="text-white font-bold">←</button>
+                    <span className="font-black uppercase tracking-widest text-[10px]">Secure UPI Pay</span>
+                </div>
+                <div className="flex-1 p-8 flex flex-col items-center justify-center text-center space-y-6">
+                    <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-3xl shadow-inner text-indigo-600 font-black italic">₹</div>
+                    <div>
+                        <h3 className="text-slate-900 font-black text-xl italic uppercase tracking-tighter">Pay Arjun</h3>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Ref: Medical Emergency</p>
                     </div>
+                    <div className="py-4 px-8 bg-white rounded-3xl border-2 border-slate-100 shadow-sm">
+                        <div className="text-4xl font-black text-slate-900 italic tracking-tighter">₹50,000</div>
+                    </div>
+                    <button 
+                        onClick={() => setGameState('scammed')}
+                        className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl transition-all transform active:scale-95 text-[10px]"
+                    >
+                        Confirm & Send
+                    </button>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Powered by NPCI • Secure Encryption</p>
                 </div>
             </div>
         );
@@ -798,8 +685,6 @@ const Level10 = () => {
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
                 </div>
 
-                {/* Close phone button */}
-                <button onClick={() => setGameState('room')} className="absolute top-8 right-8 z-[1100] px-6 py-3 bg-zinc-800/80 hover:bg-zinc-700 text-white text-xs font-black rounded-full border border-white/10 transition-all backdrop-blur-md">✕ Close Phone</button>
 
                 {/* Feedback toast */}
                 {feedbackMsg && (
@@ -808,57 +693,96 @@ const Level10 = () => {
                     </div>
                 )}
 
-                <div className="absolute left-10 inset-y-14 w-[500px] pointer-events-none opacity-40 hover:opacity-100 transition-opacity duration-300">
-                    <div
-                        onDrop={handleClueDrop}
-                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.boxShadow = '0 0 30px rgba(239,68,68,0.4)'; }}
-                        onDragLeave={(e) => { e.currentTarget.style.boxShadow = ''; }}
-                        className="w-full h-full flex flex-col rounded-xl overflow-hidden pointer-events-auto"
-                        style={{ backgroundColor: '#c4956b' }}
-                    >
-                        <div className="bg-[#2a1810] p-4 flex items-center gap-3 border-b-4 border-[#1a0e08]">
-                            <div className="w-6 h-6 bg-red-700 rounded-full flex items-center justify-center text-[10px] border-2 border-red-900">🕵️</div>
-                            <div>
-                                <h3 className="text-amber-200 font-black text-[10px] uppercase tracking-[0.15em]">Evidence Board</h3>
-                                <p className="text-amber-400/50 text-[7px] font-mono">CASE #VOICE-1010</p>
-                            </div>
-                        </div>
-                        <div className="mx-3 mt-3 p-2 border border-dashed border-red-800/30 rounded bg-red-900/10 text-center">
-                            <span className="text-[7px] text-red-900/60 font-bold uppercase tracking-wider">📌 Drop clues here</span>
-                        </div>
-                        <div className="flex-1 grid grid-cols-2 gap-3 p-3 overflow-y-auto custom-scrollbar">
-                            {Object.keys(CLUE_INFO).map((cid, idx) => {
-                                const isFound = cluesFound.includes(cid);
-                                const rotations = [-1.5, 1, -0.5, 1.5, -1];
-                                return (
-                                    <div key={cid} className="relative" style={{ transform: `rotate(${rotations[idx]}deg)` }}>
-                                        <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 z-10">
-                                            <div className={`w-3.5 h-3.5 rounded-full shadow ${isFound ? 'bg-red-600 border border-red-800' : 'bg-zinc-500 border border-zinc-600'}`}></div>
-                                        </div>
-                                        <div className={`mt-2 p-3 rounded shadow-md border transition-all ${isFound ? 'bg-[#fffef5] border-amber-300/50' : 'bg-stone-200/60 border-stone-300 opacity-50'}`}>
-                                            <div className="flex justify-between items-start mb-1">
-                                                <span className="text-lg">{isFound ? CLUE_INFO[cid].icon : '❓'}</span>
-                                                {isFound && <span className="px-1.5 py-0.5 bg-red-600 text-white text-[6px] font-black rounded">✓</span>}
-                                            </div>
-                                            <div className={`text-[8px] font-black uppercase tracking-wider mb-1 ${isFound ? 'text-stone-800' : 'text-stone-500'}`}>
-                                                {isFound ? CLUE_INFO[cid].title : 'CLASSIFIED'}
-                                            </div>
-                                            <p className={`text-[7px] leading-tight ${isFound ? 'text-stone-600' : 'text-stone-400 italic'}`}>
-                                                {isFound ? CLUE_INFO[cid].desc : `💡 ${CLUE_INFO[cid].hint}`}
-                                            </p>
+                {/* Missions Panel */}
+                <div className="absolute right-10 top-14 z-[300] w-64 bg-zinc-950/80 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl animate-in slide-in-from-right duration-700">
+                    <div className="flex items-center gap-2 mb-6">
+                        <div className="w-2 h-6 bg-amber-500 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>
+                        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Active Missions</h3>
+                    </div>
+                    <ul className="space-y-4">
+                        {(() => {
+                            const missions = [
+                                { id: 'answer', text: 'Answer Unknown Call', completed: chatHistory.length > 0 || callStatus === 'active', unlocked: true },
+                                { id: 'evidence', text: 'Pin 2+ Evidence Clues', completed: cluesFound.length >= 2, unlocked: chatHistory.length > 0 || callStatus === 'active' },
+                                { id: 'arjun', text: 'Confirm with Arjun', completed: calledRealFriend, unlocked: cluesFound.length >= 2 },
+                                { id: 'report', text: 'Dial 1930 to Report', completed: reportCallStep >= 0, unlocked: calledRealFriend }
+                            ];
+                            return missions.map(m => (
+                                <li key={m.id} className={`flex items-start gap-3 group transition-all duration-500 ${m.unlocked ? 'opacity-100' : 'opacity-20 grayscale cursor-not-allowed'}`}>
+                                    <div className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-500 ${
+                                        m.completed ? 'bg-emerald-500 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 
+                                        m.unlocked ? 'border-white/20 group-hover:border-white/40' : 'border-white/5 bg-white/5'
+                                    }`}>
+                                        {m.completed ? (
+                                            <span className="text-white text-[10px] font-black">✓</span>
+                                        ) : !m.unlocked ? (
+                                            <span className="text-white/20 text-[8px]">🔒</span>
+                                        ) : null}
+                                    </div>
+                                    <span className={`text-[11px] font-bold tracking-tight transition-colors duration-500 ${
+                                        m.completed ? 'text-emerald-400/80 line-through decoration-emerald-500/50' : 
+                                        m.unlocked ? 'text-zinc-300 group-hover:text-white' : 'text-zinc-600'
+                                    }`}>
+                                        {m.text}
+                                    </span>
+                                </li>
+                            ));
+                        })()}
+                    </ul>
+                    <div className="mt-8 pt-6 border-t border-white/5">
+                        <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-tighter">Objective: Secure your identity and report the AI fraud.</p>
+                    </div>
+                </div>
+
+                <div className="absolute left-10 inset-y-14 w-[500px] z-[200] flex flex-col rounded-sm border-[8px] border-[#382315] overflow-hidden shadow-2xl"
+                    onDrop={handleClueDrop}
+                    onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.boxShadow = 'inset 0 0 50px rgba(239,68,68,0.3), 0 0 30px rgba(239,68,68,0.5)'; }}
+                    onDragLeave={(e) => { e.currentTarget.style.boxShadow = 'inset 0 0 50px rgba(0,0,0,0.5)'; }}
+                    style={{
+                        backgroundImage: `
+                            url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.3'/%3E%3C/svg%3E"),
+                            repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(139,69,19,0.05) 2px, rgba(139,69,19,0.05) 4px),
+                            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139,69,19,0.05) 2px, rgba(139,69,19,0.05) 4px)
+                        `,
+                        backgroundColor: '#9A6A45',
+                        boxShadow: 'inset 0 0 50px rgba(0,0,0,0.5)'
+                    }}
+                >
+                    <div className="bg-[#EED09D] p-2 pl-4 pr-6 rounded-t-sm shadow-lg transform -rotate-1 border-b border-[#D7B77E] w-fit mt-3 ml-3 relative before:absolute before:content-[''] before:top-0 before:right-[-15px] before:w-4 before:h-full before:bg-[#EED09D] before:skew-x-[20deg] before:origin-bottom">
+                        <h3 className="text-xs font-black text-[#5C4033] uppercase tracking-[0.1em] font-mono">Case Evidence</h3>
+                    </div>
+
+                    <div className="flex-1 w-full h-full p-4 relative overflow-y-auto no-scrollbar pt-6">
+                        {Object.keys(CLUE_INFO).map((cid, idx) => {
+                            const isFound = cluesFound.includes(cid);
+                            const positions = [
+                                { left: 10, top: 0, rotate: -1.5 },
+                                { left: 240, top: 20, rotate: 2 },
+                                { left: 20, top: 140, rotate: -2 },
+                                { left: 250, top: 160, rotate: 1 },
+                                { left: 130, top: 280, rotate: 0.5 },
+                            ];
+                            const pos = positions[idx];
+                            return (
+                                <div
+                                    key={cid}
+                                    className={`absolute pt-4 px-4 pb-4 shadow-2xl w-[225px] border transition-all duration-500 ${isFound ? 'bg-[#FAFAFA] border-stone-200' : 'bg-stone-300/40 backdrop-blur-[1px] border-dashed border-stone-400 opacity-70'}`}
+                                    style={{ left: pos.left - 20, top: pos.top + 10, transform: `rotate(${pos.rotate}deg)` }}
+                                >
+                                    <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20">
+                                        <div className={`w-5 h-5 rounded-full shadow-md border flex items-center justify-center relative ${isFound ? 'bg-gradient-to-br from-red-400 to-red-700 border-red-800' : 'bg-stone-400 border-stone-600'}`}>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-white/40 absolute top-0.5 right-0.5"></div>
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-                        <div className="bg-[#2a1810] p-3 border-t-4 border-[#1a0e08]">
-                            <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-red-600 to-amber-500 rounded-full transition-all duration-700" style={{ width: `${(cluesFound.length / Object.keys(CLUE_INFO).length) * 100}%` }}></div>
-                            </div>
-                            <div className="flex justify-between mt-1">
-                                <span className="text-[7px] text-amber-300/70 font-bold">{cluesFound.length}/{Object.keys(CLUE_INFO).length} EVIDENCE</span>
-                            </div>
-                        </div>
+                                    <h4 className={`font-bold tracking-tight mb-1.5 text-[11px] leading-tight border-b pb-1.5 uppercase font-mono ${isFound ? 'text-red-900 border-stone-300' : 'text-stone-600 border-stone-400/50'}`}>
+                                        {isFound ? CLUE_INFO[cid].title : "PENDING"}
+                                    </h4>
+                                    <p className={`text-[10px] leading-tight ${isFound ? 'text-stone-700 font-serif' : 'text-stone-500 italic font-serif'}`}>
+                                        {isFound ? CLUE_INFO[cid].desc : `💡 ${CLUE_INFO[cid].hint}`}
+                                    </p>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -871,19 +795,63 @@ const Level10 = () => {
                     <div className="flex-1 flex flex-col relative z-10">
                         {phoneApp === 'home' ? renderHomeScreen() :
                             phoneApp === 'contacts' ? renderContactsApp() :
-                                phoneApp === 'friendcall' ? renderFriendCallApp() :
-                                    phoneApp === 'pay' ? renderPayApp() :
+                                phoneApp === 'upi' ? renderUPIApp() :
+                                    phoneApp === 'friendcall' ? renderFriendCallApp() :
+                                        phoneApp === 'reportcall' ? renderReportCallApp() :
                                         (
                                             callStatus === 'ringing' ? (
-                                                <div className="flex-1 flex flex-col items-center justify-center p-10 text-center bg-zinc-900/50">
-                                                    <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-[0_0_80px_rgba(239,68,68,0.1)]">
-                                                        <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-3xl shadow-xl transform hover:scale-110 transition-transform">📞</div>
+                                                <div className="flex-1 flex flex-col items-center pt-24 pb-20 justify-between bg-zinc-950 relative overflow-hidden animate-in fade-in duration-700">
+                                                    {/* Premium Background Effects */}
+                                                    <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 via-transparent to-black/40"></div>
+                                                    <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[40%] bg-blue-500/5 blur-[100px] rounded-full animate-pulse"></div>
+
+                                                    <div className="relative z-10 text-center space-y-4">
+                                                        <div className="relative w-32 h-32 mx-auto mb-8">
+                                                            {/* Concentric Pulsing Rings */}
+                                                            <div className="absolute inset-0 bg-white/5 rounded-full animate-ping [animation-duration:3s]"></div>
+                                                            <div className="absolute inset-0 bg-white/5 rounded-full animate-ping [animation-duration:2s] delay-700"></div>
+                                                            <div className="absolute inset-0 bg-white/5 rounded-full animate-ping [animation-duration:4s] delay-1000"></div>
+                                                            
+                                                            <div className="relative w-full h-full bg-zinc-800 rounded-full flex items-center justify-center text-5xl shadow-2xl border border-white/10 ring-8 ring-white/5 z-20">
+                                                                <span className="animate-pulse opacity-80">👤</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none drop-shadow-lg">UNKNOWN</h2>
+                                                            <p className="text-zinc-500 font-mono text-xs tracking-[0.3em] uppercase opacity-70">+91 88234 XXXXX</p>
+                                                            <div className="mt-4 inline-block px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full">
+                                                                <div className="text-red-500 text-[9px] font-black uppercase tracking-[0.2em] italic animate-pulse flex items-center gap-1.5">
+                                                                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                                                                    Potential Scam Alert
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <h2 className="text-2xl font-black text-white mb-2 tracking-[0.2em] uppercase italic">UNKNOWN</h2>
-                                                    <p className="text-zinc-500 font-mono mb-20 text-[10px] tracking-widest opacity-60">+91 88234 XXXXX</p>
-                                                    <div className="flex gap-10">
-                                                        <button onClick={() => setGameState('room')} className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-white shadow-2xl hover:bg-red-500 transition-colors">✕</button>
-                                                        <button onClick={startCall} className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white animate-bounce shadow-2xl hover:bg-green-400 transition-colors">✓</button>
+
+                                                    <div className="relative z-10 w-full px-12 pb-10 flex justify-between items-end">
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <button 
+                                                                onClick={() => showFeedback("Urgent: This call cannot be ignored.")}
+                                                                className="w-20 h-20 bg-zinc-800/80 border border-white/5 rounded-full flex items-center justify-center shadow-xl hover:bg-zinc-700 transition-all transform active:scale-95 group opacity-60"
+                                                            >
+                                                                <div className="text-3xl text-red-500 -rotate-[135deg] group-active:animate-shake">📞</div>
+                                                            </button>
+                                                            <span className="text-[10px] font-black text-white/20 uppercase tracking-widest">Decline</span>
+                                                        </div>
+
+                                                        <div className="flex flex-col items-center gap-3">
+                                                            <div className="absolute inset-x-0 bottom-24 flex justify-end px-16 pointer-events-none">
+                                                                <div className="w-16 h-16 bg-green-500/30 rounded-full animate-ping [animation-duration:1.5s]"></div>
+                                                            </div>
+                                                            <button 
+                                                                onClick={startCall}
+                                                                className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(22,163,74,0.4)] hover:bg-green-500 transition-all transform hover:scale-110 active:scale-90 ring-8 ring-green-600/20"
+                                                            >
+                                                                <div className="text-3xl text-white">📞</div>
+                                                            </button>
+                                                            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] animate-pulse">Accept</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ) : callStatus === 'active' ? (
@@ -923,9 +891,12 @@ const Level10 = () => {
                                                                                     key={pi}
                                                                                     draggable={!!p.clueId}
                                                                                     onDragStart={(e) => {
-                                                                                        if (p.clueId) e.dataTransfer.setData('clueId', p.clueId);
+                                                                                        if (p.clueId) {
+                                                                                            e.dataTransfer.setData('clueId', p.clueId);
+                                                                                            showFeedback("Dragging Evidence...");
+                                                                                        }
                                                                                     }}
-                                                                                    className={p.clueId ? 'border-b-4 border-red-500 bg-red-400/20 cursor-grab px-1 select-none font-black animate-pulse' : p.isHighlighted ? 'text-yellow-400 font-black' : ''}
+                                                                                    className={p.clueId ? 'border-b-4 border-red-500 bg-red-400/20 cursor-grab px-1 select-none font-black animate-pulse transition-all hover:bg-red-400/40' : p.isHighlighted ? 'text-yellow-400 font-black' : ''}
                                                                                 >{p.text}</span>
                                                                             ))
                                                                         ) : msg.text
@@ -947,18 +918,68 @@ const Level10 = () => {
                                                             </div>
                                                         )}
                                                         {isTypingDone && !showingOptions && (
-                                                            <button onClick={advanceDialogue} className="w-full py-5 bg-indigo-600/10 text-indigo-400 font-black text-[10px] uppercase tracking-[0.4em] rounded-3xl border border-indigo-500/20 hover:bg-indigo-600 hover:text-white transition-all shadow-lg active:scale-95">Next Segment</button>
+                                                            <button 
+                                                                onClick={advanceDialogue} 
+                                                                className={`w-full py-5 font-black text-[10px] uppercase tracking-[0.4em] rounded-3xl border transition-all shadow-lg active:scale-95 ${dialogueIndex >= dialogueSequence.length - 1 ? 'bg-red-600/20 text-red-500 border-red-500/30 hover:bg-red-600 hover:text-white' : 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20 hover:bg-indigo-600 hover:text-white'}`}
+                                                            >
+                                                                {dialogueIndex >= dialogueSequence.length - 1 ? '[ Hang Up Call ]' : 'Next Segment'}
+                                                            </button>
                                                         )}
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="flex-1 flex flex-col p-12 items-center justify-center text-center space-y-12">
-                                                    <div className="w-24 h-24 bg-zinc-900 rounded-full flex items-center justify-center text-5xl shadow-inner border border-white/5 grayscale opacity-20">☎️</div>
-                                                    <div className="space-y-4">
-                                                        <h2 className="text-white font-black text-3xl italic tracking-tighter opacity-80">SESSION TERMINATED</h2>
-                                                        <p className="text-zinc-600 text-[10px] font-mono tracking-widest uppercase">Encryption Tunnel Closed</p>
+                                                <div className="flex-1 flex flex-col bg-zinc-950">
+                                                    <div className="p-8 border-b border-white/5">
+                                                        <h2 className="text-white font-black text-2xl uppercase tracking-tighter">Recents</h2>
                                                     </div>
-                                                    <button onClick={() => setPhoneApp('home')} className="w-full py-5 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[0.3em] rounded-3xl border border-white/5 transition-all text-[9px]">Home Interface</button>
+                                                    <div className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
+                                                        {/* Arjun - Verify Call */}
+                                                        <div className="p-4 bg-zinc-900/60 rounded-2xl border border-white/5 flex items-center justify-between group">
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center font-black">A</div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-bold text-white">Arjun</span>
+                                                                    <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono">Mobile • 2m ago</span>
+                                                                </div>
+                                                            </div>
+                                                            <button 
+                                                                onClick={callRealFriend}
+                                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-blue-500/20"
+                                                            >
+                                                                CALL
+                                                            </button>
+                                                        </div>
+
+                                                        {/* 1930 Helpline - Report */}
+                                                        <div className={`p-4 bg-zinc-900/60 rounded-2xl border border-white/5 flex items-center justify-between group transition-opacity ${calledRealFriend ? 'opacity-100' : 'opacity-40'}`}>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="w-10 h-10 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center font-black">🚨</div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-bold text-white">1930 Helpline</span>
+                                                                    <span className="text-[9px] text-zinc-500 uppercase tracking-widest font-mono">Cyber Crime Help</span>
+                                                                </div>
+                                                            </div>
+                                                            <button 
+                                                                onClick={startReportCall}
+                                                                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-red-500/20"
+                                                                disabled={!calledRealFriend}
+                                                            >
+                                                                REPORT
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Unknown - Scammer */}
+                                                        <div className="p-4 bg-zinc-900/20 rounded-2xl border border-white/5 flex items-center opacity-40 grayscale gap-4">
+                                                            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center font-black text-red-500">?</div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-sm font-bold text-zinc-500">UNKNOWN</span>
+                                                                <span className="text-[9px] text-zinc-600 uppercase tracking-widest font-mono">VOICE SCAM • 10m ago</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-6">
+                                                        <button onClick={() => setPhoneApp('home')} className="w-full py-4 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-[0.3em] rounded-2xl border border-white/5 transition-all text-[9px]">Exit Phone</button>
+                                                    </div>
                                                 </div>
                                             )
                                         )}
@@ -967,74 +988,23 @@ const Level10 = () => {
                         <div onClick={() => setPhoneApp('home')} className="absolute bottom-3 left-1/2 -translate-x-1/2 w-32 h-1.5 bg-white/10 rounded-full cursor-pointer hover:bg-white/30 transition-all active:scale-x-90"></div>
                     </div>
                 </div>
+
+                {/* Dynamic Interaction Prompt */}
+                {(() => {
+                    let promptText = null;
+                    if (chatHistory.length > 0 && !calledRealFriend) {
+                        promptText = "Should I call Arjun from my contacts to verify?";
+                    } else if (calledRealFriend && reportCallStep < 0) {
+                        promptText = "I should dial 1930 to report this scam!";
+                    }
+                    return promptText ? <InteractionPrompt text={promptText} /> : null;
+                })()}
             </div>
         );
     }
 
-    if (gameState === 'laptop') {
-        return (
-            <div className="fixed inset-0 z-[1000] bg-black/95 flex items-center justify-center p-10 overflow-hidden">
-                <div className="w-full max-w-5xl h-[700px] bg-slate-900 border-[12px] border-slate-800 rounded-xl shadow-2xl flex flex-col overflow-hidden relative font-sans">
-                    <div className="bg-slate-950 p-6 border-b border-blue-500/20 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white">⚖️</div>
-                            <div>
-                                <h1 className="text-white font-black italic tracking-tighter text-xl leading-none uppercase">National Cyber Crime Reporting Portal</h1>
-                                <p className="text-blue-400 text-[9px] font-mono mt-1 opacity-70 italic tracking-widest">GOVERNMENT OF INDIA • CIVILIAN PORTAL</p>
-                            </div>
-                        </div>
-                        <button onClick={() => setGameState('room')} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black rounded italic transition-all">CLOSE PORTAL</button>
-                    </div>
-
-                    <div className="flex-1 p-12 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-slate-900 to-slate-900">
-                        {laptopStep === 'portal' ? (
-                            <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in duration-500">
-                                <div className="space-y-4">
-                                    <h2 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">Protect yourself and others.</h2>
-                                    <p className="text-slate-400 text-lg leading-relaxed">Reporting a cyber crime helps authorities track and neutralize scammers using advanced AI tools to clone voices and steal identities.</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="p-8 bg-slate-950/50 border border-white/5 rounded-3xl hover:border-blue-500/40 transition-all group">
-                                        <h3 className="text-white font-black uppercase text-xs mb-3 flex items-center gap-2"><span>🛡️</span> Identify the Threat</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">Deepfake voice cloning uses less than 30 seconds of sample audio to mimic anyone's speech patterns.</p>
-                                    </div>
-                                    <div className="p-8 bg-slate-950/50 border border-white/5 rounded-3xl hover:border-blue-500/40 transition-all group">
-                                        <h3 className="text-white font-black uppercase text-xs mb-3 flex items-center gap-2"><span>🔍</span> Document Clues</h3>
-                                        <p className="text-slate-500 text-xs leading-relaxed">Submission of artifacts like robotic voice echoes and failed personal authentication is critical.</p>
-                                    </div>
-                                </div>
-                                <button onClick={() => setLaptopStep('reporting')} className="w-full py-6 bg-blue-600 hover:bg-blue-500 text-white font-black italic uppercase tracking-[0.2em] rounded-2xl shadow-2xl transition-all animate-pulse">File New Complaint</button>
-                            </div>
-                        ) : (
-                            <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom duration-500">
-                                <h3 className="text-white font-black text-xs uppercase tracking-widest bg-blue-600/20 px-4 py-2 rounded-full inline-block">Section: AI Fraud Details</h3>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-500 uppercase mb-2 ml-4">Type of Incident</label>
-                                        <select className="w-full bg-slate-950 border border-white/10 rounded-2xl p-4 text-white font-bold outline-none">
-                                            <option>AI Voice Cloning / Deepfake Fraud</option>
-                                            <option>Identity Impersonation</option>
-                                        </select>
-                                    </div>
-                                    <div className="bg-slate-950 border border-white/10 rounded-2xl p-6">
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase mb-4 ml-2">Evidence Detected ({cluesFound.length}/5)</h4>
-                                        <div className="space-y-3">
-                                            {cluesFound.map(c => (
-                                                <div key={c} className="flex items-center gap-3 text-emerald-400 font-bold text-xs bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
-                                                    <span>✓</span> {CLUE_INFO[c].title}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <button onClick={() => { setGameState('outcome'); }} className="w-full py-6 bg-emerald-600 hover:bg-emerald-500 text-white font-black italic uppercase tracking-[0.2em] rounded-2xl shadow-2xl transition-all">Submit Final Report</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // No more laptop state
+    if (gameState === 'laptop') return null;
 
     if (gameState === 'outcome') {
         return (

@@ -16,16 +16,16 @@ const checkCollision = (px, py, rect) => (
 );
 
 const CLUE_DATA = [
-    { id: 1, title: 'Account Age vs. Relationship Age', desc: "Your friendship with Nithya is 6 years old. Her real profile is 6 years old. This account was created 4 days ago. A person cannot have two accounts on the same platform without deactivating the older one.", hint: "Hint: Compare the creation date with how long you've known her.", noteColor: '#fef3c7' },
-    { id: 2, title: 'The Stock Photo Profile Picture', desc: "Reverse image search reveals the profile photo is from stock libraries. Real Nithya has 847 personal photos. Scammers use stock photos when they can't access real personal photos.", hint: "Hint: Try a reverse image search on that profile picture.", noteColor: '#dbeafe' },
-    { id: 3, title: 'The Emotional Softening Technique', desc: "The message follows a 3-stage manipulation: warm-up &rarr; self-deprecation &rarr; crisis. This pattern appears in 94% of social engineering fraud cases to bypass rational thinking.", hint: "Hint: Look for emotional triggers in the message text.", noteColor: '#fce7f3' },
-    { id: 4, title: 'Coimbatore + Hospital + No Family Contact', desc: "The scenario prevents verification: different city, hospital urgency, stolen phone (no voice), family unavailable. Every element blocks logical verification paths.", hint: "Hint: Notice how many reasons exist to prevent you from calling her family.", noteColor: '#dcfce7' },
-    { id: 5, title: 'Bank Transfer vs. UPI', desc: "Bank transfers don't show recipient names like UPI does. Scammers use bank transfers to avoid identity exposure - you're sending to an account number, not a verified name.", hint: "Hint: Why is she asking for a bank transfer instead of UPI?", noteColor: '#fed7aa' },
-    { id: 6, title: 'The 12 Mutual Friends Were Added As Bait', desc: "The fake account added 12 mutual friends 3-4 days ago. None interacted with the posts. These were algorithmically added to create social validation.", hint: "Hint: Look at the mutual friends list and their interaction history.", noteColor: '#e9d5ff' },
+    { id: 1, title: 'Account Age Discrepancy', desc: "This account was created just 4 days ago. Scammers create fresh profiles to impersonate people, while real accounts usually have years of history.", hint: "Hint: Check 'About this account' for the joining date.", noteColor: '#fef3c7' },
+    { id: 2, title: 'Stock Photo Profile Picture', desc: "The profile photo is a generic stock image found in several online galleries. Real users typically use personal photos taken by themselves or friends.", hint: "Hint: Examine the profile picture closely; does it look like a real person's snapshot?", noteColor: '#dbeafe' },
+    { id: 3, title: 'Suspicious Username History', desc: "This account has changed its username 4 times in the last month. Frequent name changes are a major red flag for compromised or impersonation accounts.", hint: "Hint: Look for 'Former Usernames' in the account details.", noteColor: '#fce7f3' },
+    { id: 4, title: 'Inconsistent Account Location', desc: "The account is based in a different region than the person it claims to be. This is a common indicator of offshore social engineering fraud.", hint: "Hint: Check the location data in the 3-dot menu.", noteColor: '#dcfce7' },
+    { id: 5, title: 'Post Engagement Discrepancy', desc: "Despite having hundreds of followers, the posts have zero comments and hidden like counts. Scammers often use 'bot' followers to appear legitimate.", hint: "Hint: Look at the posts; why are the comments disabled?", noteColor: '#fed7aa' },
+    { id: 6, title: 'Bait Mutual Friends', desc: "The account recently added 12 mutual friends in bulk. This is a tactic used to create 'social proof' and trick you into trusting the profile.", hint: "Hint: Notice when these mutual friends were added.", noteColor: '#e9d5ff' },
 ];
 
 const StatusBar = ({ dark = false }) => (
-    <div className={`flex justify-between items-center px-8 py-3 w-full absolute top-0 z-50 ${dark ? 'text-white' : 'text-slate-900'}`}>
+    <div className={`flex justify-between items-center px-8 py-3 w-full absolute top-0 z-50 ${dark ? 'text-white bg-black' : 'text-slate-900 bg-white/20'}`}>
         <div className="flex items-center gap-2">
             <span className="text-[13px] font-bold">9:42</span>
             <span className="text-[10px] font-medium opacity-70">PM</span>
@@ -79,7 +79,13 @@ const Level9 = () => {
     const [dialogueIndex, setDialogueIndex] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const [finalSleepStep, setFinalSleepStep] = useState(0);
+    const [alertStep, setAlertStep] = useState(0);
+    const [guidanceMsg, setGuidanceMsg] = useState(null);
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(false);
     const firstLineSpoken = React.useRef(false);
+    const walkingAudio = React.useRef(null);
+    const doorAudio = React.useRef(null);
 
     const triggerTransition = (newState, delay = 500) => {
         setIsTransitioning(true);
@@ -98,7 +104,13 @@ const Level9 = () => {
     useEffect(() => {
         const handleKey = (e) => {
             if (e.key.toLowerCase() === 'e') {
-                if (gameState === 'living_room' && interactionTarget === 'bedroom') triggerTransition('bedroom_walk');
+                if (gameState === 'living_room' && interactionTarget === 'bedroom') {
+                    if (doorAudio.current && !isMuted) {
+                        doorAudio.current.currentTime = 0;
+                        doorAudio.current.play().catch(() => {});
+                    }
+                    triggerTransition('bedroom_walk');
+                }
                 else if (gameState === 'bedroom_walk' && interactionTarget === 'sleep') triggerTransition('sleep_pov');
             }
         };
@@ -122,14 +134,52 @@ const Level9 = () => {
         };
     }, []);
 
-    // Pre-load speech synthesis voices
+    // Pre-load speech synthesis voices and initialize audio
     useEffect(() => {
         if (window.speechSynthesis) {
             window.speechSynthesis.getVoices();
             window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
         }
-        return () => { window.speechSynthesis?.cancel(); };
+        
+        // Initialize walking audio
+        walkingAudio.current = new Audio('/audio/foot.m4a');
+        walkingAudio.current.loop = true;
+        walkingAudio.current.volume = 0.8; // Increased volume
+
+        // Initialize door audio
+        doorAudio.current = new Audio('/audio/home door.mp3');
+        doorAudio.current.volume = 0.6;
+
+        return () => { 
+            window.speechSynthesis?.cancel(); 
+            if (walkingAudio.current) {
+                walkingAudio.current.pause();
+                walkingAudio.current = null;
+            }
+            if (doorAudio.current) {
+                doorAudio.current.pause();
+                doorAudio.current = null;
+            }
+        };
     }, []);
+
+    // Handle Walking Sound
+    useEffect(() => {
+        const isWalking = (keys['w'] || keys['s'] || keys['a'] || keys['d'] || 
+                           keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright']) && 
+                          (gameState === 'living_room' || gameState === 'bedroom_walk') &&
+                          !isMuted;
+
+        if (isWalking) {
+            if (walkingAudio.current && walkingAudio.current.paused) {
+                walkingAudio.current.play().catch(() => {});
+            }
+        } else {
+            if (walkingAudio.current && !walkingAudio.current.paused) {
+                walkingAudio.current.pause();
+            }
+        }
+    }, [keys, gameState, isMuted]);
 
     useEffect(() => {
         if (!['living_room', 'bedroom_walk'].includes(gameState)) return;
@@ -179,9 +229,7 @@ const Level9 = () => {
     useEffect(() => {
         if (gameState === 'living_room' && !tvDialogueShown) {
             setTvDialogueShown(true);
-            setTimeout(() => {
-                showFeedback("It's getting late. I should go to the bedroom and sleep.");
-            }, 800);
+            setGuidanceMsg("It's getting late. I should go to the bedroom and sleep.");
         }
     }, [gameState, tvDialogueShown]);
 
@@ -262,24 +310,86 @@ const Level9 = () => {
     };
 
     const FeedbackToast = () => feedbackMsg ? (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] bg-blue-500 text-white font-black px-10 py-4 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.5)] animate-bounce text-xl border-4 border-white">
-            {feedbackMsg}
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-[5000] flex flex-col items-center pb-12">
+            {/* Dark gradient backdrop strip matching InteractionPrompt */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+            
+            {/* Content */}
+            <div className="relative flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                {/* Gradient line */}
+                <div className="h-[2px] w-32 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                
+                {/* Feedback Message */}
+                <div className="flex items-center gap-3 whitespace-nowrap px-12">
+                    <span className="text-white font-bold text-sm uppercase tracking-[0.25em] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] text-center">
+                        {feedbackMsg}
+                    </span>
+                </div>
+                
+                {/* Bottom line */}
+                <div className="h-[1px] w-16 bg-gradient-to-r from-transparent via-white/20 to-transparent mt-1" />
+            </div>
         </div>
     ) : null;
+
+    // LOCAL ANIMATION TO PREVENT FADE-OUT GAP
+    const LocalStyles = () => (
+        <style>{`
+            @keyframes persistent-cinematic {
+                0% { opacity: 0; }
+                15% { opacity: 1; }
+                100% { opacity: 1; }
+            }
+            .animate-persistent-cinematic { 
+                animation: persistent-cinematic 4s ease-in-out forwards; 
+            }
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        `}</style>
+    );
+
+    const BottomNavBar = ({ active = 'home' }) => (
+        <div className="absolute bottom-0 w-full bg-black border-t border-white/10 px-6 py-3 flex justify-between items-center z-[60] shadow-[0_-10px_30px_rgba(0,0,0,0.8)]">
+            <button className={`p-1 ${active === 'home' ? 'text-white' : 'text-zinc-500'}`} onClick={() => setGameState('social_media_feed')}>
+                <svg className="w-6 h-6" fill={active === 'home' ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1V9.5z" />
+                </svg>
+            </button>
+            <button className={`p-1 ${active === 'search' ? 'text-white' : 'text-zinc-500'}`}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </button>
+            <button className={`p-1 ${active === 'reels' ? 'text-white' : 'text-zinc-500'}`}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M10 8l6 4-6 4V8z" fill="currentColor" />
+                </svg>
+            </button>
+            <button className={`p-1 ${active === 'shop' ? 'text-white' : 'text-zinc-500'}`}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+            </button>
+            <button className={`relative p-1 ${active === 'profile' ? 'text-white' : 'text-zinc-500'}`} onClick={() => setGameState('profile_investigation')}>
+                <div className={`w-6 h-6 rounded-full border-2 ${active === 'profile' ? 'border-white' : 'border-zinc-500'} bg-zinc-800 flex items-center justify-center text-[8px] font-bold overflow-hidden`}>
+                    👩
+                </div>
+            </button>
+        </div>
+    );
 
     // ═══════════════════════════════════════════
     // NEW INTRO SEQUENCE STATES
     // ═══════════════════════════════════════════
 
-    if (gameState === 'living_room') {
-        const VIEWPORT_WIDTH = 1200;
-        const VIEWPORT_HEIGHT = 800;
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
-                {/* GLOBAL TRANSITION FADE */}
-                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
-                <FeedbackToast />
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
+    const renderGameState = () => {
+        if (gameState === 'living_room') {
+            const VIEWPORT_WIDTH = 1200;
+            const VIEWPORT_HEIGHT = 800;
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-sans relative overflow-hidden">
+                    <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900" style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}>
                     <div className="absolute inset-0" style={{ width: LIVING_ROOM_WIDTH, height: LIVING_ROOM_HEIGHT, transform: `translate(${-(Math.max(0, Math.min(livingRoomPlayerPos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH)))}px, ${-(Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT)))}px)`, backgroundColor: '#2c3e50' }}>
                         <div className="absolute inset-0 opacity-80" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)' }}></div>
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/60 pointer-events-none z-10"></div>
@@ -350,20 +460,32 @@ const Level9 = () => {
                         <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
                     </div>
 
-                    {interactionTarget === 'bedroom' && (
+                    {interactionTarget === 'bedroom' ? (
                         <InteractionPrompt text="Press E to enter bedroom" />
+                    ) : (
+                        guidanceMsg && (
+                            <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-[5000] flex flex-col items-center pb-8 animate-in fade-in duration-500">
+                                {/* Dark gradient backdrop strip */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                                
+                                <div className="relative flex flex-col items-center gap-3">
+                                    <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent opacity-50" />
+                                    <span className="text-white font-bold text-sm uppercase tracking-[0.25em] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)] px-12 text-center">
+                                        {guidanceMsg}
+                                    </span>
+                                </div>
+                            </div>
+                        )
                     )}
                 </div>
             </div>
-        );
-    }
+            );
+        }
 
-    if (gameState === 'bedroom_walk') {
-        return (
-            <div className="w-full h-full flex items-center justify-center bg-black px-8 relative overflow-hidden">
-                {/* GLOBAL TRANSITION FADE */}
-                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
-                <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-black" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
+        if (gameState === 'bedroom_walk') {
+            return (
+                <div className="w-full h-full flex items-center justify-center bg-black px-8 relative overflow-hidden">
+                    <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-black" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                     <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.8)' }} />
                     <div className="absolute inset-0 bg-blue-900/10 pointer-events-none mix-blend-multiply z-10"></div>
 
@@ -379,68 +501,69 @@ const Level9 = () => {
                     </div>
                 </div>
             </div>
-        );
-    }
+            );
+        }
 
-    if (gameState === 'sleep_pov') {
-        return (
-            <div className="absolute inset-0 z-[2000] overflow-hidden bg-black animate-cinematic-sequence">
-                {/* GLOBAL TRANSITION FADE */}
-                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+        if (gameState === 'sleep_pov') {
+            return (
+                <div className="absolute inset-0 overflow-hidden animate-persistent-cinematic">
+                    <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")' }}>
+                        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
 
-                <div className="w-full h-full bg-cover bg-center animate-fieldZoom relative" style={{ backgroundImage: 'url("/assets/bed.png")' }}>
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
+                        <div className={`absolute bottom-0 left-0 right-0 pointer-events-none transition-opacity duration-[3000ms] ${showText ? 'opacity-100' : 'opacity-0'} z-30 flex flex-col items-center pb-20`}>
+                             {/* Dark gradient backdrop strip */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                            
+                            <div className="relative flex flex-col items-center gap-4">
+                                <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                                <p className="text-white text-xl font-bold uppercase tracking-[0.2em] px-12 max-w-3xl text-center drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                    "Let me check Instagram for a bit before sleeping..."
+                                </p>
+                                <div className="h-px w-12 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                            </div>
+                        </div>
 
-                    <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-[3000ms] ${showText ? 'opacity-100' : 'opacity-0'} z-30`}>
-                        <p className="text-white text-3xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
-                            "Let me check Instagram for a bit before sleeping..."
-                        </p>
+                        <div
+                            className={`absolute inset-0 z-50 bg-black transition-opacity duration-[3000ms] ease-in-out ${dimScreen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                            onTransitionEnd={(e) => {
+                                if (dimScreen && e.propertyName === 'opacity') {
+                                    triggerTransition('title_card');
+                                }
+                            }}
+                        ></div>
                     </div>
-
-                    <div
-                        className={`absolute inset-0 z-50 bg-black transition-opacity duration-[3000ms] ease-in-out ${dimScreen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-                        onTransitionEnd={(e) => {
-                            if (dimScreen && e.propertyName === 'opacity') {
-                                triggerTransition('title_card');
-                            }
-                        }}
-                    ></div>
                 </div>
-            </div>
-        );
-    }
+            );
+        }
 
-    if (gameState === 'title_card') {
-        return (
-            <div className="absolute inset-0 z-[1000] bg-black flex flex-col justify-center items-center animate-cinematic-sequence">
-                {/* GLOBAL TRANSITION FADE */}
-                <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
-                <div className="relative group text-center animate-fadeInSlow">
-                    <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
-                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent mb-8 mx-auto animate-[width_1.5s_ease-in-out]" />
-                    <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
-                        Level 9
-                    </h2>
-                    <div className="text-purple-500 text-lg font-mono tracking-[0.8em] uppercase drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] text-center w-full">
-                        Profile Impersonation
+        if (gameState === 'title_card') {
+            return (
+                <div className="absolute inset-0 flex flex-col justify-center items-center animate-persistent-cinematic">
+                    <div className="relative group text-center animate-fadeInSlow">
+                        <div className="absolute -inset-10 bg-white/5 blur-3xl rounded-full" />
+                        <div className="h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent mb-8 mx-auto animate-[width_1.5s_ease-in-out]" />
+                        <h2 className="text-white text-6xl font-black tracking-[0.4em] uppercase mb-4 relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] animate-pulse">
+                            Level 9
+                        </h2>
+                        <div className="text-purple-500 text-lg font-mono tracking-[0.8em] uppercase drop-shadow-[0_0_8px_rgba(168,85,247,0.8)] text-center w-full">
+                            Profile Impersonation
+                        </div>
+                        <div className="h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent mt-8 mx-auto animate-[width_1.5s_ease-in-out]" />
                     </div>
-                    <div className="h-px w-32 bg-gradient-to-r from-transparent via-purple-500 to-transparent mt-8 mx-auto animate-[width_1.5s_ease-in-out]" />
                 </div>
-            </div>
-        );
-    }
+            );
+        }
 
-    // SOCIAL MEDIA FEED STATE
-    if (gameState === 'social_media_feed') {
-        return (
-            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
+        // SOCIAL MEDIA FEED STATE
+        if (gameState === 'social_media_feed') {
+            return (
+                <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
                 {/* Bedroom background */}
                 <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
                 <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
                 <div className="relative z-20">
-                    <FeedbackToast />
 
                     {/* Phone container */}
                     <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
@@ -451,139 +574,169 @@ const Level9 = () => {
                             <div className="w-2 h-2 bg-slate-800 rounded-full shadow-[inset_0_0_2px_rgba(255,255,255,0.2)]" />
                         </div>
 
-                        <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-8">
-                            {/* Instagram-style Header */}
-                            <div className="bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
-                                <h1 className="text-xl font-bold font-serif italic tracking-tighter" style={{ fontFamily: "'Grand Hotel', 'Brush Script MT', cursive", fontSize: '28px' }}>Instagram</h1>
-                                <div className="flex gap-4 items-center">
-                                    <svg aria-label="Notifications" className="w-6 h-6 outline-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
-                                    <div className="relative cursor-pointer">
-                                        <svg aria-label="Messenger" className="w-6 h-6 outline-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 rounded-full border-2 border-white flex items-center justify-center animate-pulse">
-                                            <span className="text-[8px] text-white font-bold leading-none">1</span>
+                        <div className="w-full h-full bg-black overflow-hidden flex flex-col relative pt-8">
+                            <StatusBar dark={true} />
+                            
+                            {/* Authentic Instagram Header (Dark Mode) */}
+                            <div className="bg-black border-b border-white/10 px-4 py-2 flex items-center justify-between sticky top-0 z-50">
+                                <h1 className="text-2xl font-bold tracking-tighter cursor-default text-white" style={{ fontFamily: "'Grand Hotel', cursive", fontSize: '32px' }}>Instagram</h1>
+                                <div className="flex gap-5 items-center">
+                                    <div className="relative cursor-pointer hover:scale-110 transition-transform text-white">
+                                        <svg aria-label="New post" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"></path></svg>
+                                    </div>
+                                    <div className="relative cursor-pointer hover:scale-110 transition-transform text-white">
+                                        <svg aria-label="Notifications" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                    </div>
+                                    <div className="relative cursor-pointer hover:scale-110 transition-transform text-white" onClick={() => setGameState('message_received')}>
+                                        <svg aria-label="Messenger" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                        <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 rounded-full border-2 border-black flex items-center justify-center animate-[pulse_1s_infinite]">
+                                            <span className="text-[8px] text-white font-black leading-none pb-[0.5px]">1</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Stories Row */}
-                            <div className="w-full flex gap-3 overflow-x-auto px-4 py-2 border-b border-gray-100 no-scrollbar">
-                                {[
-                                    { name: "Your story", color: "gray-200", add: true },
-                                    { name: "zara_xo", color: "pink-500", ring: true },
-                                    { name: "rahul99", color: "blue-500", ring: true },
-                                    { name: "chennai_foodie", color: "orange-500", ring: true },
-                                    { name: "karthik.v", color: "emerald-500", ring: true }
-                                ].map((story, i) => (
-                                    <div key={i} className="flex flex-col items-center gap-1 min-w-[64px]">
-                                        <div className={`relative w-16 h-16 rounded-full p-[2px] ${story.ring ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600' : 'bg-transparent'}`}>
-                                            <div className="w-full h-full rounded-full border-[2px] border-white bg-white overflow-hidden flex items-center justify-center">
-                                                <div className={`w-full h-full bg-${story.color}`}></div>
-                                            </div>
-                                            {story.add && (
-                                                <div className="absolute bottom-0 right-0 w-5 h-5 bg-blue-500 rounded-full border-[2px] border-white flex items-center justify-center text-white text-xs font-bold leading-none pb-[1px]">
-                                                    +
+                            <div className="flex-1 overflow-y-auto custom-scrollbar pb-32 bg-black">
+                                {/* Stories Row (Dark Mode) */}
+                                <div className="w-full flex gap-4 overflow-x-auto px-4 py-4 border-b border-white/10 no-scrollbar bg-black scroll-smooth">
+                                    {[
+                                        { name: "Your story", color: "bg-zinc-800", add: true, me: true },
+                                        { name: "rahul_99", color: "bg-blue-400" },
+                                        { name: "zara.v", color: "bg-pink-400" },
+                                        { name: "chennai_eats", color: "bg-orange-400" },
+                                        { name: "karthik.arc", color: "bg-emerald-400" }
+                                    ].map((story, i) => (
+                                        <div key={i} className="flex flex-col items-center gap-1.5 min-w-[68px]">
+                                            <div className={`relative w-[68px] h-[68px] rounded-full p-[2.5px] ${!story.me ? 'bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600' : 'bg-transparent'}`}>
+                                                <div className="w-full h-full rounded-full border-[2.5px] border-black bg-black overflow-hidden flex items-center justify-center">
+                                                    <div className={`w-full h-full ${story.color} flex items-center justify-center text-white text-lg font-bold shadow-[inset_0_0_10px_rgba(0,0,0,0.1)]`}>
+                                                        {story.name.charAt(0).toUpperCase()}
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
-                                        <span className="text-[10px] text-gray-600 truncate w-full text-center">{story.name}</span>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Feed content */}
-                            <div className="flex-1 overflow-y-auto bg-white custom-scrollbar pb-20">
-                                {/* Post 1 */}
-                                <div className="border-b border-gray-100 pb-2 mb-2">
-                                    <div className="flex items-center justify-between px-3 py-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600 p-[1.5px]">
-                                                <div className="w-full h-full bg-blue-500 rounded-full border border-white flex items-center justify-center text-white text-[10px] font-bold">A</div>
+                                                {story.add && (
+                                                    <div className="absolute bottom-0 right-0 w-6 h-6 bg-blue-500 rounded-full border-[3px] border-black flex items-center justify-center text-white text-sm font-black leading-none pb-[1px]">
+                                                        +
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div>
-                                                <span className="font-semibold text-[13px] text-gray-900">arjun_kumar</span>
-                                            </div>
+                                            <span className="text-[10px] text-zinc-400 font-medium truncate w-full text-center tracking-tight">{story.name}</span>
                                         </div>
-                                        <div className="text-gray-500 flex justify-center w-6 cursor-pointer">
-                                            <svg aria-label="More options" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
-                                        </div>
-                                    </div>
-                                    <div className="w-full aspect-[4/5] bg-blue-50 flex items-center justify-center text-7xl">&#127877;</div>
-                                    <div className="px-3 py-2">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex gap-4">
-                                                <svg aria-label="Like" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                                                <svg aria-label="Comment" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                                                <svg aria-label="Share" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
-                                            </div>
-                                            <svg aria-label="Save" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-                                        </div>
-                                        <p className="font-semibold text-[13px] mb-1">2,341 likes</p>
-                                        <p className="text-[13px] leading-snug"><span className="font-semibold mr-1">arjun_kumar</span>Finally graduated! &#127877; Thanks to everyone who supported me through this journey!</p>
-                                        <p className="text-gray-500 text-[11px] uppercase tracking-wide mt-2">2 HOURS AGO</p>
-                                    </div>
+                                    ))}
                                 </div>
 
-                                {/* Post 2 */}
-                                <div className="border-b border-gray-100 pb-2 mb-2">
-                                    <div className="flex items-center justify-between px-3 py-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-orange-500 border border-gray-200 flex items-center justify-center text-white text-[10px] font-bold">M</div>
-                                            <div>
-                                                <span className="font-semibold text-[13px] text-gray-900">usha_temple_tour</span>
+                                {/* Feed Content (Dark Mode) */}
+                                <div className="bg-black">
+                                    {/* Post 1 */}
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between px-3 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600 p-[1.5px]">
+                                                    <div className="w-full h-full bg-blue-500 rounded-full border border-black flex items-center justify-center text-white text-[10px] font-black">A</div>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-xs text-white flex items-center gap-1">arjun_kumar <span className="w-2.5 h-2.5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[6px]">✓</span></span>
+                                                    <span className="text-[10px] text-zinc-500">Chennai, India</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-white p-2 cursor-pointer hover:bg-zinc-800 rounded-full transition-colors">
+                                                <svg aria-label="More options" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
                                             </div>
                                         </div>
-                                        <div className="text-gray-500 flex justify-center w-6 cursor-pointer">
-                                            <svg aria-label="More options" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+                                        <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center text-8xl border-y border-white/5">🎓</div>
+                                        <div className="px-3 py-3">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <div className="flex gap-4 text-white">
+                                                    <svg aria-label="Like" className="w-6 h-6 hover:text-red-500 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                                    <svg aria-label="Comment" className="w-6 h-6 hover:text-zinc-400 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                                    <svg aria-label="Share" className="w-6 h-6 hover:text-zinc-400 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                                </div>
+                                                <svg aria-label="Save" className="w-6 h-6 text-white hover:text-zinc-400 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                                            </div>
+                                            <p className="font-bold text-xs mb-1 px-1 text-white">2,341 likes</p>
+                                            <p className="text-xs leading-relaxed px-1 text-zinc-300"><span className="font-bold mr-1 text-white">arjun_kumar</span>Finally graduated! 🎓 Thanks to everyone who supported me through this journey!</p>
+                                            <p className="text-zinc-500 text-[10px] uppercase tracking-wider mt-2.5 px-1 font-bold">2 HOURS AGO</p>
                                         </div>
                                     </div>
-                                    <div className="w-full aspect-square bg-orange-50 flex items-center justify-center text-7xl">&#1585;&#1583;&#1575;</div>
-                                    <div className="px-3 py-2">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex gap-4">
-                                                <svg aria-label="Like" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                                                <svg aria-label="Comment" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
-                                                <svg aria-label="Share" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+
+                                    {/* Post 2 */}
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between px-3 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-orange-500 border border-white/10 flex items-center justify-center text-white text-[10px] font-black">U</div>
+                                                <div className="flex flex-col">
+                                                    <span className="font-bold text-xs text-white">usha_temple_tour</span>
+                                                    <span className="text-[10px] text-zinc-500">Mylapore, Chennai</span>
+                                                </div>
                                             </div>
-                                            <svg aria-label="Save" className="w-6 h-6 hover:text-gray-500 cursor-pointer" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                                            <div className="text-white p-2 cursor-pointer hover:bg-zinc-800 rounded-full transition-colors">
+                                                <svg aria-label="More options" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></svg>
+                                            </div>
                                         </div>
-                                        <p className="font-semibold text-[13px] mb-1">104 likes</p>
-                                        <p className="text-[13px] leading-snug"><span className="font-semibold mr-1">usha_temple_tour</span>Beautiful evening at the temple &#128583;</p>
-                                        <p className="text-gray-500 text-[11px] uppercase tracking-wide mt-2">4 HOURS AGO</p>
+                                        <div className="w-full aspect-square bg-zinc-900/50 flex items-center justify-center text-8xl border-y border-white/5">🕯️</div>
+                                        <div className="px-3 py-3">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <div className="flex gap-4 text-white">
+                                                    <svg aria-label="Like" className="w-6 h-6 hover:text-red-500 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                                    <svg aria-label="Comment" className="w-6 h-6 hover:text-zinc-400 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                                                    <svg aria-label="Share" className="w-6 h-6 hover:text-zinc-400 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                                                </div>
+                                                <svg aria-label="Save" className="w-6 h-6 text-white hover:text-zinc-400 cursor-pointer transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                                            </div>
+                                            <p className="font-bold text-xs mb-1 px-1 text-white">104 likes</p>
+                                            <p className="text-xs leading-relaxed px-1 text-zinc-300"><span className="font-bold mr-1 text-white">usha_temple_tour</span>Beautiful evening at the temple 🙏</p>
+                                            <p className="text-zinc-500 text-[10px] uppercase tracking-wider mt-2.5 px-1 font-bold">4 HOURS AGO</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Instagram Bottom Nav Area Content below absolute layer */}
-                            <div className="absolute bottom-0 w-full bg-white border-t border-gray-200 px-6 py-3 flex justify-between items-center pb-8 z-40">
-                                <svg aria-label="Home" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.099l-9 6.8V22h5v-6h8v6h5V8.899l-9-6.8zm-7 8.3l7-5.3 7 5.3V20h-2v-6H9v6H5v-9.6z" opacity="0"></path><path d="M12 2l-10 7.5V22h6v-6h4v6h6V9.5L12 2z"></path></svg>
-                                <svg aria-label="Search" className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                                <svg aria-label="New post" className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path></svg>
-                                <svg aria-label="Reels" className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <div className="w-6 h-6 rounded-full bg-gray-300 border border-gray-200"></div>
+                            {/* Authentic Bottom Navigation Bar (Dark Mode) */}
+                            <div className="absolute bottom-0 w-full bg-black border-t border-white/10 px-6 py-2 flex justify-between items-center pb-8 z-50 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+                                <div className="p-2 cursor-pointer hover:scale-110 transition-transform text-white">
+                                    <svg aria-label="Home" className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.099l-9 6.8V22h5v-6h8v6h5V8.899l-9-6.8zm-7 8.3l7-5.3 7 5.3V20h-2v-6H9v6H5v-9.6z" opacity="0"></path><path d="M12 2l-10 7.5V22h6v-6h4v6h6V9.5L12 2z"></path></svg>
+                                </div>
+                                <div className="p-2 cursor-pointer hover:scale-110 transition-transform text-zinc-500">
+                                    <svg aria-label="Search" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                </div>
+                                <div className="p-2 cursor-pointer hover:scale-110 transition-transform text-zinc-500">
+                                    <svg aria-label="Explore" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                                </div>
+                                <div className="p-2 cursor-pointer hover:scale-110 transition-transform text-zinc-500">
+                                    <svg aria-label="Reels" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </div>
+                                <div className="p-2 cursor-pointer hover:scale-110 transition-transform" onClick={() => setGameState('profile_investigation')}>
+                                    <div className="w-7 h-7 rounded-full bg-zinc-800 border-2 border-transparent hover:border-white transition-all overflow-hidden flex items-center justify-center text-[10px]">
+                                        👩
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Notification appears after 3 seconds */}
-                            <div className="absolute top-12 right-2 left-2 animate-in slide-in-from-top-4 fade-in duration-500 z-50">
-                                <div className="bg-black/95 backdrop-blur-md text-white p-3 px-4 rounded-[1.5rem] shadow-[0_10px_30px_rgba(0,0,0,0.5)] cursor-pointer hover:scale-[1.02] transition-transform border border-zinc-800"
+                            {/* Premium Notification (Dark Mode Style) */}
+                            <div className="absolute top-14 right-3 left-3 animate-in slide-in-from-top-4 fade-in duration-700 z-[100]">
+                                <div className="bg-zinc-900/90 backdrop-blur-xl text-white p-3.5 px-4 rounded-[1.8rem] shadow-[0_20px_60px_rgba(0,0,0,0.6)] cursor-pointer hover:scale-[1.03] active:scale-95 transition-all border border-white/10 ring-1 ring-black/30"
                                     onClick={() => setGameState('message_received')}>
                                     <div className="flex justify-between items-start">
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-3.5">
                                             <div className="relative">
-                                                <div className="w-11 h-11 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold text-lg">N</div>
-                                                <div className="absolute -bottom-1 -right-1 bg-red-500 w-5 h-5 rounded-full flex items-center justify-center border-2 border-zinc-900">
-                                                    <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                                <div className="w-12 h-12 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-[1.1rem] flex items-center justify-center font-black text-white text-xl shadow-lg border border-white/10">N</div>
+                                                <div className="absolute -top-1 -right-1 bg-red-600 w-5 h-5 rounded-full flex items-center justify-center border-2 border-zinc-900 shadow-sm">
+                                                    <span className="text-[10px] text-white font-black leading-none">1</span>
                                                 </div>
                                             </div>
-                                            <div>
+                                            <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2">
-                                                    <p className="font-semibold text-[15px] leading-tight flex items-center gap-1">nithya.k <span className="w-3 h-3 bg-blue-500 text-white rounded-full flex items-center justify-center text-[8px]">✓</span></p>
-                                                    <p className="text-[11px] text-gray-400 font-medium">now</p>
+                                                    <p className="font-bold text-[15px] leading-tight tracking-tight text-white flex items-center gap-1.5">
+                                                        nithya.k 
+                                                        <span className="w-3.5 h-3.5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[8px] shadow-sm">✓</span>
+                                                    </p>
+                                                    <span className="w-1 h-1 bg-zinc-600 rounded-full"></span>
+                                                    <p className="text-[11px] text-zinc-500 font-bold uppercase tracking-wider">now</p>
                                                 </div>
-                                                <p className="text-[13px] text-gray-300 truncate w-[220px]">Hey! Oh my god it's been so long!!</p>
+                                                <p className="text-[14px] text-zinc-300 font-medium tracking-tight truncate w-[220px]">Hey! Oh my god it's been so long!!</p>
                                             </div>
                                         </div>
                                     </div>
+                                    <div className="w-8 h-1 bg-zinc-700/50 rounded-full mx-auto mt-2" />
                                 </div>
                             </div>
                         </div>
@@ -610,61 +763,66 @@ const Level9 = () => {
 
         return (
             <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
-                {/* Bedroom background */}
                 <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
-                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
-
-                <div className="relative z-20">
-                    <FeedbackToast />
-
                     <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
-                    <StatusBar />
+                    <StatusBar dark={true} />
 
                     {/* Dynamic Island */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                         <div className="w-2 h-2 bg-slate-700 rounded-full" />
                     </div>
 
-                    <div className="w-full h-full bg-slate-50 overflow-hidden flex flex-col relative pt-8">
-                        {/* Chat header - simplified */}
-                        <div className="bg-white border-b border-gray-200 p-4 pt-6 flex items-center gap-3 text-slate-900 shadow-sm">
-                            <button className="text-purple-600 hover:text-purple-700 font-bold" onClick={() => setGameState('social_media_feed')}>&larr;</button>
-                            <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-black">N</div>
+                    <div className="w-full h-full bg-black overflow-hidden flex flex-col relative pt-8">
+                        {/* Instagram-style DM Header (Dark Mode) */}
+                        <div className="bg-black border-b border-white/10 p-4 pt-8 flex items-center gap-3 text-white sticky top-0 z-20">
+                            <button className="text-xl text-white hover:text-zinc-400 transition-colors" onClick={() => setGameState('social_media_feed')}>
+                                <span>←</span>
+                            </button>
+                            <div className="relative">
+                                <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-black text-xs border border-white/10">N</div>
+                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-black"></div>
+                            </div>
                             <div className="flex-1">
-                                <p className="font-black text-sm">Nithya Krishnan</p>
-                                <p className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">
+                                <p className="font-bold text-sm tracking-tight text-white line-clamp-1">Nithya Krishnan</p>
+                                <p className="text-[10px] text-zinc-500 font-medium tracking-wide flex items-center gap-1.5">
                                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                    Online
+                                    Active now
                                 </p>
                             </div>
-                            <button className="text-gray-400 hover:text-gray-600">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
-                                </svg>
-                            </button>
+                            <div className="flex gap-4 pr-2">
+                                <button className="text-white opacity-80 hover:opacity-100 transition-opacity disabled:opacity-30" disabled>
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                                </button>
+                                <button className="text-white opacity-80 hover:opacity-100 transition-opacity disabled:opacity-30" disabled>
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                </button>
+                                <button className="text-white opacity-80 hover:opacity-100 transition-opacity" onClick={() => setGameState('profile_investigation')}>
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f0f2f5] custom-scrollbar">
+                        {/* Messages (Dark Mode) */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-black custom-scrollbar">
                             {messages.slice(0, messageStep + 1).map((msg, idx) => (
                                 <div key={idx} className={`flex ${msg.sender === 'you' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}>
                                     <div className={`max-w-[85%] p-3 px-4 shadow-sm ${msg.sender === 'you'
                                         ? 'bg-purple-600 text-white rounded-2xl rounded-tr-sm'
-                                        : 'bg-white text-gray-800 rounded-2xl rounded-tl-sm border border-gray-200'
+                                        : 'bg-zinc-800 text-zinc-100 rounded-2xl rounded-tl-sm border border-white/5'
                                         }`}>
-                                        <p className="text-sm leading-relaxed">{msg.text}</p>
+                                        <p className="text-sm leading-relaxed tracking-tight">{msg.text}</p>
                                     </div>
                                 </div>
                             ))}
 
-                            {/* Typing indicator */}
+                            {/* Typing indicator (Dark Mode) */}
                             {messageStep < messages.length - 1 && (
                                 <div className="flex justify-start animate-in fade-in duration-300">
-                                    <div className="bg-white p-3 px-4 rounded-2xl rounded-tl-sm border border-gray-200 shadow-sm">
+                                    <div className="bg-zinc-800 p-3 px-4 rounded-2xl rounded-tl-sm border border-white/5 shadow-sm">
                                         <div className="flex gap-1">
-                                            <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></div>
-                                            <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                            <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                            <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-bounce"></div>
+                                            <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                            <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                                         </div>
                                     </div>
                                 </div>
@@ -672,51 +830,44 @@ const Level9 = () => {
                             <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
                         </div>
 
-                        {/* Inner Thought — appears after delay on last message */}
-                        {messageStep === messages.length - 1 && showThought && (
-                            <div className="mx-4 my-2 p-4 bg-amber-50 border-2 border-amber-200 rounded-2xl animate-in slide-in-from-bottom duration-700 shadow-lg relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-1 h-full bg-amber-400"></div>
-                                <div className="flex items-start gap-3">
-                                    <span className="text-2xl pt-1">💡</span>
-                                    <div>
-                                        <p className="text-amber-800 font-black text-[10px] uppercase tracking-widest mb-1">Critical Insight</p>
-                                        <p className="text-amber-900 text-sm italic leading-relaxed font-medium">
-                                            "Something isn't right. If her phone was stolen, how is she on her private account? And why can she memorize a long bank IBAN but not her father's mobile number?"
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
-                        {/* Action buttons */}
-                        <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-4px_10px_rgba(0,0,0,0.03)]">
-                            {messageStep === messages.length - 1 && showThought ? (
-                                <div className="space-y-2.5">
-                                    <button className="w-full bg-black hover:bg-black text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] border-b-4 border-slate-700 flex items-center justify-center gap-2 group"
+
+                        {/* Action Area (Dark Mode) */}
+                        <div className="p-4 bg-black border-t border-white/10 shadow-[0_-8px_30px_rgba(0,0,0,0.5)] sticky bottom-0 z-20">
+                            {messageStep < messages.length - 1 ? (
+                                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all active:scale-[0.98] shadow-[0_10px_30px_rgba(37,99,235,0.3)] flex items-center justify-center gap-3 group animate-in slide-in-from-bottom duration-500"
+                                    onClick={() => setMessageStep(prev => prev + 1)}>
+                                    <span className="text-[15px] tracking-tight">Continue Conversation</span>
+                                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                    </svg>
+                                </button>
+                            ) : messageStep === messages.length - 1 && showThought ? (
+                                <div className="space-y-3">
+                                    <button className="w-full bg-white hover:bg-zinc-100 text-black font-black py-4 rounded-2xl transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-3 group animate-in zoom-in-95 duration-500 origin-bottom"
                                         onClick={() => setGameState('profile_investigation')}>
-                                        <span>🔍 Verify Identity First</span>
-                                        <span className="group-hover:translate-x-1 transition-transform">➔</span>
+                                        <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform ring-4 ring-blue-600/10">
+                                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                        </div>
+                                        <div className="flex flex-col items-start leading-none gap-1">
+                                            <span className="text-[15px] tracking-tight text-black">Investigate Profile</span>
+                                            <span className="text-[9px] text-blue-600 font-bold uppercase tracking-[0.15em]">Forensic Analysis</span>
+                                        </div>
+                                        <span className="ml-auto text-black opacity-30 group-hover:translate-x-1 transition-transform pr-2">➔</span>
                                     </button>
-                                    <button className="w-full bg-white hover:bg-red-50 text-red-600 font-bold py-3 rounded-xl transition-all active:scale-[0.98] text-xs uppercase tracking-widest"
+                                    <button className="w-full bg-white hover:bg-zinc-100 text-black font-bold py-3.5 rounded-2xl transition-all active:scale-[0.98] text-[10px] uppercase tracking-[0.2em] shadow-sm"
                                         onClick={() => setGameState('scam_sequence')}>
-                                        I trust her, Send ₹8,000
+                                        Trust & Send ₹8,000
                                     </button>
                                 </div>
-                            ) : messageStep < messages.length - 1 ? (
-                                <button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-[0.98] border-b-4 border-purple-800 flex items-center justify-center gap-2"
-                                    onClick={() => setMessageStep(prev => prev + 1)}>
-                                    <span>Read Next Message</span>
-                                    <span className="animate-bounce-horizontal">➔</span>
-                                </button>
                             ) : (
-                                <div className="bg-gray-50 p-4 rounded-xl text-center flex items-center justify-center gap-2 text-gray-400 text-xs font-bold animate-pulse">
-                                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                                <div className="bg-zinc-900 border border-white/5 p-4 rounded-2xl text-center flex items-center justify-center gap-2 text-zinc-500 text-[11px] font-bold uppercase tracking-widest animate-pulse">
+                                    <div className="w-1.5 h-1.5 bg-zinc-700 rounded-full"></div>
                                     Analyzing conversation context...
                                 </div>
                             )}
                         </div>
                     </div>
-                </div>
                 </div>
             </div>
         );
@@ -731,473 +882,524 @@ const Level9 = () => {
                 <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
                 <div className="relative z-20 flex flex-row items-center justify-center gap-8 w-full h-full">
-                    <FeedbackToast />
 
                 {/* Phone with profile - matching Levels 1-3 style */}
                 <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col flex-shrink-0 transition-transform duration-500 ease-in-out phone-container"
                     style={{ transform: isDetectiveModeOpen ? 'translateX(-150px)' : 'translateX(0)' }}>
-                    <StatusBar />
+                    <StatusBar dark={true} />
 
                     {/* Dynamic Island */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                         <div className="w-2 h-2 bg-slate-700 rounded-full" />
                     </div>
 
-                    <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-8">
-                        {/* Profile header - simplified to match Levels 1-3 */}
-                        <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-4 pt-8 flex items-center gap-3 text-white">
-                            <button className="text-white/80 hover:text-white" onClick={() => setGameState('message_received')}>&larr;</button>
-                            <span className="font-black">Profile</span>
+                    <div className="w-full h-full bg-black overflow-hidden flex flex-col relative pt-8">
+                        {/* Instagram-style Profile Header (Dark Mode) */}
+                        <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-black z-20 text-white">
+                            <span className="font-bold text-lg cursor-pointer flex items-center gap-3 active:opacity-60 transition-opacity" onClick={() => setGameState('message_received')}>
+                                <span className="text-xl">←</span> <span>@nithya_krishnan</span>
+                            </span>
+                            <span className="text-xl cursor-pointer p-2 hover:bg-zinc-800 rounded-full transition-colors" onClick={() => setShowProfileMenu(true)}>⋮</span>
                         </div>
 
-                        {/* Profile content */}
-                        <div className="flex-1 overflow-y-auto">
-                            {/* Profile photo and basic info - simplified */}
-                            <div className="relative">
-                                <div className="w-full h-32 bg-gradient-to-r from-purple-400 to-pink-400"></div>
-                                <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
-                                    <div className="w-24 h-24 bg-gray-300 rounded-full border-4 border-white shadow-lg cursor-pointer hover:scale-105 transition-transform"
-                                        onClick={() => {
-                                            if (!reverseImageSearched) {
-                                                setReverseImageSearched(true);
-                                                setCluesFound(prev => [...prev, 2]);
-                                                showFeedback("&#128269; Stock photo detected!");
-                                            }
-                                        }}>
-                                        <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-4xl">&#128105;</div>
+                        <div className="flex-1 overflow-y-auto bg-black no-scrollbar pb-32">
+                            {/* Profile Info Section */}
+                            <div className="p-4 pb-2">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="relative group">
+                                        <div className="w-[78px] h-[78px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600 p-[2px] cursor-pointer hover:scale-105 transition-transform"
+                                            onClick={() => {
+                                                if (!reverseImageSearched) {
+                                                    setReverseImageSearched(true);
+                                                    setCluesFound(prev => [...prev, 2]);
+                                                    showFeedback("🔍 Stock photo detected!");
+                                                }
+                                            }}>
+                                            <div className="w-full h-full rounded-full border-[3px] border-black bg-zinc-900 overflow-hidden flex items-center justify-center text-4xl">
+                                                👩
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="text-center mt-16 p-4">
-                                <h3 className="text-2xl font-black text-gray-900 mb-1">Nithya Krishnan</h3>
-                                <p className="text-gray-600 text-sm mb-4">@nithya_krishnan</p>
-
-                                <div className="flex justify-center gap-8 mb-6 text-center">
-                                    <div className="cursor-pointer hover:scale-105 transition-transform">
-                                        <p className="font-black text-xl text-gray-900">3</p>
-                                        <p className="text-xs text-gray-500">Posts</p>
-                                    </div>
-                                    <div className="cursor-pointer hover:scale-105 transition-transform">
-                                        <p className="font-black text-xl text-gray-900">847</p>
-                                        <p className="text-xs text-gray-500">Followers</p>
-                                    </div>
-                                    <div className="cursor-pointer hover:scale-105 transition-transform">
-                                        <p className="font-black text-xl text-gray-900">12</p>
-                                        <p className="text-xs text-gray-500">Mutual</p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-6 space-y-3">
-                                    <div className="bg-gray-50 p-4 rounded-xl text-left cursor-pointer hover:bg-gray-100 transition-all hover:shadow-md border border-gray-200"
-                                        onClick={() => {
-                                            if (!cluesFound.includes(1)) {
-                                                setCluesFound(prev => [...prev, 1]);
-                                                showFeedback("&#128269; Account created 4 days ago!");
-                                            }
-                                        }}>
-                                        <p className="text-xs text-gray-600 mb-1">Account Created</p>
-                                        <p className="font-black text-base text-gray-900">4 days ago</p>
-                                    </div>
-
-                                    <div className="bg-gray-50 p-4 rounded-xl text-left cursor-pointer hover:bg-gray-100 transition-all hover:shadow-md border border-gray-200"
-                                        onClick={() => {
+                                    <div className="flex gap-6 text-center pr-4 text-white">
+                                        <div><div className="font-bold text-[15px]">3</div><div className="text-[11px] text-zinc-400">Posts</div></div>
+                                        <div><div className="font-bold text-[15px]">{isFollowing ? "848" : "847"}</div><div className="text-[11px] text-zinc-400">Followers</div></div>
+                                        <div className="cursor-pointer active:opacity-60" onClick={() => {
                                             if (!cluesFound.includes(6)) {
                                                 setCluesFound(prev => [...prev, 6]);
-                                                showFeedback("&#128269; Mutual friends added recently!");
+                                                showFeedback("🔍 Bait Mutual Friends: Added 12 in bulk!");
                                             }
                                         }}>
-                                        <p className="text-xs text-gray-600 mb-1">Mutual Friends</p>
-                                        <p className="font-black text-base text-gray-900">12 friends (all added 3-4 days ago)</p>
+                                            <div className="font-bold text-[15px]">12</div>
+                                            <div className="text-[11px] text-zinc-400">Mutual</div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Message Analysis — clickable clues for 3, 4, 5 */}
-                                <div className="mt-6">
-                                    <p className="text-sm text-gray-700 uppercase tracking-wider font-black mb-4">📋 Review Message</p>
-
-                                    <div className={`bg-gray-50 p-4 rounded-xl text-left cursor-pointer transition-all mb-3 hover:shadow-md border ${cluesFound.includes(3) ? 'ring-2 ring-red-500 bg-red-50 border-red-300' : 'border-gray-200 hover:border-gray-300'}`}
-                                        onClick={() => {
-                                            if (!cluesFound.includes(3)) {
-                                                setCluesFound(prev => [...prev, 3]);
-                                                showFeedback("🔴 Emotional manipulation detected!");
-                                            }
-                                        }}>
-                                        <p className="text-xs text-gray-600 mb-1">Message Pattern</p>
-                                        <p className="font-black text-base text-gray-900">"warm-up → self-deprecation → crisis"</p>
-                                        {cluesFound.includes(3) && <span className="text-red-600 text-xs font-bold block mt-2">⭕ 3-stage social engineering pattern</span>}
-                                    </div>
-
-                                    <div className={`bg-gray-50 p-4 rounded-xl text-left cursor-pointer transition-all mb-3 hover:shadow-md border ${cluesFound.includes(4) ? 'ring-2 ring-red-500 bg-red-50 border-red-300' : 'border-gray-200 hover:border-gray-300'}`}
-                                        onClick={() => {
-                                            if (!cluesFound.includes(4)) {
-                                                setCluesFound(prev => [...prev, 4]);
-                                                showFeedback("🔴 Every detail blocks verification!");
-                                            }
-                                        }}>
-                                        <p className="text-xs text-gray-600 mb-1">Scenario Details</p>
-                                        <p className="font-black text-base text-gray-900">Coimbatore + Hospital + Stolen Phone + No Family</p>
-                                        {cluesFound.includes(4) && <span className="text-red-600 text-xs font-bold block mt-2">⭕ All verification paths blocked</span>}
-                                    </div>
-
-                                    <div className={`bg-gray-50 p-4 rounded-xl text-left cursor-pointer transition-all hover:shadow-md border ${cluesFound.includes(5) ? 'ring-2 ring-red-500 bg-red-50 border-red-300' : 'border-gray-200 hover:border-gray-300'}`}
-                                        onClick={() => {
-                                            if (!cluesFound.includes(5)) {
-                                                setCluesFound(prev => [...prev, 5]);
-                                                showFeedback("🔴 Bank transfer hides identity!");
-                                            }
-                                        }}>
-                                        <p className="text-xs text-gray-600 mb-1">Payment Method</p>
-                                        <p className="font-black text-base text-gray-900">Bank Transfer (Account: 789XXXXXXX)</p>
-                                        {cluesFound.includes(5) && <span className="text-red-600 text-xs font-bold block mt-2">⭕ No recipient name verification</span>}
+                                <div className="mb-4">
+                                    <h2 className="font-bold text-[13px] text-white flex items-center gap-1">
+                                        Nithya Krishnan
+                                        <span className="w-3 h-3 bg-blue-500 text-white rounded-full flex items-center justify-center text-[7px] shadow-sm">✓</span>
+                                    </h2>
+                                    <p className="text-[12px] text-zinc-300">Architecture @ Sathyabama | Travel ✈️ | Foodie 🍛</p>
+                                    <p className="text-[12px] text-zinc-300">"Capturing moments, one click at a time. Proud Chennaiite! 🎀"</p>
+                                    <a href="#" className="text-[12px] text-blue-400 font-medium mt-0.5 block hover:underline">sathyabama.edu/portfolio/nithya</a>
+                                    
+                                    <div className="flex items-center gap-1.5 mt-3 opacity-80 group">
+                                        <div className="flex -space-x-2">
+                                            <div className="w-5 h-5 rounded-full border-2 border-black bg-blue-400 flex items-center justify-center text-[6px] text-white font-bold">R</div>
+                                            <div className="w-5 h-5 rounded-full border-2 border-black bg-pink-400 flex items-center justify-center text-[6px] text-white font-bold">Z</div>
+                                        </div>
+                                        <p className="text-[11px] text-zinc-400">Followed by <span className="text-white font-bold">rahul_99</span>, <span className="text-white font-bold">zara.v</span> and <span className="text-white font-bold">12 others</span></p>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Posts */}
-                            <div className="p-4">
-                                <h4 className="font-black mb-3">Posts</h4>
-                                <div className="grid grid-cols-3 gap-1">
-                                    {[1, 2, 3].map(i => (
-                                        <div key={i} className="aspect-square bg-gray-200 rounded flex items-center justify-center text-2xl">
-                                            &#128241;
+                                <div className="flex gap-2 mb-6">
+                                    <button 
+                                        className={`flex-1 font-bold py-1.5 rounded-lg text-xs transition-all active:scale-95 shadow-sm ${isFollowing ? 'bg-zinc-800 text-white border border-white/5' : 'bg-blue-500 text-white hover:bg-blue-600'}`}
+                                        onClick={() => setIsFollowing(!isFollowing)}
+                                    >
+                                        {isFollowing ? "Following" : "Follow"}
+                                    </button>
+                                    <button className="flex-1 bg-zinc-800 border border-white/5 text-white font-bold py-1.5 rounded-lg text-xs hover:bg-zinc-700 transition-all active:scale-95 shadow-sm" onClick={() => setGameState('message_received')}>Message</button>
+                                    <button className="bg-zinc-800 border border-white/5 text-white px-2 rounded-lg hover:bg-zinc-700 transition-all active:scale-95 text-xs shadow-sm">👤+</button>
+                                </div>
+
+                                {/* Highlights */}
+                                <div className="flex gap-4 overflow-x-auto no-scrollbar mb-4 py-1">
+                                    {[
+                                        { name: "Dubai 🇦🇪", icon: "🏙️" },
+                                        { name: "Work 📉", icon: "📐" },
+                                        { name: "Foodie 🍕", icon: "🍱" },
+                                        { name: "Fam 💖", icon: "🏠" }
+                                    ].map((h, i) => (
+                                        <div key={i} className="flex flex-col items-center gap-1 min-w-[56px] cursor-pointer active:opacity-60 transition-opacity">
+                                            <div className="w-14 h-14 rounded-full border border-white/10 bg-zinc-900 flex items-center justify-center text-xl shadow-inner">
+                                                {h.icon}
+                                            </div>
+                                            <span className="text-[10px] text-zinc-400 font-medium truncate w-full text-center">{h.name}</span>
                                         </div>
                                     ))}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2 text-center">All posts are viral content shares</p>
+                            </div>
+
+                            {/* Tab Bar */}
+                            <div className="flex border-t border-white/10">
+                                <button className="flex-1 py-3 flex justify-center border-b border-white text-white">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                                </button>
+                                <button className="flex-1 py-3 flex justify-center text-zinc-500 hover:text-white transition-colors">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                </button>
+                                <button className="flex-1 py-3 flex justify-center text-zinc-500 hover:text-white transition-colors">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                </button>
+                            </div>
+
+                            {/* Post Grid Section (Dark Mode) */}
+                            <div className="grid grid-cols-3 gap-0.5">
+                                {[
+                                    { icon: '🏖️', color: 'bg-zinc-900', type: 'carousel' },
+                                    { icon: '📐', color: 'bg-zinc-800', type: 'reel' },
+                                    { icon: '☕', color: 'bg-zinc-900', type: 'post' }
+                                ].map((post, i) => (
+                                    <div key={i} className={`aspect-square ${post.color} flex items-center justify-center text-3xl hover:opacity-80 cursor-pointer relative group transition-opacity`}
+                                        onClick={() => {
+                                            if (!cluesFound.includes(5)) {
+                                                setCluesFound(prev => [...prev, 5]);
+                                                showFeedback("🔍 Engagement discrepancy: Comments disabled!");
+                                            }
+                                        }}>
+                                        {post.icon}
+                                        {post.type === 'carousel' && (
+                                            <div className="absolute top-1.5 right-1.5">
+                                                <svg className="w-3.5 h-3.5 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M19 19H5V5h14v14zM5 3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2H5z" /></svg>
+                                            </div>
+                                        )}
+                                        {post.type === 'reel' && (
+                                            <div className="absolute top-1.5 right-1.5">
+                                                <svg className="w-3.5 h-3.5 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" /></svg>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Action buttons */}
-                        <div className="p-4 bg-white border-t border-gray-200">
-                            <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95"
-                                onClick={() => setGameState('call_real_nithya')}>
-                                Call Real Nithya &#128222;
+                        {/* Sticky Action Button (Dark Mode) */}
+                        <div className="absolute bottom-[57px] w-full p-3 bg-black/80 backdrop-blur-md border-t border-white/10 z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
+                            <button 
+                                className={`w-full font-black py-2.5 rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 group ${cluesFound.length >= 6 ? 'bg-blue-500 hover:bg-blue-600 text-white active:scale-95' : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-70 border border-slate-700'}`}
+                                onClick={() => {
+                                    if (cluesFound.length >= 6) {
+                                        setGameState('call_real_nithya');
+                                    }
+                                }}
+                                disabled={cluesFound.length < 6}
+                            >
+                                <span className="text-base">{cluesFound.length >= 6 ? '📞' : '🔒'}</span> 
+                                <span className="text-[13px] tracking-tight">
+                                    {cluesFound.length >= 6 ? 'Call Real Nithya' : `Gather Evidence (${cluesFound.length}/6)`}
+                                </span>
                             </button>
                         </div>
 
-                        {/* Detective Mode Button */}
-                        <button
-                            className="absolute bottom-6 left-6 w-14 h-14 bg-amber-500 hover:bg-amber-400 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.6)] border-2 border-amber-300 z-50 text-2xl"
-                            onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)}
-                        >
-                            🔍
-                            {cluesFound.length > 0 && <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-6 h-6 rounded-full flex justify-center items-center">{cluesFound.length}</span>}
-                        </button>
-                        <div className="absolute bottom-1 left-4 font-mono text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Detective Mode</div>
+                        <BottomNavBar active="profile" />
+
+                        {/* 3-Dot Menu Modal (Instagram Style - Dark Mode) */}
+                        {showProfileMenu && (
+                            <div className="absolute inset-0 z-[100] flex items-end">
+                                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300" onClick={() => setShowProfileMenu(false)} />
+                                <div className="w-full bg-zinc-900 rounded-t-[2.5rem] p-6 relative z-10 animate-in slide-in-from-bottom duration-500 shadow-[0_-20px_50px_rgba(0,0,0,0.8)] flex flex-col pt-4 border-t border-white/5">
+                                    <div className="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto mb-8 shadow-inner" />
+                                    
+                                    <div className="flex items-center justify-between mb-6 px-1">
+                                        <h3 className="text-white font-bold text-base">About this account</h3>
+                                        <button className="text-zinc-500 hover:text-white transition-colors" onClick={() => setShowProfileMenu(false)}>
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="space-y-4 mb-4 overflow-y-auto custom-scrollbar pr-1">
+                                        <div className="flex items-center gap-4 px-1 group cursor-pointer"
+                                            onClick={() => {
+                                                if (!cluesFound.includes(1)) {
+                                                    setCluesFound(prev => [...prev, 1]);
+                                                    showFeedback("🔍 Account created 4 days ago!");
+                                                }
+                                            }}>
+                                            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-lg">📅</div>
+                                            <div className="flex-1 pb-4 border-b border-white/5">
+                                                <p className="text-[13px] text-white font-medium">Date joined</p>
+                                                <p className="text-[12px] text-zinc-400">March 2026</p>
+                                            </div>
+                                            {cluesFound.includes(1) && <span className="text-red-500 text-sm">🚩</span>}
+                                        </div>
+
+                                        <div className="flex items-center gap-4 px-1 group cursor-pointer"
+                                            onClick={() => {
+                                                if (!cluesFound.includes(4)) {
+                                                    setCluesFound(prev => [...prev, 4]);
+                                                    showFeedback("🔍 Location mismatch: Account based in Lagos!");
+                                                }
+                                            }}>
+                                            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-lg">📍</div>
+                                            <div className="flex-1 pb-4 border-b border-white/5">
+                                                <p className="text-[13px] text-white font-medium">Account based in</p>
+                                                <p className="text-[12px] text-zinc-400">Lagos, Nigeria</p>
+                                            </div>
+                                            {cluesFound.includes(4) && <span className="text-red-500 text-sm">🚩</span>}
+                                        </div>
+
+                                        <div className="flex items-center gap-4 px-1 group cursor-pointer"
+                                            onClick={() => {
+                                                if (!cluesFound.includes(3)) {
+                                                    setCluesFound(prev => [...prev, 3]);
+                                                    showFeedback("🔍 Former usernames: 4 changes detected!");
+                                                }
+                                            }}>
+                                            <div className="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-lg">📝</div>
+                                            <div className="flex-1 pb-4 border-b border-white/5">
+                                                <p className="text-[13px] text-white font-medium">Former usernames</p>
+                                                <p className="text-[12px] text-zinc-400">4</p>
+                                            </div>
+                                            {cluesFound.includes(3) && <span className="text-red-500 text-sm">🚩</span>}
+                                        </div>
+                                        
+                                        <div className="h-px bg-white/5 mx-1 my-2" />
+                                        
+                                        <button className="w-full text-left px-1 py-3 text-red-500 font-bold flex items-center gap-4 hover:opacity-80 transition-opacity">
+                                            <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center text-lg">🚫</div>
+                                            <span className="text-[13px]">Block this account</span>
+                                        </button>
+                                        <button className="w-full text-left px-1 py-1 text-red-500 font-bold flex items-center gap-4 hover:opacity-80 transition-opacity">
+                                            <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center text-lg">🚩</div>
+                                            <span className="text-[13px]">Report profile</span>
+                                        </button>
+                                    </div>
+
+                                    <button className="w-full py-4 text-white font-bold text-sm border-t border-white/5 bg-transparent active:opacity-60 transition-opacity" onClick={() => setShowProfileMenu(false)}>
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Forensic Analysis Toggle (Detective Mode) */}
+                        <div className="absolute bottom-10 left-6 z-100 flex flex-col items-center gap-2">
+                            <button
+                                className="w-14 h-14 bg-slate-900 hover:bg-black rounded-2xl flex items-center justify-center shadow-[0_15px_35px_rgba(0,0,0,0.4)] border border-white/20 group transition-all active:scale-90"
+                                onClick={() => setIsDetectiveModeOpen(!isDetectiveModeOpen)}
+                                title="Forensic Analysis"
+                            >
+                                <div className="relative">
+                                    <svg className={`w-7 h-7 text-blue-400 group-hover:text-blue-300 transition-colors ${isDetectiveModeOpen ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 9h.01M12 12h.01M15 15h.01"></path>
+                                    </svg>
+                                    {cluesFound.length > 0 && (
+                                        <div className="absolute -top-3 -right-3 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-lg animate-bounce">
+                                            {cluesFound.length}
+                                        </div>
+                                    )}
+                                </div>
+                            </button>
+                            <span className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] shadow-sm">Analysis</span>
+                        </div>
                     </div>
                 </div>
 
                 {/* Detective Board - Cork board style */}
                 <div
-                    className="relative w-[580px] h-[750px] bg-amber-100 rounded-sm shadow-2xl z-[200] p-6 flex flex-col border-[12px] border-[#4a3728] overflow-hidden"
+                    className="relative w-[580px] h-[750px] rounded-sm shadow-2xl z-[200] p-6 flex flex-col border-[16px] border-[#382315] overflow-hidden"
                     style={{
                         backgroundImage: `
-                            url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.2'/%3E%3C/svg%3E"),
-                            repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(139,69,19,0.03) 2px, rgba(139,69,19,0.03) 4px),
-                            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139,69,19,0.03) 2px, rgba(139,69,19,0.03) 4px)
+                            url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='a'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23a)' opacity='.3'/%3E%3C/svg%3E"),
+                            repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(139,69,19,0.05) 2px, rgba(139,69,19,0.05) 4px),
+                            repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(139,69,19,0.05) 2px, rgba(139,69,19,0.05) 4px)
                         `,
-                        backgroundColor: '#d4a574',
-                        boxShadow: 'inset 0 0 60px rgba(0,0,0,0.2), -10px 0 40px rgba(0,0,0,0.5)'
+                        backgroundColor: '#9A6A45',
+                        boxShadow: 'inset 0 0 80px rgba(0,0,0,0.6), -10px 0 40px rgba(0,0,0,0.5)'
                     }}
                 >
-                    {/* Draw Red Strings Between Clues */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                        {cluesFound.map((clueId, idx) => {
-                            if (idx > 0) {
-                                const gridPositions = [
-                                    { x: 110, y: 70 },    // Clue 1 - Account Age (top-left)
-                                    { x: 360, y: 70 },    // Clue 2 - Stock Photo (top-right)
-                                    { x: 110, y: 260 },   // Clue 3 - Emotional Softening (mid-left)
-                                    { x: 360, y: 260 },   // Clue 4 - Coimbatore/Hospital (mid-right)
-                                    { x: 110, y: 450 },   // Clue 5 - Bank Transfer (bottom-left)
-                                    { x: 360, y: 450 }    // Clue 6 - Mutual Friends (bottom-right)
-                                ];
-                                const prevPos = gridPositions[idx - 1];
-                                const currPos = gridPositions[idx];
-                                return <line key={`line-${idx}`} x1={prevPos.x} y1={prevPos.y} x2={currPos.x} y2={currPos.y} stroke="rgba(220,38,38,0.8)" strokeWidth="3" style={{ filter: 'drop-shadow(2px 4px 2px rgba(0,0,0,0.5))' }} />;
-                            }
-                            return null;
-                        })}
-                    </svg>
+                    {/* Dark gradient corners for realism */}
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)] pointer-events-none"></div>
+
+                    {/* Removed Red Strings as per user request */}
 
                     {/* Header Label with Meter */}
-                    <div className="flex justify-between items-start mb-6 z-10 gap-4">
-                        <div className="bg-yellow-50 p-4 rounded-sm shadow-md transform -rotate-1 border border-yellow-200" style={{ boxShadow: '2px 3px 8px rgba(0,0,0,0.15)' }}>
-                            <h2 className="text-lg font-black text-stone-800 uppercase tracking-wider font-mono">
-                                📌 PROFILE FORENSICS
+                    <div className="flex justify-between items-start mb-6 z-10 gap-4 relative">
+                        {/* Folder Tab Style Header */}
+                        <div className="bg-[#EED09D] p-3 pl-5 pr-8 rounded-t-sm shadow-xl transform -rotate-2 border-b-2 border-[#D7B77E] relative before:absolute before:content-[''] before:top-0 before:right-[-20px] before:w-5 before:h-full before:bg-[#EED09D] before:skew-x-[20deg] before:origin-bottom" style={{ boxShadow: '2px 4px 10px rgba(0,0,0,0.3)' }}>
+                            <h2 className="text-xl font-black text-[#5C4033] uppercase tracking-[0.1em] font-mono">
+                                PROFILE FORENSICS
                             </h2>
-                            <p className="text-stone-500 text-[10px] font-mono mt-1">Click profile elements to uncover evidence</p>
+                            <p className="text-[#8B6508] text-[10.5px] font-mono mt-0.5 font-bold uppercase tracking-widest">Case File: Impersonation</p>
                         </div>
-                        {/* Threat Intelligence Meter */}
-                        <div className="bg-stone-800 rounded-sm p-3 shadow-lg border border-stone-600 w-44">
-                            <h3 className="text-[10px] text-stone-300 uppercase font-mono mb-1 flex justify-between">
-                                <span>Threat Meter</span>
-                                <span style={{ color: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e' }}>{cluesFound.length}/{CLUE_DATA.length}</span>
+
+                        {/* High-Tech Threat Intelligence Meter */}
+                        <div className="bg-slate-900/90 backdrop-blur-md rounded-xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.7)] border border-slate-700/50 w-52 transform rotate-1 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 blur-xl rounded-full pointer-events-none"></div>
+                            <h3 className="text-[11px] text-slate-300 uppercase font-mono font-bold tracking-widest mb-2 flex justify-between items-center">
+                                <span>Threat Lvl</span>
+                                <span className="font-black text-sm" style={{ color: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e' }}>{cluesFound.length}/{CLUE_DATA.length}</span>
                             </h3>
-                            <div className="w-full h-2 bg-stone-950 rounded-full overflow-hidden">
+                            <div className="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 shadow-inner">
                                 <div
-                                    className="h-full transition-all duration-500"
+                                    className="h-full transition-all duration-700 relative overflow-hidden"
                                     style={{
                                         width: `${(cluesFound.length / CLUE_DATA.length) * 100}%`,
                                         backgroundColor: cluesFound.length > 3 ? '#ef4444' : cluesFound.length > 1 ? '#eab308' : '#22c55e'
                                     }}
-                                />
+                                >
+                                    <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:1rem_1rem] animate-[shimmer_1s_linear_infinite]"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="relative z-10 flex-1">
-                        {/* Clue Polaroids - Fixed Positions with Better Spacing */}
+                    <div className="relative z-10 flex-1 w-full h-full">
+                        {/* Clue Polaroids - Rectangular Case-File Note Style */}
+
                         {cluesFound.includes(1) && (
                             <div
-                                className="absolute bg-yellow-50 p-3 shadow-xl w-40 border border-yellow-300 z-10 flex flex-col animate-in zoom-in-95 duration-500"
-                                style={{
-                                    left: 40,
-                                    top: 40,
-                                    transform: 'rotate(-2deg)'
-                                }}
+                                className="absolute bg-[#FAFAFA] pt-5 px-4 pb-4 shadow-[0_15px_30px_rgba(0,0,0,0.6)] w-[260px] border border-stone-200 z-10 flex flex-col animate-in zoom-in-95 duration-500"
+                                style={{ left: -20, top: 20, transform: 'rotate(-2deg)' }}
                             >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-700 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/30 absolute top-0.5 right-0.5"></div>
+                                {/* Hyper-realistic Red Pin Component */}
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-700 shadow-[0_5px_8px_rgba(0,0,0,0.5),inset_0_-2px_4px_rgba(0,0,0,0.4)] border border-red-800 flex items-center justify-center relative">
+                                        <div className="w-2 h-2 rounded-full bg-white/50 absolute top-0.5 right-0.5 blur-[0.5px]"></div>
+                                        <div className="absolute top-[18px] left-[9px] w-[2px] h-3 bg-gradient-to-r from-gray-400 to-gray-200 shadow-[2px_2px_2px_rgba(0,0,0,0.4)] -z-10 transform -rotate-6"></div>
+                                    </div>
+                                    <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-black/50 blur-[1.5px] -z-20"></div>
                                 </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">Account Age vs. Relationship Age</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">Your friendship with Nithya is 6 years old. Her real profile is 6 years old. This account was created 4 days ago.</p>
+                                <h4 className="font-bold text-red-900 tracking-wide mb-2 text-[11.5px] leading-tight border-b border-stone-300 pb-1.5 uppercase font-mono">Account vs. Relationship Age</h4>
+                                <p className="text-[11.5px] text-stone-700 font-serif leading-relaxed">Your friendship with Nithya is 6 years old. Her real profile is 6 years old. This forged account was created a mere 4 days ago.</p>
                             </div>
                         )}
 
                         {cluesFound.includes(2) && (
                             <div
-                                className="absolute bg-yellow-50 p-3 shadow-xl w-40 border border-yellow-300 z-10 flex flex-col animate-in zoom-in-95 duration-500"
-                                style={{
-                                    left: 290,
-                                    top: 40,
-                                    transform: 'rotate(2deg)'
-                                }}
+                                className="absolute bg-[#FAFAFA] pt-5 px-4 pb-4 shadow-[0_15px_30px_rgba(0,0,0,0.6)] w-[260px] border border-stone-200 z-10 flex flex-col animate-in zoom-in-95 duration-500"
+                                style={{ left: 260, top: 20, transform: 'rotate(1.5deg)' }}
                             >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-700 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/30 absolute top-0.5 right-0.5"></div>
+                                {/* Hyper-realistic Red Pin Component */}
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-700 shadow-[0_5px_8px_rgba(0,0,0,0.5),inset_0_-2px_4px_rgba(0,0,0,0.4)] border border-red-800 flex items-center justify-center relative">
+                                        <div className="w-2 h-2 rounded-full bg-white/50 absolute top-0.5 right-0.5 blur-[0.5px]"></div>
+                                        <div className="absolute top-[18px] left-[9px] w-[2px] h-3 bg-gradient-to-r from-gray-400 to-gray-200 shadow-[2px_2px_2px_rgba(0,0,0,0.4)] -z-10 transform rotate-12"></div>
+                                    </div>
+                                    <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-black/50 blur-[1.5px] -z-20"></div>
                                 </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">The Stock Photo Profile Picture</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">Reverse image search reveals the profile photo is from stock libraries. Real Nithya has 847 personal photos.</p>
+                                <h4 className="font-bold text-red-900 tracking-wide mb-2 text-[11.5px] leading-tight border-b border-stone-300 pb-1.5 uppercase font-mono">Stock Photo Identity</h4>
+                                <p className="text-[11.5px] text-stone-700 font-serif leading-relaxed">Reverse image search reveals the profile photo is sourced from generic online stock libraries. Real Nithya uses personal photos.</p>
                             </div>
                         )}
 
                         {cluesFound.includes(3) && (
                             <div
-                                className="absolute bg-yellow-50 p-3 shadow-xl w-40 border border-yellow-300 z-10 flex flex-col animate-in zoom-in-95 duration-500"
-                                style={{
-                                    left: 40,
-                                    top: 220,
-                                    transform: 'rotate(-1deg)'
-                                }}
+                                className="absolute bg-[#FAFAFA] pt-5 px-4 pb-4 shadow-[0_15px_30px_rgba(0,0,0,0.6)] w-[260px] border border-stone-200 z-10 flex flex-col animate-in zoom-in-95 duration-500"
+                                style={{ left: -20, top: 200, transform: 'rotate(-1.5deg)' }}
                             >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-700 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/30 absolute top-0.5 right-0.5"></div>
+                                {/* Hyper-realistic Red Pin Component */}
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-700 shadow-[0_5px_8px_rgba(0,0,0,0.5),inset_0_-2px_4px_rgba(0,0,0,0.4)] border border-red-800 flex items-center justify-center relative">
+                                        <div className="w-2 h-2 rounded-full bg-white/50 absolute top-0.5 right-0.5 blur-[0.5px]"></div>
+                                        <div className="absolute top-[18px] left-[9px] w-[2px] h-3 bg-gradient-to-r from-gray-400 to-gray-200 shadow-[2px_2px_2px_rgba(0,0,0,0.4)] -z-10 transform -rotate-3"></div>
+                                    </div>
+                                    <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-black/50 blur-[1.5px] -z-20"></div>
                                 </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">The Emotional Softening Technique</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">The message follows a 3-stage manipulation: warm-up → self-deprecation → crisis.</p>
+                                <h4 className="font-bold text-red-900 tracking-wide mb-2 text-[11.5px] leading-tight border-b border-stone-300 pb-1.5 uppercase font-mono">Volatile Username History</h4>
+                                <p className="text-[11.5px] text-stone-700 font-serif leading-relaxed">This account has changed its handle 4 times within a single month. This rapid switching is a blatant impersonation tactic.</p>
                             </div>
                         )}
 
                         {cluesFound.includes(4) && (
                             <div
-                                className="absolute bg-yellow-50 p-3 shadow-xl w-40 border border-yellow-300 z-10 flex flex-col animate-in zoom-in-95 duration-500"
-                                style={{
-                                    left: 290,
-                                    top: 220,
-                                    transform: 'rotate(3deg)'
-                                }}
+                                className="absolute bg-[#FAFAFA] pt-5 px-4 pb-4 shadow-[0_15px_30px_rgba(0,0,0,0.6)] w-[260px] border border-stone-200 z-10 flex flex-col animate-in zoom-in-95 duration-500"
+                                style={{ left: 260, top: 200, transform: 'rotate(2.5deg)' }}
                             >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-700 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/30 absolute top-0.5 right-0.5"></div>
+                                {/* Hyper-realistic Red Pin Component */}
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-700 shadow-[0_5px_8px_rgba(0,0,0,0.5),inset_0_-2px_4px_rgba(0,0,0,0.4)] border border-red-800 flex items-center justify-center relative">
+                                        <div className="w-2 h-2 rounded-full bg-white/50 absolute top-0.5 right-0.5 blur-[0.5px]"></div>
+                                        <div className="absolute top-[18px] left-[9px] w-[2px] h-3 bg-gradient-to-r from-gray-400 to-gray-200 shadow-[2px_2px_2px_rgba(0,0,0,0.4)] -z-10 transform rotate-6"></div>
+                                    </div>
+                                    <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-black/50 blur-[1.5px] -z-20"></div>
                                 </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">Coimbatore + Hospital + No Family Contact</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">The scenario prevents verification: different city, hospital urgency, stolen phone, family unavailable.</p>
+                                <h4 className="font-bold text-red-900 tracking-wide mb-2 text-[11.5px] leading-tight border-b border-stone-300 pb-1.5 uppercase font-mono">Geolocation Mismatch</h4>
+                                <p className="text-[11.5px] text-stone-700 font-serif leading-relaxed">Network metadata pinpoints the account to Nigeria, directly contradicting the Chennai/Coimbatore narrative. Clear offshore fraud indicator.</p>
                             </div>
                         )}
 
                         {cluesFound.includes(5) && (
                             <div
-                                className="absolute bg-yellow-50 p-3 shadow-xl w-40 border border-yellow-300 z-10 flex flex-col animate-in zoom-in-95 duration-500"
-                                style={{
-                                    left: 40,
-                                    top: 410,
-                                    transform: 'rotate(-2deg)'
-                                }}
+                                className="absolute bg-[#FAFAFA] pt-5 px-4 pb-4 shadow-[0_15px_30px_rgba(0,0,0,0.6)] w-[260px] border border-stone-200 z-10 flex flex-col animate-in zoom-in-95 duration-500"
+                                style={{ left: -20, top: 380, transform: 'rotate(-2.5deg)' }}
                             >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-700 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/30 absolute top-0.5 right-0.5"></div>
+                                {/* Hyper-realistic Red Pin Component */}
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-700 shadow-[0_5px_8px_rgba(0,0,0,0.5),inset_0_-2px_4px_rgba(0,0,0,0.4)] border border-red-800 flex items-center justify-center relative">
+                                        <div className="w-2 h-2 rounded-full bg-white/50 absolute top-0.5 right-0.5 blur-[0.5px]"></div>
+                                        <div className="absolute top-[18px] left-[9px] w-[2px] h-3 bg-gradient-to-r from-gray-400 to-gray-200 shadow-[2px_2px_2px_rgba(0,0,0,0.4)] -z-10 transform -rotate-12"></div>
+                                    </div>
+                                    <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-black/50 blur-[1.5px] -z-20"></div>
                                 </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">Bank Transfer vs. UPI</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">Bank transfers don't show recipient names like UPI does. Scammers use bank transfers to avoid identity exposure.</p>
+                                <h4 className="font-bold text-red-900 tracking-wide mb-2 text-[11.5px] leading-tight border-b border-stone-300 pb-1.5 uppercase font-mono">Engagement Discrepancy</h4>
+                                <p className="text-[11.5px] text-stone-700 font-serif leading-relaxed">Despite boasting 847 followers, posts have zero organic comments and hidden likes. The followers are likely a purchased bot net.</p>
                             </div>
                         )}
 
                         {cluesFound.includes(6) && (
                             <div
-                                className="absolute bg-yellow-50 p-3 shadow-xl w-40 border border-yellow-300 z-10 flex flex-col animate-in zoom-in-95 duration-500"
-                                style={{
-                                    left: 290,
-                                    top: 410,
-                                    transform: 'rotate(1deg)'
-                                }}
+                                className="absolute bg-[#FAFAFA] pt-5 px-4 pb-4 shadow-[0_15px_30px_rgba(0,0,0,0.6)] w-[260px] border border-stone-200 z-10 flex flex-col animate-in zoom-in-95 duration-500"
+                                style={{ left: 260, top: 380, transform: 'rotate(1deg)' }}
                             >
-                                {/* Red Pin Head */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 shadow-md border border-red-700 flex items-center justify-center">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white/30 absolute top-0.5 right-0.5"></div>
+                                {/* Hyper-realistic Red Pin Component */}
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-400 to-red-700 shadow-[0_5px_8px_rgba(0,0,0,0.5),inset_0_-2px_4px_rgba(0,0,0,0.4)] border border-red-800 flex items-center justify-center relative">
+                                        <div className="w-2 h-2 rounded-full bg-white/50 absolute top-0.5 right-0.5 blur-[0.5px]"></div>
+                                        <div className="absolute top-[18px] left-[9px] w-[2px] h-3 bg-gradient-to-r from-gray-400 to-gray-200 shadow-[2px_2px_2px_rgba(0,0,0,0.4)] -z-10 transform rotate-3"></div>
+                                    </div>
+                                    <div className="absolute top-2 left-3 w-3 h-3 rounded-full bg-black/50 blur-[1.5px] -z-20"></div>
                                 </div>
-                                {/* Pin connection circle for SVG line visually */}
-                                <div className="absolute top-0 left-1/2 w-1.5 h-1.5 rounded-full bg-black/20 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
 
-                                <h4 className="font-bold text-red-800 tracking-wider mb-2 text-xs leading-tight border-b border-red-800/20 pb-1 uppercase">The 12 Mutual Friends Were Added As Bait</h4>
-                                <p className="text-xs text-stone-700 font-mono leading-tight">The fake account added 12 mutual friends 3-4 days ago. None interacted with the posts.</p>
+                                <h4 className="font-bold text-red-900 tracking-wide mb-2 text-[11.5px] leading-tight border-b border-stone-300 pb-1.5 uppercase font-mono">Bait Mutual Network</h4>
+                                <p className="text-[11.5px] text-stone-700 font-serif leading-relaxed">The fake account systematically added 12 mutual friends in a bulk operation just days ago to artificially engineer 'social proof'.</p>
                             </div>
                         )}
 
-                        {/* Locked Evidence Cards - Fixed Positions with Better Spacing */}
+                        {/* Locked Evidence Cards - Rectangular Style */}
                         {!cluesFound.includes(1) && (
                             <div
-                                className="absolute bg-gray-300 p-3 shadow-lg w-40 border-2 border-dashed border-gray-500 z-5 flex flex-col opacity-70"
-                                style={{
-                                    left: 40,
-                                    top: 40,
-                                    transform: 'rotate(-1deg)'
-                                }}
+                                className="absolute bg-stone-300/80 backdrop-blur-sm pt-5 px-4 pb-4 shadow-xl w-[260px] border-2 border-dashed border-stone-400 z-5 flex flex-col opacity-80"
+                                style={{ left: -20, top: 20, transform: 'rotate(-1.5deg)' }}
                             >
-                                {/* Lock icon */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-stone-500 rounded-full flex items-center justify-center shadow-md border border-stone-600">
+                                    <span className="text-white text-[10px] font-black">🔒</span>
                                 </div>
-
-                                <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #1</h4>
-                                <p className="text-xs text-gray-600 italic font-serif leading-tight">Hint: Compare the creation date with how long you've known her.</p>
+                                <h4 className="font-black text-stone-600 tracking-widest mb-2 text-[10px] leading-tight border-b border-stone-400/50 pb-1 uppercase font-mono">FILE #01: PENDING</h4>
+                                <p className="text-[11px] text-stone-600 italic font-serif leading-tight">Hint: Compare the creation date in account transparency with how long you've known her.</p>
                             </div>
                         )}
 
                         {!cluesFound.includes(2) && (
                             <div
-                                className="absolute bg-gray-300 p-3 shadow-lg w-40 border-2 border-dashed border-gray-500 z-5 flex flex-col opacity-70"
-                                style={{
-                                    left: 290,
-                                    top: 40,
-                                    transform: 'rotate(1deg)'
-                                }}
+                                className="absolute bg-stone-300/80 backdrop-blur-sm pt-5 px-4 pb-4 shadow-xl w-[260px] border-2 border-dashed border-stone-400 z-5 flex flex-col opacity-80"
+                                style={{ left: 260, top: 20, transform: 'rotate(1.5deg)' }}
                             >
-                                {/* Lock icon */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-stone-500 rounded-full flex items-center justify-center shadow-md border border-stone-600">
+                                    <span className="text-white text-[10px] font-black">🔒</span>
                                 </div>
-
-                                <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #2</h4>
-                                <p className="text-xs text-gray-600 italic font-serif leading-tight">Hint: Try a reverse image search on that profile picture.</p>
+                                <h4 className="font-black text-stone-600 tracking-widest mb-2 text-[10px] leading-tight border-b border-stone-400/50 pb-1 uppercase font-mono">FILE #02: PENDING</h4>
+                                <p className="text-[11px] text-stone-600 italic font-serif leading-tight">Hint: Is that profile picture a real selfie? Click the avatar to inspect.</p>
                             </div>
                         )}
 
                         {!cluesFound.includes(3) && (
                             <div
-                                className="absolute bg-gray-300 p-3 shadow-lg w-40 border-2 border-dashed border-gray-500 z-5 flex flex-col opacity-70"
-                                style={{
-                                    left: 40,
-                                    top: 220,
-                                    transform: 'rotate(0.5deg)'
-                                }}
+                                className="absolute bg-stone-300/80 backdrop-blur-sm pt-5 px-4 pb-4 shadow-xl w-[260px] border-2 border-dashed border-stone-400 z-5 flex flex-col opacity-80"
+                                style={{ left: -20, top: 200, transform: 'rotate(0.5deg)' }}
                             >
-                                {/* Lock icon */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-stone-500 rounded-full flex items-center justify-center shadow-md border border-stone-600">
+                                    <span className="text-white text-[10px] font-black">🔒</span>
                                 </div>
-
-                                <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #3</h4>
-                                <p className="text-xs text-gray-600 italic font-serif leading-tight">Hint: Look for emotional triggers in the message text.</p>
+                                <h4 className="font-black text-stone-600 tracking-widest mb-2 text-[10px] leading-tight border-b border-stone-400/50 pb-1 uppercase font-mono">FILE #03: PENDING</h4>
+                                <p className="text-[11px] text-stone-600 italic font-serif leading-tight">Hint: Check the 'Former Usernames' count in the transparency menu.</p>
                             </div>
                         )}
 
                         {!cluesFound.includes(4) && (
                             <div
-                                className="absolute bg-gray-300 p-3 shadow-lg w-40 border-2 border-dashed border-gray-500 z-5 flex flex-col opacity-70"
-                                style={{
-                                    left: 290,
-                                    top: 220,
-                                    transform: 'rotate(-0.5deg)'
-                                }}
+                                className="absolute bg-stone-300/80 backdrop-blur-sm pt-5 px-4 pb-4 shadow-xl w-[260px] border-2 border-dashed border-stone-400 z-5 flex flex-col opacity-80"
+                                style={{ left: 260, top: 200, transform: 'rotate(-0.5deg)' }}
                             >
-                                {/* Lock icon */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-stone-500 rounded-full flex items-center justify-center shadow-md border border-stone-600">
+                                    <span className="text-white text-[10px] font-black">🔒</span>
                                 </div>
-
-                                <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #4</h4>
-                                <p className="text-xs text-gray-600 italic font-serif leading-tight">Hint: Notice how many reasons exist to prevent you from calling her family.</p>
+                                <h4 className="font-black text-stone-600 tracking-widest mb-2 text-[10px] leading-tight border-b border-stone-400/50 pb-1 uppercase font-mono">FILE #04: PENDING</h4>
+                                <p className="text-[11px] text-stone-600 italic font-serif leading-tight">Hint: Inspect the actual geolocation data from the account transparency menu.</p>
                             </div>
                         )}
 
                         {!cluesFound.includes(5) && (
                             <div
-                                className="absolute bg-gray-300 p-3 shadow-lg w-40 border-2 border-dashed border-gray-500 z-5 flex flex-col opacity-70"
-                                style={{
-                                    left: 40,
-                                    top: 410,
-                                    transform: 'rotate(0deg)'
-                                }}
+                                className="absolute bg-stone-300/80 backdrop-blur-sm pt-5 px-4 pb-4 shadow-xl w-[260px] border-2 border-dashed border-stone-400 z-5 flex flex-col opacity-80"
+                                style={{ left: -20, top: 380, transform: 'rotate(1deg)' }}
                             >
-                                {/* Lock icon */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-stone-500 rounded-full flex items-center justify-center shadow-md border border-stone-600">
+                                    <span className="text-white text-[10px] font-black">🔒</span>
                                 </div>
-
-                                <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #5</h4>
-                                <p className="text-xs text-gray-600 italic font-serif leading-tight">Hint: Why is she asking for a bank transfer instead of UPI?</p>
+                                <h4 className="font-black text-stone-600 tracking-widest mb-2 text-[10px] leading-tight border-b border-stone-400/50 pb-1 uppercase font-mono">FILE #05: PENDING</h4>
+                                <p className="text-[11px] text-stone-600 italic font-serif leading-tight">Hint: Click on the image grid. Why are the engagement metrics hidden or zero?</p>
                             </div>
                         )}
 
                         {!cluesFound.includes(6) && (
                             <div
-                                className="absolute bg-gray-300 p-3 shadow-lg w-40 border-2 border-dashed border-gray-500 z-5 flex flex-col opacity-70"
-                                style={{
-                                    left: 290,
-                                    top: 410,
-                                    transform: 'rotate(-0.5deg)'
-                                }}
+                                className="absolute bg-stone-300/80 backdrop-blur-sm pt-5 px-4 pb-4 shadow-xl w-[260px] border-2 border-dashed border-stone-400 z-5 flex flex-col opacity-80"
+                                style={{ left: 260, top: 380, transform: 'rotate(-1deg)' }}
                             >
-                                {/* Lock icon */}
-                                <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center shadow-sm">
-                                    <span className="text-white text-xs font-black">🔒</span>
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-stone-500 rounded-full flex items-center justify-center shadow-md border border-stone-600">
+                                    <span className="text-white text-[10px] font-black">🔒</span>
                                 </div>
-
-                                <h4 className="font-black text-gray-700 tracking-wider mb-2 text-xs leading-tight border-b border-gray-500/30 pb-1 uppercase">LOCKED EVIDENCE #6</h4>
-                                <p className="text-xs text-gray-600 italic font-serif leading-tight">Hint: Look at the mutual friends list and their interaction history.</p>
+                                <h4 className="font-black text-stone-600 tracking-widest mb-2 text-[10px] leading-tight border-b border-stone-400/50 pb-1 uppercase font-mono">FILE #06: PENDING</h4>
+                                <p className="text-[11px] text-stone-600 italic font-serif leading-tight">Hint: Tap the 'Mutual' followers stat. Notice when they were added.</p>
                             </div>
                         )}
 
                         {cluesFound.length === 0 && (
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-stone-600/40 text-center font-mono font-bold text-xl rotate-[-3deg] border-4 border-dashed border-stone-600/20 p-6 rounded-xl z-0 pointer-events-none">
-                                CLICK PROFILE ELEMENTS<br />TO UNCOVER EVIDENCE.
+                            <div className="absolute top-[25%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#382315]/40 text-center font-mono font-black text-2xl rotate-[-2deg] border-[3px] border-dashed border-[#382315]/20 p-8 rounded-xl z-0 pointer-events-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.1)]">
+                                AWAITING EVIDENCE<br />
+                                <span className="text-sm tracking-widest mt-2 block font-medium opacity-80 decoration-wavy">CLICK PROFILE ELEMENTS TO INVESTIGATE</span>
                             </div>
                         )}
                     </div>
-
-
                 </div>
                 </div>
             </div>
@@ -1213,8 +1415,6 @@ const Level9 = () => {
                 <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
                 <div className="relative z-20">
-                    <FeedbackToast />
-
                     {/* Single Phone UI (Outgoing Call) */}
                     <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col items-center justify-center">
                         {/* Dynamic Island */}
@@ -1222,11 +1422,11 @@ const Level9 = () => {
                             <div className="w-2 h-2 bg-slate-700 rounded-full" />
                         </div>
 
-                        <div className="w-full h-full bg-gradient-to-b from-blue-700 via-blue-600 to-indigo-800 flex flex-col items-center text-white relative overflow-hidden pt-20">
+                        <div className="w-full h-full bg-black flex flex-col items-center text-white relative overflow-hidden pt-20">
                             {/* Ripple effect */}
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-20">
-                                <div className="w-64 h-64 border border-white/10 rounded-full animate-ping" />
-                                <div className="absolute w-80 h-80 border border-white/5 rounded-full animate-ping" style={{ animationDelay: '0.8s' }} />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none mt-20 opacity-30">
+                                <div className="w-64 h-64 border border-white/20 rounded-full animate-ping" />
+                                <div className="absolute w-80 h-80 border border-white/10 rounded-full animate-ping" style={{ animationDelay: '0.8s' }} />
                                 <div className="absolute w-96 h-96 border border-white/5 rounded-full animate-ping" style={{ animationDelay: '1.6s' }} />
                             </div>
 
@@ -1257,7 +1457,7 @@ const Level9 = () => {
                                     </div>
                                 </div>
 
-                                <button className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-[0_5px_20px_rgba(239,68,68,0.5)] border-4 border-white/20 mx-auto">
+                                <button className="w-20 h-20 bg-neutral-800 hover:bg-neutral-700 rounded-full flex items-center justify-center border border-neutral-600 mx-auto transition-colors">
                                     <svg className="w-8 h-8 text-white rotate-[135deg]" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
                                 </button>
                             </div>
@@ -1298,11 +1498,9 @@ const Level9 = () => {
             <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
                 {/* Bedroom background */}
                 <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center', filter: 'brightness(0.3) blur(8px)' }} />
-                <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-black/60 mix-blend-multiply z-10 pointer-events-none"></div>
 
                 <div className="relative z-20">
-                    <FeedbackToast />
-
                     {/* Single Phone UI (Connected Call) */}
                     <div className="w-[380px] max-h-[90vh] h-[750px] bg-black border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
                         <StatusBar dark={false} />
@@ -1310,14 +1508,14 @@ const Level9 = () => {
                         {/* Dynamic Island */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
                             <div className="w-2 h-2 bg-slate-700 rounded-full" />
-                            <div className="absolute right-3 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_#10b981]" />
+                            <div className="absolute right-3 w-1.5 h-1.5 bg-white/50 rounded-full animate-pulse shadow-[0_0_5px_rgba(255,255,255,0.2)]" />
                         </div>
 
-                        <div className="w-full h-full bg-[#0a1128] overflow-hidden flex flex-col relative pt-10">
+                        <div className="w-full h-full bg-black overflow-hidden flex flex-col relative pt-10">
                             {/* Blurred ambient background effect inside phone */}
-                            <div className="absolute inset-0 z-0 opacity-40">
-                                <div className="absolute top-10 right-10 w-40 h-40 bg-purple-600 rounded-full blur-[80px]"></div>
-                                <div className="absolute bottom-40 left-10 w-40 h-40 bg-emerald-600 rounded-full blur-[80px]"></div>
+                            <div className="absolute inset-0 z-0 opacity-10">
+                                <div className="absolute top-10 right-10 w-40 h-40 bg-white rounded-full blur-[80px]"></div>
+                                <div className="absolute bottom-40 left-10 w-40 h-40 bg-white rounded-full blur-[80px]"></div>
                             </div>
 
                             {/* Call Header */}
@@ -1327,17 +1525,15 @@ const Level9 = () => {
                                 </div>
                                 <h2 className="text-white font-black text-xl mb-1 drop-shadow-md">Nithya</h2>
                                 <div className="flex gap-2 items-center">
-                                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_#34d399]" />
-                                    <span className="text-emerald-400 text-[11px] font-mono font-bold tracking-widest uppercase opacity-90">Connected 00:0{dialogueIndex + 2}</span>
+                                    <span className="text-white text-[11px] font-mono font-bold tracking-widest uppercase opacity-90">Connected 00:0{dialogueIndex + 2}</span>
                                 </div>
                             </div>
 
                             {/* Live Transcript / Dialogue */}
                             <div className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar z-10 pb-32">
-                                {/* Visualizer */}
-                                <div className="flex justify-center items-end gap-1 h-12 mb-6 opacity-60">
+                                <div className="flex justify-center items-end gap-1 h-12 mb-6 opacity-40">
                                     {[3, 5, 2, 8, 4, 3, 6, 2, 7, 4, 5, 2, 4, 3].map((h, i) => (
-                                        <div key={i} className="w-1 bg-emerald-400 rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.1}s` }} />
+                                        <div key={i} className="w-1 bg-white rounded-full animate-pulse" style={{ height: `${h * 4}px`, animationDelay: `${i * 0.1}s` }} />
                                     ))}
                                 </div>
 
@@ -1347,12 +1543,12 @@ const Level9 = () => {
                                         className={`flex flex-col ${line.sender === 'you' ? 'items-end' : 'items-start'} animate-in slide-in-from-bottom-2 duration-500`}
                                         style={{ animationDelay: `${idx * 0.1}s` }}
                                     >
-                                        <span className={`text-[9px] mb-1 font-bold uppercase tracking-widest ${line.sender === 'you' ? 'text-blue-400/80 mr-1' : 'text-emerald-400/80 ml-1'}`}>
+                                        <span className={`text-[9px] mb-1 font-bold uppercase tracking-widest ${line.sender === 'you' ? 'text-neutral-400 mr-1' : 'text-neutral-400 ml-1'}`}>
                                             {line.sender === 'you' ? 'You' : 'Nithya (Real)'}
                                         </span>
-                                        <div className={`max-w-[85%] p-4 rounded-[1.2rem] shadow-lg text-[13px] leading-relaxed backdrop-blur-md border ${line.sender === 'you'
-                                            ? 'bg-blue-600/30 border-blue-500/30 text-blue-50 rounded-tr-sm'
-                                            : 'bg-emerald-600/30 border-emerald-500/30 text-emerald-50 rounded-tl-sm'
+                                        <div className={`max-w-[85%] p-4 rounded-[1.2rem] shadow-lg text-[13px] leading-relaxed border ${line.sender === 'you'
+                                            ? 'bg-neutral-800 border-neutral-700 text-white rounded-tr-sm'
+                                            : 'bg-white border-gray-200 text-black rounded-tl-sm'
                                             }`}>
                                             "{line.text}"
                                         </div>
@@ -1362,40 +1558,19 @@ const Level9 = () => {
                                 <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
                             </div>
 
-                            {/* Call Controls / Continue Button Overlay */}
-                            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#050a17] via-[#050a17]/90 to-transparent z-20 pb-10 flex flex-col items-center">
+                            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/90 to-transparent z-20 pb-10 flex flex-col items-center">
                                 {dialogueIndex < dialogueLines.length - 1 ? (
                                     <button
-                                        className="w-full bg-white text-black font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 hover:bg-gray-100"
+                                        className="w-full bg-white text-black font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 hover:bg-gray-200"
                                         onClick={showNextLine}
                                     >
                                         <span>Continue Conversation</span>
-                                        <span className="text-xl">💬</span>
                                     </button>
                                 ) : (
-                                    <div className="w-full space-y-3">
-                                        {!scamReported && (
-                                            <button className="w-full bg-red-600/20 border border-red-500/50 hover:bg-red-600/30 text-red-400 font-black py-3.5 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-sm backdrop-blur-md"
-                                                onClick={() => setGameState('report_fake_account')}>
-                                                🚨 Report Fake Account
-                                            </button>
-                                        )}
-                                        {!communityAlerted && (
-                                            <button className="w-full bg-amber-500/20 border border-amber-500/50 hover:bg-amber-500/30 text-amber-400 font-black py-3.5 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-sm backdrop-blur-md"
-                                                onClick={() => setGameState('alert_community')}>
-                                                👥 Alert Mutual Friends
-                                            </button>
-                                        )}
-                                        {scamReported && communityAlerted && (
-                                            <button className="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black py-4 rounded-xl transition-all shadow-xl active:scale-95 animate-pulse flex items-center justify-center gap-2"
-                                                onClick={() => {
-                                                    window.speechSynthesis?.cancel();
-                                                    setGameState('final_sleep');
-                                                }}>
-                                                ✅ Hang Up & Sleep
-                                            </button>
-                                        )}
-                                    </div>
+                                        <button className="w-full bg-white text-black hover:bg-gray-200 font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2 text-sm max-w-sm mx-auto"
+                                            onClick={() => setGameState('report_fake_account')}>
+                                            Proceed to Report Account
+                                        </button>
                                 )}
                             </div>
                         </div>
@@ -1414,71 +1589,64 @@ const Level9 = () => {
                 <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
                 <div className="relative z-20">
-                    <FeedbackToast />
+                <div className="w-[380px] max-h-[90vh] h-[700px] bg-black border-[2px] border-neutral-800 rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                    <StatusBar dark={false} />
 
-                <div className="w-[380px] max-h-[90vh] h-[700px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col"
-                    style={{
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
-                    }}>
-                    <StatusBar />
-
-                    {/* Dynamic Island */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
-                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-neutral-900 rounded-b-2xl z-50 flex items-center justify-center border-b border-x border-neutral-800">
+                        <div className="w-2 h-2 bg-neutral-700 rounded-full" />
                     </div>
 
-                    <div className="w-full h-full bg-white flex flex-col relative pt-10 rounded-[3rem] mt-2 overflow-hidden">
-                        {/* Reporting interface header */}
-                        <div className="bg-gradient-to-r from-red-600 to-orange-600 px-5 py-3 text-white shadow-lg flex-shrink-0">
-                            <h2 className="font-black text-xl">Report Profile</h2>
-                            <p className="text-xs opacity-80 mt-0.5">Help keep our community safe</p>
+                    <div className="w-full h-full bg-black text-white flex flex-col relative pt-10 rounded-[3rem] mt-2 overflow-hidden border border-neutral-900">
+                        <div className="border-b border-neutral-800 px-5 py-4 bg-neutral-900 flex-shrink-0">
+                            <h2 className="font-bold text-lg text-white">Report Profile</h2>
+                            <p className="text-xs text-neutral-400 mt-0.5">Help keep our community safe</p>
                         </div>
 
-                        <div className="flex-1 p-4 space-y-4 overflow-y-auto hide-scrollbar">
-                            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
-                                <p className="font-black mb-2 text-sm text-gray-800">Reporting:</p>
+                        <div className="flex-1 p-4 space-y-4 overflow-y-auto custom-scrollbar">
+                            <div className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800">
+                                <p className="font-bold mb-3 text-sm text-neutral-400">Reporting:</p>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center text-lg font-black shadow-md">N</div>
+                                    <div className="w-12 h-12 bg-neutral-800 rounded-full flex items-center justify-center text-lg font-bold">N</div>
                                     <div>
-                                        <p className="font-black text-sm text-gray-900">Nithya Krishnan</p>
-                                        <p className="text-xs text-gray-500">@nithya_krishnan</p>
+                                        <p className="font-bold text-sm text-white">Nithya Krishnan</p>
+                                        <p className="text-xs text-neutral-500">@nithya_krishnan</p>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="space-y-3">
-                                <p className="font-black text-sm text-gray-800">Reason for report:</p>
-                                <label className="flex items-center gap-3 p-3 bg-red-50 border-2 border-red-500 rounded-xl cursor-pointer hover:bg-red-100 transition-all">
-                                    <input type="radio" name="report" className="w-4 h-4" defaultChecked />
-                                    <span className="font-black text-red-900 text-sm">Impersonation</span>
+                                <p className="font-bold text-sm text-neutral-400">Reason for report:</p>
+                                <label className="flex items-center gap-3 p-3 bg-neutral-800 border-2 border-white rounded-xl cursor-pointer">
+                                    <input type="radio" name="report" className="w-4 h-4 accent-white" defaultChecked />
+                                    <span className="font-bold text-white text-sm">Impersonation</span>
                                 </label>
-                                <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-all">
-                                    <input type="radio" name="report" className="w-4 h-4" />
-                                    <span className="text-gray-700 font-medium text-sm">Spam</span>
+                                <label className="flex items-center gap-3 p-3 bg-neutral-900 border border-neutral-800 rounded-xl cursor-pointer hover:bg-neutral-800 transition-colors">
+                                    <input type="radio" name="report" className="w-4 h-4 accent-white" />
+                                    <span className="text-neutral-300 font-medium text-sm">Spam</span>
                                 </label>
-                                <label className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-all">
-                                    <input type="radio" name="report" className="w-4 h-4" />
-                                    <span className="text-gray-700 font-medium text-sm">Fake Account</span>
+                                <label className="flex items-center gap-3 p-3 bg-neutral-900 border border-neutral-800 rounded-xl cursor-pointer hover:bg-neutral-800 transition-colors">
+                                    <input type="radio" name="report" className="w-4 h-4 accent-white" />
+                                    <span className="text-neutral-300 font-medium text-sm">Fake Account</span>
                                 </label>
                             </div>
 
-                            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200">
-                                <p className="font-black text-blue-900 mb-2 text-sm">Additional Details:</p>
-                                <p className="text-xs text-gray-700 leading-relaxed">This account is impersonating my real friend Nithya Krishnan to solicit money through fake emergency stories. The profile uses stock photos and was recently created.</p>
+                            <div className="bg-neutral-900 p-4 rounded-2xl border border-neutral-800">
+                                <p className="font-bold text-white mb-2 text-sm">Additional Details:</p>
+                                <p className="text-xs text-neutral-400 leading-relaxed">This account is impersonating my real friend Nithya Krishnan to solicit money through fake emergency stories. The profile uses stock photos and was recently created.</p>
                             </div>
                         </div>
 
-                        <div className="p-4 bg-white border-t border-gray-100 space-y-3 flex-shrink-0">
-                            <button className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95"
+                        <div className="p-4 bg-black border-t border-neutral-800 space-y-3 flex-shrink-0">
+                            <button className={`w-full font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 ${scamReported ? 'bg-emerald-500 text-white' : 'bg-white hover:bg-gray-200 text-black'}`}
                                 onClick={() => {
+                                    if(scamReported) return;
                                     setScamReported(true);
-                                    showFeedback("✅ Fake account reported!");
-                                    setGameState('call_confirmation');
+                                    showFeedback("Report submitted.");
+                                    setTimeout(() => setGameState('alert_community'), 1500);
                                 }}>
-                                Submit Report 🚨
+                                {scamReported ? '✓ Reported' : 'Submit Report'}
                             </button>
-                            <button className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-black py-3 rounded-2xl transition-all text-sm"
+                            <button className="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium py-3 rounded-xl transition-all text-sm border border-neutral-800"
                                 onClick={() => setGameState('call_confirmation')}>
                                 Cancel
                             </button>
@@ -1499,73 +1667,92 @@ const Level9 = () => {
                 <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply z-10 pointer-events-none"></div>
 
                 <div className="relative z-20">
-                    <FeedbackToast />
 
-                <div className="w-[380px] max-h-[90vh] h-[700px] bg-gradient-to-br from-slate-900 to-slate-800 border-[2px] border-slate-700 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col"
-                    style={{
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                        background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%)'
-                    }}>
-                    <StatusBar dark />
+                <div className="w-[380px] max-h-[90vh] h-[700px] bg-black border-[2px] border-neutral-800 rounded-[3rem] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col">
+                    <StatusBar />
 
-                    {/* Dynamic Island */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-b-2xl z-50 flex items-center justify-center">
-                        <div className="w-2 h-2 bg-slate-700 rounded-full" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-28 h-7 bg-neutral-900 rounded-b-2xl z-50 flex items-center justify-center border-b border-x border-neutral-800">
+                        <div className="w-2 h-2 bg-neutral-700 rounded-full" />
                     </div>
 
-                    <div className="w-full h-full bg-white flex flex-col relative pt-10 rounded-[3rem] mt-2 overflow-hidden">
-                        {/* Group chat header */}
-                        <div className="bg-gradient-to-r from-green-600 to-blue-600 px-5 py-3 text-white shadow-lg flex-shrink-0">
-                            <h2 className="font-black text-xl">College Friends Group</h2>
-                            <p className="text-xs opacity-80 mt-0.5">12 members</p>
+                    <div className="w-full h-full bg-black text-white flex flex-col relative pt-10 rounded-[3rem] mt-2 overflow-hidden border border-neutral-900">
+                        <div className="bg-neutral-900 border-b border-neutral-800 px-5 py-4 flex-shrink-0">
+                            <h2 className="font-bold text-lg text-white">College Friends Group</h2>
+                            <p className="text-xs text-neutral-400 mt-0.5">12 members</p>
                         </div>
 
-                        <div className="flex-1 p-4 space-y-4 bg-gray-50 overflow-y-auto hide-scrollbar">
-                            <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-2xl shadow-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-white font-black text-sm shadow-md">!</div>
-                                    <p className="font-black text-yellow-900 text-sm">⚠️ SECURITY ALERT</p>
+                        <div className="flex-1 p-4 space-y-4 bg-black overflow-y-auto custom-scrollbar">
+                            {alertStep >= 1 && (
+                                <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl animate-in slide-in-from-bottom-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="w-8 h-8 bg-neutral-800 rounded-full flex items-center justify-center text-white font-bold text-sm">!</div>
+                                        <p className="font-bold text-white text-sm">SECURITY ALERT</p>
+                                    </div>
+                                    <p className="text-xs text-neutral-400 leading-relaxed">A fake account impersonating Nithya Krishnan is sending fraud messages asking for money. DO NOT send any money. Report the account immediately. The real Nithya is safe in Chennai.</p>
                                 </div>
-                                <p className="text-xs text-gray-700 leading-relaxed">A fake account impersonating Nithya Krishnan is sending fraud messages asking for money. DO NOT send any money. Report the account immediately. The real Nithya is safe in Chennai.</p>
+                            )}
+
+                            <div className="space-y-4 pt-2">
+                                {alertStep >= 2 && (
+                                    <div className="flex gap-3 items-start animate-in slide-in-from-bottom-2">
+                                        <div className="w-9 h-9 bg-neutral-800 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">A</div>
+                                        <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl rounded-tl-sm flex-1">
+                                            <p className="font-bold text-xs mb-1 text-neutral-300">Arjun</p>
+                                            <p className="text-xs text-neutral-400">Thanks for the warning! I almost sent money yesterday</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {alertStep >= 3 && (
+                                    <div className="flex gap-3 items-start animate-in slide-in-from-bottom-2">
+                                        <div className="w-9 h-9 bg-neutral-800 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">P</div>
+                                        <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl rounded-tl-sm flex-1">
+                                            <p className="font-bold text-xs mb-1 text-neutral-300">Priya</p>
+                                            <p className="text-xs text-neutral-400">Just reported the account! Everyone stay safe</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {alertStep >= 4 && (
+                                    <div className="flex gap-3 items-start animate-in slide-in-from-bottom-2">
+                                        <div className="w-9 h-9 bg-neutral-800 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0">R</div>
+                                        <div className="bg-neutral-900 border border-neutral-800 p-3 rounded-2xl rounded-tl-sm flex-1">
+                                            <p className="font-bold text-xs mb-1 text-neutral-300">Rahul</p>
+                                            <p className="text-xs text-neutral-400">You saved us all! Thank you for being careful</p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-
-                            <div className="space-y-3">
-                                <div className="flex gap-3 items-start">
-                                    <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">A</div>
-                                    <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
-                                        <p className="font-black text-xs mb-0.5 text-gray-900">Arjun</p>
-                                        <p className="text-xs text-gray-700">Thanks for the warning! I almost sent money yesterday</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 items-start">
-                                    <div className="w-9 h-9 bg-purple-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">P</div>
-                                    <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
-                                        <p className="font-black text-xs mb-0.5 text-gray-900">Priya</p>
-                                        <p className="text-xs text-gray-700">Just reported the account! Everyone stay safe 🙏</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 items-start">
-                                    <div className="w-9 h-9 bg-green-500 rounded-full flex items-center justify-center text-white text-xs font-black shadow-md flex-shrink-0">R</div>
-                                    <div className="bg-white p-3 rounded-2xl flex-1 shadow-sm border border-gray-100">
-                                        <p className="font-black text-xs mb-0.5 text-gray-900">Rahul</p>
-                                        <p className="text-xs text-gray-700">You saved us all! Thank you for being careful 🙏</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
                         </div>
 
-                        <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
-                            <button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
-                                onClick={() => {
-                                    setCommunityAlerted(true);
-                                    showFeedback("✅ Community alerted!");
-                                    setGameState('call_confirmation');
-                                }}>
-                                <span className="text-lg">📢</span>
-                                <span>Send Alert</span>
-                            </button>
+                        <div className="p-4 bg-black border-t border-neutral-800 flex-shrink-0">
+                            {alertStep === 0 ? (
+                                <button className="w-full bg-white hover:bg-gray-200 text-black font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                                    onClick={() => {
+                                        setAlertStep(1);
+                                        setTimeout(() => setAlertStep(2), 1500);
+                                        setTimeout(() => setAlertStep(3), 3000);
+                                        setTimeout(() => setAlertStep(4), 4500);
+                                    }}>
+                                    <span>Send Warning</span>
+                                </button>
+                            ) : alertStep < 4 ? (
+                                <div className="w-full bg-neutral-900 text-neutral-500 font-bold py-4 rounded-xl flex items-center justify-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-neutral-500 border-t-white rounded-full animate-spin"></div>
+                                    <span>Friends are typing...</span>
+                                </div>
+                            ) : (
+                                <button className="w-full bg-neutral-800 hover:bg-red-600 border border-neutral-700 hover:border-red-600 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
+                                    onClick={() => {
+                                        setCommunityAlerted(true);
+                                        window.speechSynthesis?.cancel();
+                                        setGameState('final_sleep');
+                                    }}>
+                                    <span>Hang Up Call</span>
+                                    <span className="text-xl rotate-[135deg]">📞</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1582,10 +1769,17 @@ const Level9 = () => {
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black pointer-events-none z-10" />
 
-                    <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-[2000ms] ${finalSleepStep >= 1 ? 'opacity-100' : 'opacity-0'} z-30`}>
-                        <p className="text-white text-3xl font-light italic tracking-widest px-8 max-w-2xl text-center drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)]">
-                            "That's enough phone for today. Time to sleep."
-                        </p>
+                    <div className={`absolute bottom-0 left-0 right-0 pointer-events-none transition-opacity duration-[2000ms] ${finalSleepStep >= 1 ? 'opacity-100' : 'opacity-0'} z-30 flex flex-col items-center pb-20`}>
+                        {/* Dark gradient backdrop strip */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                        
+                        <div className="relative flex flex-col items-center gap-4">
+                            <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent" />
+                            <p className="text-white text-xl font-bold uppercase tracking-[0.2em] px-12 max-w-3xl text-center drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                "That's enough phone for today. Time to sleep."
+                            </p>
+                            <div className="h-px w-12 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                        </div>
                     </div>
 
                     <div
@@ -1769,7 +1963,18 @@ const Level9 = () => {
         );
     }
 
-    return null;
+        return null;
+    };
+
+    return (
+        <div className="w-full h-full bg-black relative overflow-hidden flex items-center justify-center">
+            <LocalStyles />
+            {/* LEVEL 9 GLOBAL WRAPPER - Ensures persistent black background and transitions */}
+            <div className={`absolute inset-0 bg-black z-[9999] transition-opacity duration-[800ms] pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
+            <FeedbackToast />
+            {renderGameState()}
+        </div>
+    );
 };
 
 export default Level9;
