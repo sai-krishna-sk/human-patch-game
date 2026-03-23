@@ -15,13 +15,26 @@ import LevelLivingRoom from './levels/LevelLivingRoom';
 import LevelBedroom from './levels/LevelBedroom';
 import LevelSelector from './components/LevelSelector';
 import MainMenu from './components/MainMenu';
+import PauseMenu from './components/PauseMenu';
 import Prologue from './levels/Prologue';
 import CyberDefenseLab from './components/CyberDefenseLab';
 import Conclusion from './levels/Conclusion';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 
 function GameRunner() {
-    const { currentLevel, assets, rank, safetyScore, lives } = useGameState();
+    const { currentLevel, assets, rank, safetyScore, lives, isPaused, setIsPaused } = useGameState();
+
+    React.useEffect(() => {
+        const handleKeyDown = (e) => {
+            const isStoryLevel = (typeof currentLevel === 'number' && (currentLevel > 0 || currentLevel === -3)) || 
+                                ['living-room', 'bedroom'].includes(currentLevel);
+            if (e.key === 'Escape' && isStoryLevel) {
+                setIsPaused(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [currentLevel, setIsPaused]);
 
     return (
         <div className="w-screen h-screen bg-slate-900 overflow-hidden font-sans relative">
@@ -90,6 +103,9 @@ function GameRunner() {
             {currentLevel === 12 && <Conclusion />}
             {currentLevel === 'living-room' && <LevelLivingRoom />}
             {currentLevel === 'bedroom' && <LevelBedroom />}
+
+            {/* Pause Menu Overlay */}
+            {isPaused && <PauseMenu />}
 
         </div>
     );

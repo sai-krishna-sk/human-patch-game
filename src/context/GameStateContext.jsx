@@ -22,6 +22,7 @@ export const GameStateProvider = ({ children }) => {
         return saved !== null ? Number(saved) : 3;
     });
     const [currentLevel, setCurrentLevel] = useState(-2); // -2 = Main Menu
+    const [isPaused, setIsPaused] = useState(false);
 
     useEffect(() => { localStorage.setItem('hpg_assets', assets); }, [assets]);
     useEffect(() => { localStorage.setItem('hpg_safetyScore', safetyScore); }, [safetyScore]);
@@ -119,11 +120,16 @@ export const GameStateProvider = ({ children }) => {
         setAssets(prev => Math.max(0, prev + amount)); // Assets never go below 0
     };
 
+    const adjustSafetyScore = (amount) => {
+        setSafetyScore(prev => prev + amount);
+    };
+
     const adjustLives = (amount) => {
         setLives(prev => Math.max(0, prev + amount));
     };
 
-    const completeLevel = (success, pointsAmount, assetChange) => {
+    const completeLevel = (success, pointsAmount, assetChange = 0) => {
+        setIsPaused(false);
         setAssets(prev => Math.max(0, prev + assetChange));
         if (success) {
             setSafetyScore(prev => prev + pointsAmount);
@@ -145,8 +151,11 @@ export const GameStateProvider = ({ children }) => {
             enterLevel,
             completeLevel,
             adjustAssets,
+            adjustSafetyScore,
             adjustLives,
             playTitleCardSound,
+            isPaused,
+            setIsPaused,
             resetProgress
         }}>
             {children}

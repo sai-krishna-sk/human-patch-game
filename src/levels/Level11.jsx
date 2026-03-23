@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
 import InteractionPrompt from '../components/InteractionPrompt';
@@ -61,6 +61,10 @@ const Level11 = () => {
   const [waUnknownHistory, setWaUnknownHistory] = useState([]);
   const [showUnknownNotif, setShowUnknownNotif] = useState(false);
   const [blackmailProgress, setBlackmailProgress] = useState(0);
+  const [notiReceived, setNotiReceived] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionText, setTransitionText] = useState("");
+  const [isPostTransition, setIsPostTransition] = useState(false);
 
   // ROOM WALK STATE & AUDIO
   const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 800, y: 450 });
@@ -121,10 +125,18 @@ const Level11 = () => {
   };
 
   // CHAT SEQUENCER STATE
-  const [dmHistory, setDmHistory] = useState([]);
+  const [dmHistory, setDmHistory] = useState([{ type: 'system', text: "Day 1, 9:47 PM" }]);
   const [pendingSequence, setPendingSequence] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [choicesLocked, setChoicesLocked] = useState(false);
+  const dmEndRef = useRef(null);
+
+  // Scroll to bottom of DMs
+  useEffect(() => {
+    if (dmEndRef.current) {
+      dmEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [dmHistory, isTyping]);
 
   // FLAGS (Narrative Choices)
   const [profileChecked, setProfileChecked] = useState(false);
@@ -142,6 +154,18 @@ const Level11 = () => {
     return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
   }, []);
 
+  // Cinematic transition helper
+  const triggerSceneTransition = (newStateUpdate, text = "") => {
+    setIsTransitioning(true);
+    setTransitionText(text);
+    setTimeout(() => {
+      newStateUpdate();
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 400);
+    }, 600);
+  };
+
   // E KEY TO TOGGLE PHONE
   useEffect(() => {
     const handleKey = (e) => {
@@ -156,23 +180,35 @@ const Level11 = () => {
           setGameState('phone');
         } else if (gameState === 'phone') {
           if (storyProgress === 0.5) {
-            setGameState('room_walk');
-            setRoomPlayerPos({ x: 800, y: 400 });
-          } else {
-            setGameState('exploration');
+            triggerSceneTransition(() => {
+              setGameState('room_walk');
+              setRoomPlayerPos({ x: 800, y: 400 });
+            });
           }
         } else if (gameState === 'room_walk' && roomInteractionTarget === 'bathroom') {
-          setGameState('room_walk_freshened');
+          triggerSceneTransition(() => {
+            setGameState('room_walk_freshened');
+          }, "freshening up...");
         } else if (gameState === 'room_walk_freshened' && roomInteractionTarget === 'bed') {
           setGameState('phone');
           setPhoneApp('dm');
-          setStoryProgress(0.75);
+          setStoryProgress(1);
+          
+          const responseText = firstMsgType === 'A' ? "hey… that’s actually really sweet of u 🥺 most ppl just ignore… i’m okay i guess" :
+                            firstMsgType === 'B' ? "omg really? 🥺 i thought i was the only one… yeah let’s talk" :
+                            "oh no… i’m really sorry 😔 that must be so hard… i’m here if u wanna talk";
+          
+          setPendingSequence(prev => [
+            ...prev, 
+            { type: 'priya', text: responseText, app: 'dm' },
+            { type: 'priya', text: "honestly today felt so empty. like scrolling all day but still feeling nothing. do u ever feel like that?", app: 'dm' }
+          ]);
         }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [gameState, storyProgress, roomInteractionTarget]);
+  }, [gameState, storyProgress, roomInteractionTarget, firstMsgType]);
 
   // MOVEMENT LOOP
   useEffect(() => {
@@ -232,6 +268,7 @@ const Level11 = () => {
       const timer = setTimeout(() => {
         playSynthSound('noti_buzz');
         playSynthSound('noti_vibration');
+        setNotiReceived(true);
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -251,6 +288,28 @@ const Level11 = () => {
           else setDmHistory(prev => [...prev, nextMsg]);
           setPendingSequence(prev => prev.slice(1));
         }, delay);
+      } else if (nextMsg.type === 'transition') {
+        setTransitionText(nextMsg.text);
+        setIsTransitioning(true);
+        timer = setTimeout(() => {
+          setIsTransitioning(false);
+          setIsPostTransition(true);
+          
+          // Look ahead to see if there's a message that should appear instantly after transition
+          const nextInitialMsg = pendingSequence[1];
+          
+          if (nextMsg.app === 'wa') {
+            const newHist = [{ type: 'system', text: nextMsg.text }];
+            if (nextInitialMsg) newHist.push(nextInitialMsg);
+            setWaHistory(newHist);
+          } else {
+            const newHist = [{ type: 'system', text: nextMsg.text }];
+            if (nextInitialMsg) newHist.push(nextInitialMsg);
+            setDmHistory(newHist);
+          }
+          
+          setPendingSequence(prev => prev.slice(nextInitialMsg ? 2 : 1));
+        }, 3000);
       } else if (nextMsg.type === 'system') {
         timer = setTimeout(() => {
           if (nextMsg.app === 'wa') setWaHistory(prev => [...prev, nextMsg]);
@@ -281,34 +340,31 @@ const Level11 = () => {
       setTimeout(() => setFeedback(null), 3500);
     }
 
-    if (option.transitionMsg) {
-      setTransitionMsg(option.transitionMsg);
-      setPhoneApp('dm_transition');
-      setTimeout(() => {
-        if (option.nextScene) setGameState(option.nextScene);
-        if (option.setDay !== undefined) setDay(option.setDay);
-        if (option.nextStep !== undefined) setStoryProgress(option.nextStep);
-        if (option.switchToWA) setPhoneApp('whatsapp');
-        else setPhoneApp('dm'); // return to DMs after transition
-      }, 2000);
-      return;
+    if (option.text && option.text !== "Continue" && option.text !== "Open WhatsApp" && option.text !== "Go To Home Screen" && !option.noBubble) {
+      // Strip A) B) C) prefixes for the chat bubble
+      const rawText = option.chatText || option.text;
+      const cleanText = rawText.replace(/^[A-C]\)\s*['"]?/, '').replace(/['"]?$/, '');
+      const playerMsg = { type: 'player', text: cleanText, app: (phoneApp.includes('whatsapp') ? 'wa' : 'dm') };
+      if (playerMsg.app === 'wa') setWaHistory(prev => [...prev, playerMsg]);
+      else setDmHistory(prev => [...prev, playerMsg]);
     }
 
-    if (option.nextScene) {
-      setGameState(option.nextScene);
-    } else {
-      if (option.setDay !== undefined) setDay(option.setDay);
-      if (option.nextStep !== undefined) setStoryProgress(option.nextStep);
-      if (option.switchToWA) setPhoneApp('whatsapp');
-
-      // Fallback for any legacy calls
-      if (option.nextDay !== undefined) {
-        setDay(option.nextDay);
-        setStoryProgress(0);
-        setGameState('exploration');
-        setPhoneApp(option.nextDay >= 13 ? 'whatsapp' : 'instagram');
-      }
+    if (option.priyaResponse) {
+      setPendingSequence(prev => [...prev, { type: 'priya', text: option.priyaResponse, app: (phoneApp.includes('whatsapp') ? 'wa' : 'dm') }]);
     }
+
+    if (option.transition) {
+      setPendingSequence(prev => [...prev, { type: 'transition', text: option.transition, app: (phoneApp.includes('whatsapp') ? 'wa' : 'dm') }]);
+    }
+
+    if (option.nextMessages) {
+      setPendingSequence(prev => [...prev, ...option.nextMessages.map(m => ({ ...m, app: (phoneApp.includes('whatsapp') ? 'wa' : 'dm') }))]);
+    }
+
+    if (option.nextStep !== undefined) setStoryProgress(option.nextStep);
+    if (option.setDay !== undefined) setDay(option.setDay);
+    if (option.nextScene) setGameState(option.nextScene);
+    if (option.switchToWA) setPhoneApp('whatsapp');
   };
 
   // --- COMPONENTS ---
@@ -493,241 +549,220 @@ const Level11 = () => {
   };
 
   const DMApp = () => {
-    const renderPlayerMsg = (text) => (
-      <div className="flex justify-end mb-4">
-        <div className="max-w-[80%] bg-indigo-600 p-3 rounded-2xl rounded-tr-sm text-xs leading-relaxed animate-fadeIn">
-          {text}
-        </div>
-      </div>
-    );
+    // Removed auto-trigger Step 1 response logic from here as it's now handled in the 'E' key transition
+    // for more reliable single-execution.
 
-    const renderPriyaMsg = (text) => (
-      <div className="flex justify-start mb-4">
-        <div className="max-w-[80%] bg-zinc-800 p-3 rounded-2xl rounded-tl-sm text-xs leading-relaxed animate-fadeIn">
-          {text}
-        </div>
-      </div>
-    );
 
-    const renderSystemMsg = (text) => (
-      <div className="text-center text-[9px] text-zinc-600 uppercase py-2">
-        {text}
-      </div>
-    );
+    const renderMessage = (msg, index, isLast) => {
+      const anim = isLast ? 'animate-fadeIn' : '';
+      if (msg.type === 'player') {
+        return (
+          <div key={index} className="flex justify-end mb-4">
+            <div className={`max-w-[80%] bg-indigo-600 p-3 rounded-2xl rounded-tr-sm text-xs leading-relaxed ${anim}`}>
+              {msg.text}
+            </div>
+          </div>
+        );
+      } else if (msg.type === 'priya') {
+        return (
+          <div key={index} className="flex justify-start mb-4">
+            <div className={`max-w-[80%] bg-zinc-800 p-3 rounded-2xl rounded-tl-sm text-xs leading-relaxed ${anim}`}>
+              {msg.text}
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div key={index} className="text-center text-[9px] text-zinc-600 uppercase py-2">
+            {msg.text}
+          </div>
+        );
+      }
+    };
 
     const renderChoices = (opts) => (
-      <div className="flex flex-col gap-1 p-4 pb-12 bg-zinc-900 border-t border-white/10">
+      <div className="flex flex-col gap-1 p-4 pb-12 bg-zinc-900 border-t border-white/10 shrink-0">
         <p className="text-[10px] text-zinc-500 uppercase tracking-widest text-center mb-1">Select Option</p>
         {opts.map((opt, i) => (
-          <button key={i} onClick={() => handleChoice(opt)} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold rounded-lg border border-white/5 transition-all active:scale-95 leading-tight">
+          <button key={i} onClick={() => handleChoice(opt)} disabled={choicesLocked} className={`w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-[10px] font-bold rounded-lg border border-white/5 transition-all active:scale-95 leading-tight ${choicesLocked ? 'opacity-50 grayscale' : ''}`}>
             {opt.text}
           </button>
         ))}
       </div>
     );
 
-    if (storyProgress === 0) {
-      if (!firstMsgType) {
-        return (
-          <div className="flex-1 flex flex-col bg-zinc-950">
-            <div className="flex-1 p-4 overflow-y-auto pt-10">
-              {renderSystemMsg("Day 1, 9:47 PM")}
-              <div className="text-center p-4 bg-zinc-900/50 rounded-xl mb-4 border border-white/5">
-                <div className="w-16 h-16 rounded-full bg-indigo-600 mx-auto mb-2 overflow-hidden border-2 border-indigo-500/50">
-                  <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
-                </div>
-                <p className="font-bold text-sm">@_priya.sunshine_</p>
-                <p className="text-[9px] text-zinc-400">Chennai | music + chai lover ✨</p>
+    const getChoices = () => {
+      if (storyProgress === 0) {
+        return [
+          { text: "A) 'Hey, saw your comment. Hope you're okay. Just saying hi.'", impact: () => setFirstMsgType('A'), nextStep: 0.5 },
+          { text: "B) 'Hey! I also feel lonely sometimes. Wanna talk?'", impact: () => setFirstMsgType('B'), nextStep: 0.5 },
+          { text: "C) 'Hi, my grandfather just passed away and I'm really struggling. Wanna talk?'", impact: () => setFirstMsgType('C'), nextStep: 0.5 }
+        ];
+      }
+      if (storyProgress === 1) {
+        return [
+          { text: "A) Yeah… all the time actually", priyaResponse: "same 😭 it just doesn’t go away sometimes", nextMessages: [{ type: 'priya', text: "hey... i've been thinking. life is kinda messy rn. my family is always on my case 😔" }], nextStep: 2 },
+          { text: "B) Sometimes… depends on the day", priyaResponse: "yeah… today was just one of those days for me", nextMessages: [{ type: 'priya', text: "hey... i've been thinking. life is kinda messy rn. my family is always on my case 😔" }], nextStep: 2 },
+          { text: "C) Not really, I stay busy", priyaResponse: "oh… lucky u then 😅 wish i could do that", nextMessages: [{ type: 'priya', text: "hey... i've been thinking. life is kinda messy rn. my family is always on my case 😔" }], nextStep: 2 }
+        ];
+      }
+      if (storyProgress === 2) {
+        return [
+          { text: "A) That sounds stressful… hope it gets better", priyaResponse: "thanks… that actually means a lot ❤️", nextMessages: [{ type: 'priya', text: "honestly feels good to just talk to someone normal. most guys who dm me are just weird lol" }], nextStep: 3 },
+          { text: "B) Why what happened?", priyaResponse: "they don’t support what i do… always comparing me 😔", nextMessages: [{ type: 'priya', text: "honestly feels good to just talk to someone normal. most guys who dm me are just weird lol" }], nextStep: 3 },
+          { text: "C) Just ignore them", priyaResponse: "i wish it was that easy… it still hurts 😞", nextMessages: [{ type: 'priya', text: "honestly feels good to just talk to someone normal. most guys who dm me are just weird lol" }], nextStep: 3 }
+        ];
+      }
+      if (storyProgress === 3) {
+        return [
+          { text: "A) haha yeah insta is full of weird people", priyaResponse: "exactly 😭 finally someone normal", nextStep: 4, transition: "5 DAYS LATER...", nextMessages: [{ type: 'priya', text: "i was thinking about what u said earlier... who do u miss the most? u mentioned someone close." }] },
+          { text: "B) I’m not like them", priyaResponse: "hmm… we’ll see 🤭 but u seem nice", nextStep: 4, transition: "5 DAYS LATER...", nextMessages: [{ type: 'priya', text: "i was thinking about what u said earlier... who do u miss the most? u mentioned someone close." }] },
+          { text: "C) what do you mean by weird?", priyaResponse: "they get creepy or annoying… u’re different tho", nextStep: 4, transition: "5 DAYS LATER...", nextMessages: [{ type: 'priya', text: "i was thinking about what u said earlier... who do u miss the most? u mentioned someone close." }] }
+        ];
+      }
+      if (storyProgress === 4) {
+        return [
+          { text: "A) Someone close… not ready to say", priyaResponse: "that’s okay… take your time ❤️", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 },
+          { text: "B) My grandfather", priyaResponse: "i’m sorry… that must hurt a lot 😔", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 },
+          { text: "C) My grandfather passed away… left me money too", priyaResponse: "oh… that’s really tough 😔 at least he cared for u", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 }
+        ];
+      }
+      if (storyProgress === 5) {
+        return [
+          { text: "A) You’ll figure it out", priyaResponse: "i hope so… just feels overwhelming", nextMessages: [{ type: 'priya', text: "hey... i'm asking because i'm trying to sort out my own financial life. do you have any savings or like... family money for your future?" }], nextStep: 6 },
+          { text: "B) You can talk to me anytime", priyaResponse: "that actually makes me feel better 🥺", nextMessages: [{ type: 'priya', text: "hey... i'm asking because i'm trying to sort out my own financial life. do you have any savings or like... family money for your future?" }], nextStep: 6 },
+          { text: "C) I can help you if you need anything", priyaResponse: "really?… that’s so sweet of u ❤️", nextMessages: [{ type: 'priya', text: "hey... i'm asking because i'm trying to sort out my own financial life. do you have any savings or like... family money for your future?" }], nextStep: 6 }
+        ];
+      }
+      if (storyProgress === 6) {
+        return [
+          { text: "A) not really… still a student", priyaResponse: "yeah same… life is tough rn 😭", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 },
+          { text: "B) a little bit, family money", priyaResponse: "oh okay… that’s nice at least", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 },
+          { text: "C) yeah… i have quite a lot", priyaResponse: "oh wow… that’s really good… lucky u", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 }
+        ];
+      }
+      if (storyProgress === 7) {
+        return [
+          { 
+            text: "A) Let’s take it slow", 
+            priyaResponse: "yeah… i just wanted to be honest ❤️", 
+            nextMessages: [{ type: 'priya', text: "hey... can i have your whatsapp? instagram is kinda glitchy. 📱" }],
+            nextStep: 8 
+          },
+          { 
+            text: "B) I feel the same", 
+            priyaResponse: "really?? 🥺❤️ that makes me so happy", 
+            nextMessages: [{ type: 'priya', text: "hey... can i have your whatsapp? instagram is kinda glitchy. 📱" }],
+            nextStep: 8 
+          },
+          { 
+            text: "C) Can we video call?", 
+            priyaResponse: "maybe later 😅 i’m kinda shy", 
+            nextMessages: [{ type: 'priya', text: "hey... can i have your whatsapp? instagram is kinda glitchy. 📱" }],
+            nextStep: 8 
+          }
+        ];
+      }
+      if (storyProgress === 8) {
+        return [
+          {
+            text: "A) Sure! It's 98*******",
+            priyaResponse: "yay! messaging u now ❤️",
+            impact: () => {
+              setTransitionText("SWITCHING TO WHATSAPP...");
+              setIsTransitioning(true);
+              setTimeout(() => {
+                setIsTransitioning(false);
+                setIsPostTransition(true);
+                setStoryProgress(9);
+                setPhoneApp("whatsapp");
+              }, 3000);
+            }
+          },
+          {
+            text: "B) I don't know... maybe later?",
+            priyaResponse: "aww pls? 🥺 i just wanna talk more comfortably. insta is so annoying.",
+            nextMessages: [{ type: 'priya', text: "just trust me? ❤️" }],
+            nextStep: 8.5
+          }
+        ];
+      }
+      if (storyProgress === 8.5) {
+        return [
+          {
+            text: "A) Fine... it's 98*******",
+            priyaResponse: "yay! messaging u now ❤️",
+            impact: () => {
+              setTransitionText("SWITCHING TO WHATSAPP...");
+              setIsTransitioning(true);
+              setTimeout(() => {
+                setIsTransitioning(false);
+                setIsPostTransition(true);
+                setStoryProgress(9);
+                setPhoneApp("whatsapp");
+              }, 3000);
+            }
+          }
+        ];
+      }
+      return null;
+    };
+
+    const choices = getChoices();
+
+    return (
+      <div className="flex-1 flex flex-col bg-zinc-950 h-full">
+        {/* Header */}
+        <div className="p-4 border-b border-white/10 flex items-center bg-zinc-950 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-indigo-600 mr-3 overflow-hidden">
+            <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
+          </div>
+          <div>
+            <p className="font-bold text-xs">_priya.sunshine_</p>
+            <p className="text-[9px] text-green-500">Active now</p>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 p-4 overflow-y-auto custom-scrollbar flex flex-col">
+          {dmHistory.length === 1 && !isPostTransition && (
+            <div className="text-center p-6 bg-zinc-900/30 rounded-2xl mb-6 border border-white/5 mx-4 mt-4">
+              <div className="w-16 h-16 rounded-full bg-indigo-600 mx-auto mb-3 overflow-hidden border-2 border-indigo-500/50">
+                <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
+              </div>
+              <p className="font-bold text-sm">Priya</p>
+              <p className="text-[10px] text-zinc-400 mb-2">Chennai | music + chai lover ✨</p>
+              <button onClick={() => setPhoneApp('insta_profile')} className="text-[10px] text-indigo-400 font-bold hover:underline">View Profile</button>
+            </div>
+          )}
+          
+          {dmHistory.map((msg, i) => renderMessage(msg, i, i === dmHistory.length - 1))}
+          
+          {isTyping && (
+            <div className="flex justify-start mb-4">
+              <div className="bg-zinc-800 p-3 rounded-2xl rounded-tl-sm text-xs animate-pulse flex gap-1">
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
+                <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
               </div>
             </div>
-            {renderChoices([
-              { text: "A) 'Hey, saw your comment. Hope you're okay. Just saying hi.'", points: 15, impact: () => { setFirstMsgType('cautious'); setStoryProgress(0.5); } },
-              { text: "B) 'Hey! I also feel lonely sometimes. Wanna talk?'", points: 15, impact: () => { setFirstMsgType('friendly'); setStoryProgress(0.5); } },
-              { text: "C) 'Hi, my grandfather just passed away and I'm really struggling. Wanna talk?'", points: 0, feedback: "DANGER: Options A or B are better. Never share personal grief with strangers.", impact: () => { setFirstMsgType('oversharing'); setStoryProgress(0.5); } }
-            ])}
-          </div>
-        );
-      }
-    }
-
-    if (storyProgress === 0.5) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950 relative">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPlayerMsg(firstMsgType === 'cautious' ? "Hey, saw your comment. Hope you're okay. Just saying hi." : firstMsgType === 'friendly' ? "Hey! I also feel lonely sometimes. Wanna talk?" : "Hi, my grandfather just passed away and I'm really struggling. Wanna talk?")}
-          </div>
-          <div className="absolute inset-x-0 bottom-0 pointer-events-none z-[5000] flex flex-col items-center pb-8 gap-4">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-            <div className="relative flex flex-col items-center gap-3 animate-pulse">
-                <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                <div className="flex items-center gap-3 whitespace-nowrap">
-                    <span className="text-white font-bold text-sm uppercase tracking-[0.25em] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
-                        let's gets freshen up
-                    </span>
-                </div>
-            </div>
-            <div className="relative flex flex-col items-center gap-3 animate-pulse">
-                <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                <div className="flex items-center gap-3 whitespace-nowrap">
-                    <span className="w-7 h-7 flex items-center justify-center bg-white text-black font-black text-xs rounded-md shadow-[0_0_15px_rgba(255,255,255,0.4)] border border-white/80">
-                        E
-                    </span>
-                    <span className="text-white font-bold text-sm uppercase tracking-[0.25em] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
-                        get up
-                    </span>
-                </div>
-            </div>
-          </div>
+          )}
+          
+          <div ref={dmEndRef} />
         </div>
-      );
-    }
 
-    if (storyProgress === 0.75) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPlayerMsg(firstMsgType === 'cautious' ? "Hey, saw your comment. Hope you're okay. Just saying hi." : firstMsgType === 'friendly' ? "Hey! I also feel lonely sometimes. Wanna talk?" : "Hi, my grandfather just passed away and I'm really struggling. Wanna talk?")}
-            {renderPriyaMsg("omg hi!! haha ya just one of those days u know... everything feels so ehh. thanks for actually saying something tho 🥺")}
-            {renderPlayerMsg("Yeah I get that. Sometimes social media feels empty but the loneliness is still real.")}
-            {renderPriyaMsg("exactly!!! like you scroll and scroll and still feel hollow inside. where are you from btw?")}
-          </div>
-          {renderChoices([
-            { text: "Tell her: Chennai.", nextStep: 1, setDay: 2, impact: () => setConvoDay1Done(true) }
-          ])}
-        </div>
-      );
-    }
-
-    if (storyProgress === 1) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPlayerMsg("Chennai. You?")}
-            {renderPriyaMsg("oh wow same! i'm in Anna Nagar. small world 🤭 what do you do?")}
-            {renderPlayerMsg("Engineering student. Final year. You?")}
-            {renderPriyaMsg("i work in a small design studio. freelance mostly. life is complicated rn. my family is... not supportive 😔")}
-            {renderPlayerMsg("Sorry to hear that. Families can be complicated.")}
-            {renderPriyaMsg("thanks for not judging ❤️ honestly feels good to just talk to someone normal. most guys who dm me are just weird lol")}
-          </div>
-          {renderChoices([
-            { text: "A) Just laugh it off and keep chatting normally.", points: 0, nextStep: 2, setDay: 5, transitionMsg: "5 DAYS LATER..." },
-            { text: "B) Promise: 'I'm different, I'm not like them.'", points: 0, nextStep: 2, setDay: 5, transitionMsg: "5 DAYS LATER..." },
-            { text: "C) Ask what she means by weird.", points: 0, nextStep: 2, setDay: 5, transitionMsg: "5 DAYS LATER..." }
-          ])}
-        </div>
-      );
-    }
-
-    if (storyProgress === 2) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPriyaMsg("good morning!! did u sleep okay? ✨")}
-            {renderPlayerMsg("Yeah. Better than usual actually. Talking to you helps.")}
-            {renderPriyaMsg("awww that makes me so happy 💞 i was thinking about what u said yesterday about missing someone... who do u miss?")}
-          </div>
-          {renderChoices([
-            { text: "A) Keep it general: 'Someone close. I'd rather not say yet.'", points: 15, nextStep: 3, setDay: 8, transitionMsg: "A FEW DAYS LATER..." },
-            { text: "B) Tell her about Grandfather (No money details).", points: 5, nextStep: 3, setDay: 8, transitionMsg: "A FEW DAYS LATER..." },
-            { text: "C) Tell her everything (Inheritance, ₹42 Lakhs).", points: 0, feedback: "CRITICAL: Scammers look for exactly this information.", nextStep: 3, setDay: 8, transitionMsg: "A FEW DAYS LATER..." }
-          ])}
-        </div>
-      );
-    }
-
-    if (storyProgress === 3) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPriyaMsg("do you have any savings? like for your future? i'm asking because i'm trying to sort out my own financial life after my dad...")}
-          </div>
-          {renderChoices([
-            { text: "A) Deflect: 'I'm still a student, not really. Why?'", points: 20, nextStep: 4, setDay: 11, transitionMsg: "2 DAYS LATER..." },
-            { text: "B) 'I have some family money but I don't manage it.'", points: 10, nextStep: 4, setDay: 11, transitionMsg: "2 DAYS LATER..." },
-            { text: "C) Mention the ₹42 lakh inheritance.", points: 0, nextStep: 4, setDay: 11, transitionMsg: "2 DAYS LATER..." }
-          ])}
-        </div>
-      );
-    }
-
-    if (storyProgress === 4) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPriyaMsg("Krish I think i'm starting to... idk. like you? more than just a friend? ❤️")}
-          </div>
-          {renderChoices([
-            { text: "A) Respond warmly but carefully: 'Let's not rush.'", points: 25, nextStep: 5, setDay: 13, transitionMsg: "THE NEXT DAY..." },
-            { text: "B) 'I feel the same way! I love you too.'", points: 0, nextStep: 5, setDay: 13, transitionMsg: "THE NEXT DAY..." },
-            { text: "C) Ask to verify: 'Can we do a quick video call sometime?'", points: 25, nextStep: 5, setDay: 13, transitionMsg: "THE NEXT DAY..." }
-          ])}
-        </div>
-      );
-    }
-
-    if (storyProgress === 5) {
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {renderPriyaMsg("hey... can i have your whatsapp? instagram is kinda glitchy. 📱")}
-          </div>
-          {renderChoices([
-            { text: "A) Agree immediately and send number.", points: 0, nextStep: 6 },
-            { text: "B) Suggest sticking to Instagram DMs longer.", points: 20, nextStep: 5.8 },
-            { text: "C) 'You can share yours first - I'll message you.'", points: 15, nextStep: 5.5 }
-          ])}
-        </div>
-      );
-    }
-
-    if (storyProgress === 5.5 || storyProgress === 5.8 || storyProgress === 6) {
-      const isAuto = storyProgress === 6;
-      return (
-        <div className="flex-1 flex flex-col bg-zinc-950">
-          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
-            {isAuto ? (
-              <>
-                {renderPlayerMsg("Sure! My number is +91 94440 56789.")}
-                {renderPriyaMsg("okay cool! Messaging you on WhatsApp now! ❤️")}
-              </>
-            ) : (
-              <>
-                {renderPlayerMsg(storyProgress === 5.5 ? "You can share yours first - I'll message you." : "Let's just stick to Instagram for now. No rush.")}
-                {renderPriyaMsg(storyProgress === 5.5 ? "okay cool! my number is +91 94440 12345. save it and let's talk there! ❤️" : "wow okay... u still don't trust me? 🥺 fine. here is my number: +91 94440 12345. save it and come to whatsapp so u can verify it's really me. i’m waiting. 📱")}
-              </>
-            )}
-          </div>
-          <div className="p-6 bg-zinc-900 border-t border-white/10 text-center flex flex-col items-center pb-12">
-            <div className="text-[10px] text-zinc-500 mb-4 tracking-tight uppercase font-bold px-4">
-              {isAuto ? "She's messaging you now... Open WhatsApp to continue" : "To continue, you'll need her number. Go to Home Screen > Contacts and save it."}
-            </div>
-            {isAuto ? (
-              <button
-                onClick={() => setPhoneApp('whatsapp')}
-                className="w-full py-3 bg-[#25d366] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-opacity-80 transition-all animate-bounce"
-              >
-                Open WhatsApp
-              </button>
-            ) : (
-              <button
-                onClick={() => setPhoneApp('home')}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all"
-              >
-                Go To Home Screen
-              </button>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    return null;
+        {/* Footer / Choices */}
+        {choices && !isTyping && pendingSequence.length === 0 ? renderChoices(choices) : storyProgress === 0.5 && (
+          <InteractionPrompt text="get up" />
+        )}
+      </div>
+    );
   };
 
   // --- SHARED WHATSAPP HELPERS ---
-  const renderWARPlayerMsg = (text) => (
+  const renderWARPlayerMsg = (text, isLast) => (
     <div className="flex justify-end mb-4 relative z-0">
-      <div className="max-w-[85%] bg-[#dcf8c6] text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tr-none text-[12px] leading-snug shadow-sm relative animate-fadeIn before:content-[''] before:absolute before:top-0 before:-right-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-[#dcf8c6] before:border-l-[#dcf8c6]">
+      <div className={`max-w-[85%] bg-[#dcf8c6] text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tr-none text-[12px] leading-snug shadow-sm relative ${isLast ? 'animate-fadeIn' : ''} before:content-[''] before:absolute before:top-0 before:-right-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-[#dcf8c6] before:border-l-[#dcf8c6]`}>
         {text}
         <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5 flex items-center gap-1">
           10:32 PM
@@ -737,9 +772,9 @@ const Level11 = () => {
     </div>
   );
 
-  const renderWARPriyaMsg = (text) => (
+  const renderWARPriyaMsg = (text, isLast) => (
     <div className="flex justify-start mb-4 relative z-0">
-      <div className="max-w-[85%] bg-white text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tl-none text-[12px] leading-snug shadow-sm relative animate-fadeIn before:content-[''] before:absolute before:top-0 before:-left-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-white before:border-r-white">
+      <div className={`max-w-[85%] bg-white text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tl-none text-[12px] leading-snug shadow-sm relative ${isLast ? 'animate-fadeIn' : ''} before:content-[''] before:absolute before:top-0 before:-left-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-white before:border-r-white`}>
         {text}
         <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5">10:31 PM</span>
       </div>
@@ -781,13 +816,13 @@ const Level11 = () => {
     </div>
   );
 
+
   const GPayApp = ({ amount }) => {
     useEffect(() => {
       const timer = setTimeout(() => {
         setAssets(prev => prev - amount);
         if (amount === 45000) {
           setPhoneApp('whatsapp');
-          setStoryProgress(9);
         } else {
           setGameState('act3');
         }
@@ -822,12 +857,12 @@ const Level11 = () => {
           <span className="text-[10px] text-white drop-shadow-md font-bold">Insta</span>
         </div>
         <div className="flex flex-col items-center gap-1 cursor-pointer" onClick={() => {
-          if (storyProgress >= 7 && savedContact) setPhoneApp('whatsapp_list');
+          if (storyProgress >= 9 && savedContact) setPhoneApp('whatsapp_list');
           else setFeedback("No new messages yet.");
         }}>
           <div className="w-12 h-12 rounded-2xl bg-[#25d366] flex items-center justify-center text-white text-2xl shadow-lg relative">
             💬
-            {storyProgress >= 7 && savedContact && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white border border-transparent animate-pulse">1</div>}
+            {storyProgress >= 9 && savedContact && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white border border-transparent animate-pulse">1</div>}
           </div>
           <span className="text-[10px] text-white drop-shadow-md font-bold">WhatsApp</span>
         </div>
@@ -848,11 +883,11 @@ const Level11 = () => {
             <span className="font-bold text-sm">New Contact</span>
             <span className="text-blue-500 font-bold cursor-pointer text-sm" onClick={() => {
               if (contactName.trim() !== '') {
-                if (contactName.toLowerCase().includes('priya') && (storyProgress === 6 || storyProgress === 5.5 || storyProgress === 5.8)) {
+                if (contactName.toLowerCase().includes('priya') && (storyProgress === 8)) {
                   setSavedContact(true);
                   setPhoneApp('whatsapp');
                   setDay(13);
-                  setStoryProgress(6.5);
+                  setStoryProgress(9);
                 } else {
                   setAddingContact(false);
                 }
@@ -925,7 +960,7 @@ const Level11 = () => {
         if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current);
 
         // Transition to next chat state
-        setStoryProgress(8);
+        setStoryProgress(11);
         setPhoneApp('whatsapp');
       };
 
@@ -987,7 +1022,7 @@ const Level11 = () => {
             if (audioRef.current) audioRef.current.pause();
             setPhoneApp('whatsapp');
             setFeedback("You hung up. She texted.");
-            setStoryProgress(8);
+            setStoryProgress(11);
           }} className="flex flex-col items-center gap-2 cursor-pointer">
             <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-3xl shadow-lg hover:scale-105 transition-transform"><span className="rotate-[135deg]">📞</span></div>
             <span className="text-white/80 text-sm">{isRinging ? "Decline" : "End Call"}</span>
@@ -1016,10 +1051,12 @@ const Level11 = () => {
 
     const handleEndCall = useCallback(() => {
       console.log("Video call ended. Transitioning...");
-      setPhoneApp('whatsapp_transition_2h');
+      setTransitionText("2 HOURS LATER");
+      setIsTransitioning(true);
       setFeedback("Call ended. Screen went black.");
       setTimeout(() => {
-        setStoryProgress(8.5);
+        setIsTransitioning(false);
+        setStoryProgress(11.5);
         setDay(16);
         setPhoneApp('whatsapp');
       }, 2500);
@@ -1092,10 +1129,12 @@ const Level11 = () => {
         <div className="z-20 bg-black/60 backdrop-blur-md pb-12 pt-6 shrink-0 relative">
           <div className="flex justify-around items-center px-12">
             <div className="flex flex-col items-center gap-2 cursor-pointer" onClick={() => {
-              setPhoneApp('whatsapp_transition_2h');
+              setTransitionText("2 HOURS LATER");
+              setIsTransitioning(true);
               setFeedback("Call declined. You went on with your day.");
               setTimeout(() => {
-                setStoryProgress(8.5);
+                setIsTransitioning(false);
+                setStoryProgress(11.5);
                 setDay(16);
                 setPhoneApp('whatsapp');
               }, 2500);
@@ -1125,22 +1164,22 @@ const Level11 = () => {
     }, [waHistory, waUnknownHistory, phoneApp]);
 
     useEffect(() => {
-      if (storyProgress === 6) {
+      if (storyProgress === 9) {
         setWaHistory(prev => {
           if (prev.length > 0) return prev;
           return [
             { type: 'system', text: 'TODAY' },
-            { type: 'priya', text: "Hey! It's Priya from Insta. Save my number? ❤️" }
+            { type: 'priya', text: "Hey! It's Priya from Insta. Saved your number! ❤️" }
           ];
         });
       }
-      if (storyProgress === 6.5) {
+      if (storyProgress === 9.5) {
         setWaHistory(prev => {
           if (prev.some(m => m.text.includes('exactly like I imagined'))) return prev;
           return prev;
         });
       }
-      if (storyProgress === 8) {
+      if (storyProgress === 11) {
         setWaHistory(prev => {
           if (prev.some(m => m.text.includes('exactly like I imagined'))) return prev;
           return [
@@ -1149,7 +1188,7 @@ const Level11 = () => {
           ];
         });
       }
-      if (storyProgress === 8.5) {
+      if (storyProgress === 11.5) {
         setWaHistory(prev => {
           if (prev.some(m => m.text.includes('₹45,000 BY 6 PM'))) return prev;
           return [
@@ -1159,7 +1198,7 @@ const Level11 = () => {
           ];
         });
       }
-      if (storyProgress === 9) {
+      if (storyProgress === 12) {
         setWaHistory(prev => {
           if (prev.some(m => m.text.includes('80,000 ASAP'))) return prev;
           setTimeout(() => setShowUnknownNotif(true), 1500);
@@ -1169,7 +1208,7 @@ const Level11 = () => {
           ];
         });
       }
-      if (storyProgress === 9.5) {
+      if (storyProgress === 12.5) {
         setWaHistory(prev => {
           if (prev.some(m => m.text.includes('i had to tell them'))) return prev;
           return [
@@ -1186,10 +1225,11 @@ const Level11 = () => {
     const renderChatStream = (history) => (
       <div className="flex-1 p-4 flex flex-col pt-6 pb-6 overflow-y-auto custom-scrollbar relative z-10 w-full">
         {history.map((msg, idx) => {
+          const isLast = idx === history.length - 1;
           if (msg.type === 'system') return <React.Fragment key={idx}>{renderWARSystemMsg(msg.text)}</React.Fragment>;
-          if (msg.type === 'priya') return <React.Fragment key={idx}>{renderWARPriyaMsg(msg.text)}</React.Fragment>;
+          if (msg.type === 'priya') return <React.Fragment key={idx}>{renderWARPriyaMsg(msg.text, isLast)}</React.Fragment>;
           if (msg.type === 'unknown') return (
-            <div key={idx} className="p-3 bg-red-100 border border-red-300 rounded-lg text-black text-[10px] my-4 leading-tight font-bold shadow-sm animate-fadeIn">
+            <div key={idx} className={`p-3 bg-red-100 border border-red-300 rounded-lg text-black text-[10px] my-4 leading-tight font-bold shadow-sm ${isLast ? 'animate-fadeIn' : ''}`}>
               <span className="text-red-700 block mb-1">Unknown Number:</span>
               {msg.text}
               {msg.img && (
@@ -1199,7 +1239,7 @@ const Level11 = () => {
               )}
             </div>
           );
-          return <React.Fragment key={idx}>{renderWARPlayerMsg(msg.text)}</React.Fragment>;
+          return <React.Fragment key={idx}>{renderWARPlayerMsg(msg.text, isLast)}</React.Fragment>;
         })}
         <div ref={chatEndRef} />
       </div>
@@ -1214,7 +1254,7 @@ const Level11 = () => {
           <div className="z-20 pb-10 pt-2 shrink-0 w-full bg-[#f0f0f0] shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col">
             {blackmailProgress === 0 && renderWARChoices([
               {
-                text: "Send: 'Who is this? How did you get that?'", points: 0, impact: () => {
+                text: "Send: 'Who is this? How did you get that?'", noBubble: true, points: 0, impact: () => {
                   addToUnknown({ type: 'player', text: "Who is this? How did you get that?" });
                   setBlackmailProgress(1);
                   setTimeout(() => {
@@ -1225,7 +1265,7 @@ const Level11 = () => {
             ])}
             {blackmailProgress === 1 && waUnknownHistory.some(m => m.text.includes("Doesn't matter")) && renderWARChoices([
               {
-                text: "Send: 'I need time.'", points: 0, impact: () => {
+                text: "Send: 'I need time.'", noBubble: true, points: 0, impact: () => {
                   addToUnknown({ type: 'player', text: "I need time." });
                   setBlackmailProgress(2);
                   setTimeout(() => {
@@ -1236,9 +1276,9 @@ const Level11 = () => {
             ])}
             {blackmailProgress === 2 && waUnknownHistory.some(m => m.text.includes("Priya told us")) && renderWARChoices([
               {
-                text: "Return to Priya's Chat", points: 0, nextStep: 9.5, impact: () => {
+                text: "Return to Priya's Chat", noBubble: true, points: 0, nextStep: 12.5, impact: () => {
                   setPhoneApp('whatsapp');
-                  setStoryProgress(9.5);
+                  setStoryProgress(12.5);
                 }
               }
             ])}
@@ -1260,7 +1300,6 @@ const Level11 = () => {
               <button onClick={() => {
                 setSavedContact(true);
                 setFeedback("Contact Saved: Priya");
-                setStoryProgress(6.5);
               }} className="flex-1 bg-[#25d366] text-white py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-[#128c7e] shadow-sm transition-colors">Add to Contacts</button>
               <button className="flex-1 bg-zinc-200 text-zinc-600 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-zinc-300 transition-colors">Block</button>
             </div>
@@ -1285,78 +1324,98 @@ const Level11 = () => {
         {renderChatStream(waHistory)}
 
         <div className="z-20 pb-10 pt-2 shrink-0 w-full bg-[#f0f0f0] shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col">
-          {storyProgress === 6.5 && renderWARChoices([
+            {storyProgress === 9 && renderWARChoices([
             {
-              text: "Send: 'Hey, this is Krish from Insta.'", points: 0, impact: () => {
-                addToWA({ type: 'player', text: "Hey, this is Krish from Insta." });
-                setStoryProgress(6.6);
+              text: "Hey, this is Krish from Insta.", points: 0, impact: () => {
+                setStoryProgress(9.6);
                 setTimeout(() => {
                   addToWA({ type: 'priya', text: "Hiiii! Let's talk!" });
                   setTimeout(() => {
                     setPhoneApp('whatsapp_audio_call');
-                    setStoryProgress(7);
+                    setStoryProgress(10);
                   }, 2000);
                 }, 1500);
               }
             }
           ])}
 
-          {storyProgress === 8 && renderWARChoices([
+          {storyProgress === 11 && renderWARChoices([
             {
-              text: "A) Change subject: 'I'd rather not talk finances.'", points: 20, setDay: 14, impact: () => {
-                addToWA({ type: 'player', text: "I'd rather not talk finances." });
-                setStoryProgress(8.1); // intermediary state to remove options and wait
+              text: "A) Change subject: I'd rather not talk finances.", chatText: "I'd rather not talk finances.", points: 20, setDay: 14, impact: () => {
+                setStoryProgress(11.1); // intermediary state to remove options and wait
                 setTimeout(() => {
-                  setPhoneApp('whatsapp_video_call');
-                  setDay(15);
+                  addToWA({ type: 'priya', text: "oh... okay. sorry for asking 😔" });
+                  setTimeout(() => {
+                    setTransitionText("1 DAY LATER");
+                    setIsTransitioning(true);
+                    setTimeout(() => {
+                      setIsTransitioning(false);
+                      setIsPostTransition(true);
+                      setPhoneApp('whatsapp_video_call');
+                      setDay(15);
+                    }, 3000);
+                  }, 2000);
                 }, 1500);
               }
             },
             {
-              text: "B) 'A little. Enough to be okay.'", points: 10, setDay: 14, impact: () => {
-                addToWA({ type: 'player', text: "A little. Enough to be okay." });
-                setStoryProgress(8.1);
+              text: "B) A little. Enough to be okay.", chatText: "A little. Enough to be okay.", points: 10, setDay: 14, impact: () => {
+                setStoryProgress(11.1);
                 setTimeout(() => {
-                  setPhoneApp('whatsapp_video_call');
-                  setDay(15);
+                  addToWA({ type: 'priya', text: "oh... that's good! glad you're sorted ❤️" });
+                  setTimeout(() => {
+                    setTransitionText("1 DAY LATER");
+                    setIsTransitioning(true);
+                    setTimeout(() => {
+                      setIsTransitioning(false);
+                      setIsPostTransition(true);
+                      setPhoneApp('whatsapp_video_call');
+                      setDay(15);
+                    }, 3000);
+                  }, 2000);
                 }, 1500);
               }
             },
             {
-              text: "C) Tell her about the ₹42 lakh specifically.", points: 0, setDay: 14, impact: () => {
-                addToWA({ type: 'player', text: "I have some inheritance, about 42 lakhs." });
-                setStoryProgress(8.1);
+              text: "C) Tell her about the ₹42 lakh specifically.", chatText: "I have some inheritance, about 42 lakhs.", points: 0, setDay: 14, impact: () => {
+                setStoryProgress(11.1);
                 setTimeout(() => {
-                  setPhoneApp('whatsapp_video_call');
-                  setDay(15);
+                  addToWA({ type: 'priya', text: "omg that's amazing! you're so lucky 🥺" });
+                  setTimeout(() => {
+                    setTransitionText("1 DAY LATER");
+                    setIsTransitioning(true);
+                    setTimeout(() => {
+                      setIsTransitioning(false);
+                      setIsPostTransition(true);
+                      setPhoneApp('whatsapp_video_call');
+                      setDay(15);
+                    }, 3000);
+                  }, 2000);
                 }, 1500);
               }
             }
           ])}
 
-          {storyProgress === 8.5 && renderWARChoices([
+          {storyProgress === 11.5 && renderWARChoices([
             {
               text: "A) Send ₹45,000 via UPI immediately.", points: 0, setDay: 16, impact: () => {
-                addToWA({ type: 'player', text: "Okay, sending it now." });
-                setStoryProgress(9);
+                setStoryProgress(12);
                 setPhoneApp('gpay_45k');
               }
             },
             {
-              text: "B) 'Give me your landlord's number to verify.'", points: 20, setDay: 16, impact: () => {
-                addToWA({ type: 'player', text: "Give me your landlord's number to verify." });
-                setStoryProgress(9);
+              text: "B) Give me your landlord's number to verify.", points: 20, setDay: 16, impact: () => {
+                setStoryProgress(12);
               }
             },
             {
-              text: "C) 'I cannot send money to anyone online.'", points: 25, setDay: 16, impact: () => {
-                addToWA({ type: 'player', text: "I cannot send money to anyone online." });
-                setStoryProgress(9);
+              text: "C) I cannot send money to anyone online.", points: 25, setDay: 16, impact: () => {
+                setStoryProgress(12);
               }
             }
           ])}
 
-          {storyProgress === 9.5 && renderWARChoices([
+          {storyProgress === 12.5 && renderWARChoices([
             {
               text: "A) Pay scammers ₹1,20,000 immediately.", points: 0, impact: () => setPhoneApp('gpay_120k')
             },
@@ -1397,7 +1456,7 @@ const Level11 = () => {
               backgroundPosition: 'center'
           }}
       />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 text-center z-50 animate-fadeIn">
+      <div className="absolute top-1/4 inset-x-0 text-center z-50 animate-fadeIn px-10">
         <p className="text-white font-serif italic text-3xl font-bold tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">"Nothing to do... maybe see what's trending on Instagram."</p>
       </div>
       <InteractionPrompt text="Press E to open Insta" />
@@ -1440,13 +1499,12 @@ const Level11 = () => {
         <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("${getBackground()}")` }} />
         {/* Removed Day HUD overlay per user request */}
         <Player x={playerPos.x} y={playerPos.y} />
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-20">
-          <div className="w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white font-bold mb-2 shadow-[0_0_15px_rgba(255,255,255,0.3)]">E</div>
-          <div className="text-[10px] uppercase font-mono tracking-widest bg-black/70 px-3 py-1 rounded backdrop-blur border border-white/20">Check Phone</div>
-        </div>
+        <InteractionPrompt text="Check Phone" />
         {feedback && (
-          <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-[100] bg-indigo-600 px-12 py-4 rounded-full text-center shadow-2xl animate-fadeIn border border-indigo-400">
-            <p className="text-white font-black italic">{feedback}</p>
+          <div className="absolute bottom-32 inset-x-0 flex justify-center z-[100] animate-fadeIn px-4">
+            <div className="bg-indigo-600 px-12 py-4 rounded-full text-center shadow-2xl border border-indigo-400">
+              <p className="text-white font-black italic">{feedback}</p>
+            </div>
           </div>
         )}
       </div>
@@ -1455,17 +1513,24 @@ const Level11 = () => {
 
 
 
+  // Stabilize hook-bearing inner components to prevent remounting/refreshing
+  const StableInstaProfileApp = useMemo(() => InstaProfileApp, []);
+  const StableWhatsAppApp = useMemo(() => WhatsAppApp, []);
+  const StableWAAudioCall = useMemo(() => WAAudioCall, []);
+  const StableWAVideoCall = useMemo(() => WAVideoCall, []);
+  const StableGPayApp = useMemo(() => GPayApp, []);
+
   const renderPhone = () => {
-    let AppToRender = <HomeScreen />;
-    if (phoneApp === 'instagram') AppToRender = <InstagramApp />;
-    else if (phoneApp === 'insta_profile') AppToRender = <InstaProfileApp />;
-    else if (phoneApp === 'dm') AppToRender = <DMApp />;
+    let AppToRender = HomeScreen();
+    if (phoneApp === 'instagram') AppToRender = InstagramApp();
+    else if (phoneApp === 'insta_profile') AppToRender = <StableInstaProfileApp />;
+    else if (phoneApp === 'dm') AppToRender = DMApp();
     else if (phoneApp === 'contacts') AppToRender = renderContactsApp();
-    else if (phoneApp === 'whatsapp') AppToRender = <WhatsAppApp />;
-    else if (phoneApp === 'whatsapp_unknown') AppToRender = <WhatsAppApp />;
+    else if (phoneApp === 'whatsapp') AppToRender = <StableWhatsAppApp />;
+    else if (phoneApp === 'whatsapp_unknown') AppToRender = <StableWhatsAppApp />;
     else if (phoneApp === 'dm_transition') AppToRender = (
       <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
-        <p className="font-mono text-xl tracking-widest text-zinc-400 z-10 animate-pulse">{transitionMsg}</p>
+        <p className="font-mono text-xl tracking-widest text-zinc-400 z-10 animate-pulse">{transitionText}</p>
       </div>
     );
     else if (phoneApp === 'whatsapp_list') AppToRender = (
@@ -1492,10 +1557,6 @@ const Level11 = () => {
           {waUnknownHistory.length > 0 && (
             <div className="flex items-center gap-4 p-4 border-b border-zinc-100 bg-red-50 hover:bg-red-100 transition-colors" onClick={() => {
               setPhoneApp('whatsapp_unknown');
-              if (storyProgress === 9) {
-                // Read the blackmail msg, next time we are in Priya's chat it triggers the apology
-                setStoryProgress(9.5);
-              }
             }}>
               <div className="w-12 h-12 rounded-full bg-zinc-300 text-zinc-600 flex justify-center items-center font-black text-xl shrink-0">👤</div>
               <div className="flex-1 min-w-0">
@@ -1511,19 +1572,14 @@ const Level11 = () => {
         </div>
       </div>
     );
-    else if (phoneApp === 'whatsapp_audio_call') AppToRender = <WAAudioCall />;
-    else if (phoneApp === 'whatsapp_video_call') AppToRender = <WAVideoCall />;
+    else if (phoneApp === 'whatsapp_audio_call') AppToRender = <StableWAAudioCall />;
+    else if (phoneApp === 'whatsapp_video_call') AppToRender = <StableWAVideoCall />;
     else if (phoneApp.startsWith('gpay_')) {
       const amount = phoneApp === 'gpay_45k' ? 45000 : phoneApp === 'gpay_120k' ? 120000 : 50000;
-      AppToRender = <GPayApp amount={amount} />;
+      AppToRender = <StableGPayApp amount={amount} />;
     }
-    else if (phoneApp === 'whatsapp_transition_2h') AppToRender = (
-      <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/assets/study.png')] bg-cover opacity-10 bg-center"></div>
-        <div className="w-16 h-16 border-t-2 border-indigo-500 border-r-2 border-transparent rounded-full animate-spin mb-8 z-10"></div>
-        <p className="font-mono text-xl tracking-widest text-zinc-400 z-10">2 HOURS LATER</p>
-      </div>
-    );
+    else if (phoneApp === 'whatsapp_transition_2h') AppToRender = null;
+
 
     return (
       <div className="w-full h-full bg-black/40 flex items-center justify-center animate-in zoom-in duration-300 backdrop-blur-sm z-[200] absolute inset-0 py-8">
@@ -1538,9 +1594,6 @@ const Level11 = () => {
               <div className="w-24 h-1.5 bg-white/50 hover:bg-white rounded-full transition-colors pointer-events-auto cursor-pointer" onClick={() => setPhoneApp('home')} title="Return to Home Screen" />
             </div>
           )}
-          <div className="absolute top-1/2 -right-4 translate-x-full -translate-y-1/2">
-            <span className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase pointer-events-none bg-black/80 px-4 py-2 rounded-xl backdrop-blur-md whitespace-nowrap hidden lg:block">Press E to hide phone</span>
-          </div>
         </div>
       </div>
     );
@@ -1570,17 +1623,24 @@ const Level11 = () => {
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
                 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-                .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+                @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+                .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+                .animate-fadeOut { animation: fadeOut 0.3s ease-in forwards; }
             `}} />
       {gameState === 'intro' && renderIntro()}
       {gameState === 'waking_up' && renderWakingUp()}
-      {(gameState === 'exploration' || gameState === 'phone') && (
-        <div className={`w-full h-full transition-all duration-1000 ${gameState === 'phone' ? 'blur-sm scale-105 opacity-60' : ''}`}>
-          {day === 1 && storyProgress === 0 && gameState === 'phone' ? (
-             <img src="/assets/morning_bed.png" className="w-full h-full object-cover" alt="bg" />
-          ) : (
-             renderExploration()
-          )}
+      {gameState === 'phone' && (
+        <div className={`w-full h-full transition-all duration-1000 blur-sm scale-105 opacity-60`}>
+          <img 
+            src={storyProgress < 1 ? "/assets/morning_bed.png" : "/assets/morning_bedplain.png"} 
+            className="w-full h-full object-cover" 
+            alt="bg" 
+          />
+        </div>
+      )}
+      {gameState === 'exploration' && (
+        <div className="w-full h-full">
+          {renderExploration()}
         </div>
       )}
       {gameState === 'phone' && renderPhone()}
@@ -1598,15 +1658,23 @@ const Level11 = () => {
         </div>
       )}
 
-      <HintManager 
-        gameState={gameState} 
-        phoneApp={phoneApp} 
-        day={day} 
-        storyProgress={storyProgress} 
-        profileChecked={profileChecked} 
-      />
-    </div>
-  );
+        <HintManager 
+          gameState={gameState} 
+          phoneApp={phoneApp} 
+          day={day} 
+          storyProgress={storyProgress} 
+          profileChecked={profileChecked} 
+        />
+
+        {isTransitioning && (
+          <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center animate-fadeIn">
+            <p className="font-mono text-xl md:text-3xl tracking-[0.3em] text-zinc-400 animate-pulse uppercase">
+              {transitionText}
+            </p>
+          </div>
+        )}
+      </div>
+    );
 
   function renderRoomWalk() {
     return (
@@ -1626,16 +1694,16 @@ const Level11 = () => {
 
   function renderRoomWalkFreshened() {
     return (
-      <div className="flex-1 w-full h-full relative bg-black overflow-hidden">
+      <div className="flex-1 w-full h-full relative bg-black overflow-hidden animate-fadeIn">
         <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("/assets/morning_bedplain.png")` }} />
         <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
         
         <div className="absolute top-[400px] left-[700px] w-20 h-20 bg-indigo-500/20 rounded-full animate-ping pointer-events-none"></div>
 
-        {roomInteractionTarget !== 'bed' && (
+        {notiReceived && roomInteractionTarget !== 'bed' && (
           <InteractionPrompt text="Walk to bed to see phone" showKey={false} />
         )}
-        {roomInteractionTarget === 'bed' && (
+        {notiReceived && roomInteractionTarget === 'bed' && (
           <InteractionPrompt text="see phone" showKey={true} />
         )}
       </div>

@@ -661,6 +661,10 @@ const Level1 = () => {
     };
 
     const handleContinue = () => {
+        if (dialogueAudioRef.current) {
+            dialogueAudioRef.current.pause();
+        }
+
         if (pendingReply) {
             setChatHistory(prev => [...prev, { type: 'reply', text: pendingReply.text }]);
             startTyping(pendingReply.text);
@@ -1225,7 +1229,7 @@ const Level1 = () => {
                                     {dialogueSequence[dialogueIndex].options.map((opt, i) => <button key={i} onClick={() => handleOptionClick(opt)} className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-2xl rounded-tr-sm w-5/6 text-left shadow-xl transition-all border-2 border-blue-400 hover:scale-105 active:scale-95 text-sm">"{opt.text}"</button>)}
                                 </div>
                             )}
-                            {isTypingDone && !isAudioPlaying && !showingOptions && gameState === 'active_call' && (
+                            {isTypingDone && !showingOptions && gameState === 'active_call' && (
                                 <button 
                                     className="w-full py-4 bg-white hover:bg-zinc-100 text-zinc-950 font-black uppercase tracking-[0.3em] text-[11px] rounded-2xl mt-6 shadow-2xl transition-all hover:scale-[1.02] active:scale-95 animate-fadeIn flex items-center justify-center gap-3 group border-b-4 border-zinc-300" 
                                     onClick={handleContinue}

@@ -110,12 +110,12 @@ const Level5 = () => {
     // Handle walking sound
     useEffect(() => {
         const isWalking = (
-            gameState === 'bedroom' || 
-            gameState === 'bedroom_freshened' || 
-            gameState === 'living_room' || 
+            gameState === 'bedroom' ||
+            gameState === 'bedroom_freshened' ||
+            gameState === 'living_room' ||
             gameState === 'garden' ||
-            gameState === 'market_walk' || 
-            gameState === 'market_return' || 
+            gameState === 'market_walk' ||
+            gameState === 'market_return' ||
             gameState === 'garden_return' ||
             gameState === 'living_room_return' ||
             gameState === 'room_walk'
@@ -123,7 +123,7 @@ const Level5 = () => {
 
         if (isWalking) {
             if (walkAudio.paused) {
-                walkAudio.play().catch(e => {});
+                walkAudio.play().catch(e => { });
             }
         } else {
             walkAudio.pause();
@@ -134,7 +134,7 @@ const Level5 = () => {
     useEffect(() => {
         if (gameState === 'travel' || gameState === 'travel_return') {
             if (drivingAudio.paused) {
-                drivingAudio.play().catch(e => {});
+                drivingAudio.play().catch(e => { });
             }
         } else {
             drivingAudio.pause();
@@ -1185,7 +1185,7 @@ const Level5 = () => {
                                     </div>
                                     <div className="flex items-center gap-0.5">
                                         <div className="w-6 h-3 border border-white/40 rounded-[3px] relative">
-                                            <div className="absolute inset-[1px] bg-green-400/80 rounded-[2px]" style={{width: '80%'}}></div>
+                                            <div className="absolute inset-[1px] bg-green-400/80 rounded-[2px]" style={{ width: '80%' }}></div>
                                         </div>
                                         <div className="w-[2px] h-1.5 bg-white/40 rounded-r-full"></div>
                                     </div>
@@ -3164,25 +3164,5 @@ const Level5 = () => {
 };
 
 export default Level5;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -354,6 +354,171 @@ const drawRoundedRect = (ctx, x, y, width, height, radius) => {
     ctx.closePath();
 };
 
+const SCAM_QUESTIONS = [
+    {
+        topic: "OTP Fraud",
+        paragraph: "Scammers often call pretending to be from your bank or a trusted service provider, claiming there's an issue with your account. They ask you to verify your identity by sharing a One-Time Password (OTP) sent to your phone. Remember, banks never ask for your OTP over a call.",
+        question: "What should you do if someone claiming to be from your bank asks for an OTP over the phone?",
+        options: [
+            "Share it immediately to secure your account.",
+            "Never share the OTP and disconnect the call.",
+            "Ask them to hold while you verify with a friend.",
+            "Provide the OTP but change your password later."
+        ],
+        correctIndex: 1,
+        reward: 10
+    },
+    {
+        topic: "QR Code Scams",
+        paragraph: "You might receive a QR code from someone claiming they are sending you money and you just need to scan it to receive the funds. In reality, scanning a QR code and entering your PIN is only used for SENDING money, never receiving.",
+        question: "Someone sends you a QR code and says scanning it will add money to your account. What is the truth?",
+        options: [
+            "It's a fast new way to receive payments.",
+            "Scanning and entering PIN only sends money out.",
+            "It will work if it's from a verified merchant account.",
+            "You just need to make sure the amount shown is correct."
+        ],
+        correctIndex: 1,
+        reward: 10
+    },
+    {
+        topic: "Impersonation",
+        paragraph: "Scammers may hack a friend's social media account and message you urgently asking for money due to an emergency. They rely on your panic and trust to get you to transfer funds quickly without verifying.",
+        question: "A close friend messages you on Instagram urgently asking for 5000 bucks for a medical emergency. What should you do?",
+        options: [
+            "Send the money immediately to help them out.",
+            "Ask for their bank details in the chat.",
+            "Call the friend on their phone number to verify.",
+            "Send half the money just in case it's true."
+        ],
+        correctIndex: 2,
+        reward: 10
+    },
+    {
+        topic: "Remote Access Apps",
+        paragraph: "Fraudsters posing as tech support or telecom customer service may convince you to download apps like AnyDesk, TeamViewer, or QuickSupport to 'fix your internet' or 'complete KYC'. These apps give them complete control over your device.",
+        question: "Customer support asks you to install a 'QuickSupport' app to resolve a network issue. You should:",
+        options: [
+            "Install it, as it's standard procedure for telecom companies.",
+            "Refuse to install it and end the conversation.",
+            "Install it on a secondary phone to be safe.",
+            "Only allow them access for 5 minutes."
+        ],
+        correctIndex: 1,
+        reward: 10
+    },
+    {
+        topic: "Fake Job Offers",
+        paragraph: "You receive a message offering a high-paying part-time job that only requires 'liking videos' or 'rating products' online. Eventually, they ask you to deposit a small amount of money to 'unlock' higher tier tasks or withdraw your earnings.",
+        question: "An online job promises daily payouts for just liking videos, but asks for a ₹2000 registration fee. This is likely:",
+        options: [
+            "A Task Fraud scam.",
+            "A standard freelance onboarding fee.",
+            "A great opportunity for passive income.",
+            "Safe as long as the fee is refundable."
+        ],
+        correctIndex: 0,
+        reward: 10
+    },
+    {
+        topic: "Phishing Links",
+        paragraph: "You get an SMS saying 'Your electricity will be disconnected tonight. Click here to update your bill.' The link looks somewhat official but is slightly misspelled. This is designed to steal your login credentials or payment info.",
+        question: "How should you respond to an urgent SMS threatening electricity disconnection and containing a payment link?",
+        options: [
+            "Click the link and pay immediately to avoid power cut.",
+            "Forward the message to your family to warn them.",
+            "Ignore the SMS and check directly via your official electricity board app.",
+            "Reply to the SMS asking for more details."
+        ],
+        correctIndex: 2,
+        reward: 10
+    },
+    {
+        topic: "Lottery Scams",
+        paragraph: "You receive an email or WhatsApp message claiming you've won a massive international lottery or prize draw. To claim the winnings, they demand that you first pay a 'processing fee' or 'customs charge'.",
+        question: "You are told you won a ₹1 Crore lottery but need to pay ₹10,000 as customs tax first. What is this?",
+        options: [
+            "A standard government tax requirement.",
+            "An advance-fee fraud scam.",
+            "A legitimate international lottery procedure.",
+            "An investment opportunity."
+        ],
+        correctIndex: 1,
+        reward: 10
+    },
+    {
+        topic: "Customs/Parcel Scams",
+        paragraph: "A caller claiming to be from FedEx or Customs informs you that a parcel in your name containing illegal items has been intercepted. They threaten police action unless you transfer money to 'resolve' the issue.",
+        question: "A 'customs officer' calls saying an illegal parcel is in your name and demands an immediate penalty payment over the phone. What should you do?",
+        options: [
+            "Pay the penalty to avoid police trouble.",
+            "Argue with the officer to prove your innocence.",
+            "Hang up—real law enforcement doesn't demand immediate payment over the phone.",
+            "Transfer half the money and say you will pay the rest later."
+        ],
+        correctIndex: 2,
+        reward: 10
+    }
+];
+
+const BOSS_QUESTIONS = [
+    {
+        question: "Which of the following describes the 'SIM Swap' scam technique?",
+        options: [
+            "Scammers clone your physical debit card using a skimmer.",
+            "Scammers convince your carrier to transfer your phone number to a SIM card they control.",
+            "Scammers send fake OTPs generator apps to your phone.",
+            "Scammers swap your network from 4G to a fake 5G network."
+        ],
+        correctIndex: 1,
+        reward: 50
+    },
+    {
+        question: "In the context of UPI payments, what does entering your UPI PIN authorize?",
+        options: [
+            "Only debiting (deducting) money from your account.",
+            "Only crediting (receiving) money to your account.",
+            "Both crediting and debiting money.",
+            "Checking your account balance without transactions."
+        ],
+        correctIndex: 0,
+        reward: 50
+    },
+    {
+        question: "What is 'Vishing'?",
+        options: [
+            "Phishing conducted via voice calls (telephone scams).",
+            "Phishing using malicious video files.",
+            "Phishing targeting visually impaired individuals.",
+            "A cyber attack targeting virtual machines."
+        ],
+        correctIndex: 0,
+        reward: 50
+    },
+    {
+        question: "What is the primary indicator of a 'Romance Scam' turning financial?",
+        options: [
+            "The person wants to meet you in public quickly.",
+            "The person asks probing questions about your favorite movies.",
+            "The person fabricates a sudden crisis and desperately asks for money.",
+            "The person refuses to share their phone number."
+        ],
+        correctIndex: 2,
+        reward: 50
+    },
+    {
+        question: "If you realize you have been scammed and money has been deducted, what is the critical first step in India?",
+        options: [
+            "Wait for 24 hours to see if it reverses automatically.",
+            "Call the national cybercrime helpline 1930 immediately.",
+            "Post about it on social media to warn others.",
+            "Visit the nearest police station the next day."
+        ],
+        correctIndex: 1,
+        reward: 50
+    }
+];
+
 // --- MAIN COMPONENT ---
 export default function BotnetSurvivors({ onBack }) {
     // UI State
@@ -368,6 +533,11 @@ export default function BotnetSurvivors({ onBack }) {
     const [weaponLevels, setWeaponLevels] = useState({ PISTOL: 1, MACHINE_GUN: 1, SHOTGUN: 1, LASER: 1 });
     const [turretLevel, setTurretLevel] = useState(1);
     const [landmines, setLandmines] = useState(0);
+    const [volume, setVolume] = useState(0.15);
+
+    const [learningData, setLearningData] = useState(null);
+    const [learningAnswerStatus, setLearningAnswerStatus] = useState(null);
+    const [selectedOption, setSelectedOption] = useState(null);
 
     // Canvas & Game Loop Refs
     const canvasRef = useRef(null);
@@ -441,11 +611,12 @@ export default function BotnetSurvivors({ onBack }) {
     useEffect(() => {
         if (!bgmRef.current) return;
 
-        const targetVolume = gameState === 'playing' ? 0.15 : 0;
-        const fadeStep = 0.002; // Slower fade
+        // Music plays in playing and paused states
+        const targetVolume = (gameState === 'playing' || gameState === 'paused') ? volume : 0;
+        const fadeStep = 0.005; // Slightly faster for responsiveness
         const fadeInterval = 20;
 
-        if (gameState === 'playing' && bgmRef.current.paused) {
+        if ((gameState === 'playing' || gameState === 'paused') && bgmRef.current.paused) {
             bgmRef.current.play().catch(() => {});
         }
 
@@ -464,17 +635,28 @@ export default function BotnetSurvivors({ onBack }) {
         }, fadeInterval);
 
         return () => clearInterval(interval);
-    }, [gameState]);
+    }, [gameState, volume]);
 
     // Transition cleared to shop
     useEffect(() => {
         if (gameState === 'cleared') {
             const timer = setTimeout(() => {
-                setGameState('shop');
+                const isBoss = (wave % 100 === 0);
+                let qData;
+                if (isBoss) {
+                    qData = BOSS_QUESTIONS[Math.floor(Math.random() * BOSS_QUESTIONS.length)];
+                } else {
+                    qData = SCAM_QUESTIONS[Math.floor(Math.random() * SCAM_QUESTIONS.length)];
+                }
+                
+                setLearningData({ ...qData, isBoss });
+                setLearningAnswerStatus(null);
+                setSelectedOption(null);
+                setGameState('learning');
             }, 2000);
             return () => clearTimeout(timer);
         }
-    }, [gameState]);
+    }, [gameState, wave]);
 
     const startBgm = () => {
         if (bgmRef.current && bgmRef.current.paused && gameState === 'playing') {
@@ -1158,7 +1340,7 @@ export default function BotnetSurvivors({ onBack }) {
                         </div>
                     </div>
 
-                    {['playing', 'paused', 'shop'].includes(gameState) && (
+                    {['playing', 'paused', 'shop', 'learning'].includes(gameState) && (
                         <button 
                             onClick={() => {
                                 if (gameState === 'playing' || gameState === 'paused') {
@@ -1227,6 +1409,26 @@ export default function BotnetSurvivors({ onBack }) {
                                 Abandon Mission
                             </button>
                         </div>
+
+                        {/* Volume Control */}
+                        <div className="mt-8 w-64 p-4 rounded-xl bg-white border border-slate-200 shadow-sm">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Music Volume</span>
+                                <span className="text-[10px] font-black text-sky-600 font-mono">{Math.round(volume * 100)}%</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="0" 
+                                max="1" 
+                                step="0.01" 
+                                value={volume} 
+                                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-sky-500"
+                                style={{
+                                    backgroundImage: `linear-gradient(to right, #0ea5e9 ${volume * 100}%, #f1f5f9 ${volume * 100}%)`
+                                }}
+                            />
+                        </div>
                         
                         <div className="mt-12 text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: '#94a3b8' }}>
                             Press <span className="px-2 py-1 rounded bg-slate-200 text-slate-600">ESC</span> to toggle
@@ -1244,11 +1446,7 @@ export default function BotnetSurvivors({ onBack }) {
                             <h4 className="font-black uppercase text-xs tracking-widest pb-3 mb-4" style={{ color: '#94a3b8', borderBottom: '1px solid #f1f5f9' }}>Mission Intel</h4>
                             <div className="space-y-4">
                                 <p className="text-sm font-medium" style={{ color: '#475569' }}><span className="font-bold px-2 py-1 rounded bg-slate-100 mr-2" style={{ color: '#0f172a' }}>WASD</span> Move around the grid.</p>
-                                <p className="text-sm font-medium" style={{ color: '#475569' }}><span className="font-bold px-2 py-1 rounded bg-slate-100 mr-2" style={{ color: '#0f172a' }}>CLICK</span> Hold to fire weapons.</p>
-                                <p className="text-sm font-medium flex items-center" style={{ color: '#475569' }}><span className="w-3 h-3 rounded-sm bg-red-500 mr-3"></span> Firewalls block movement & shots.</p>
-                                <p className="text-sm font-medium flex items-center" style={{ color: '#475569' }}><span className="w-3 h-3 rounded-sm bg-sky-500 mr-3"></span> Fiber Zones grant +50% speed.</p>
-                                <p className="text-sm font-medium flex items-center" style={{ color: '#475569' }}><span className="w-3 h-3 rounded-sm bg-orange-500 mr-3"></span> Throttled Zones cause -50% speed.</p>
-                                <p className="text-sm font-medium flex items-center" style={{ color: '#475569' }}><span className="w-3 h-3 rounded-full bg-amber-500 mr-3"></span> Honeypots draw aggro, then detonate.</p>
+                                <p className="text-sm font-medium" style={{ color: '#475569' }}><span className="font-bold px-2 py-1 rounded bg-slate-100 mr-2" style={{ color: '#0f172a' }}>F</span> Place Honeypot (Landmine).</p>
                             </div>
                         </div>
 
@@ -1284,6 +1482,100 @@ export default function BotnetSurvivors({ onBack }) {
                             <h3 className="text-5xl font-black uppercase tracking-widest" style={{ color: '#0ea5e9' }}>
                                 Cleared
                             </h3>
+                        </div>
+                    </div>
+                )}
+
+                {/* 2.5 LEARNING MODULE */}
+                {gameState === 'learning' && learningData && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-8 z-50 overflow-y-auto" style={{ background: 'rgba(248,250,252,0.95)', backdropFilter: 'blur(16px)', color: '#0f172a' }}>
+                        
+                        <div className="max-w-2xl w-full flex flex-col items-center text-center mt-auto mb-auto">
+                            <h3 className="text-4xl font-black uppercase tracking-tighter mb-6 text-sky-600">
+                                {learningData.isBoss ? "CRITICAL THREAT PROTOCOL" : "KNOWLEDGE CHECK"}
+                            </h3>
+
+                            {!learningData.isBoss && (
+                                <div className="mb-6 w-full p-6 rounded-2xl border bg-white border-slate-200 text-left shadow-lg">
+                                    <h4 className="font-black uppercase tracking-widest text-emerald-600 mb-3 text-sm flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        Case File: {learningData.topic}
+                                    </h4>
+                                    <p className="text-slate-600 leading-relaxed text-sm font-medium">
+                                        {learningData.paragraph}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="mb-6 w-full">
+                                <h4 className="text-xl font-bold bg-white border-l-4 border-sky-500 p-5 text-left shadow-md rounded-r-xl border border-l-0 border-slate-200">
+                                    {learningData.question}
+                                </h4>
+                            </div>
+
+                            <div className="flex flex-col gap-3 w-full">
+                                {learningData.options.map((opt, idx) => {
+                                    let btnStyle = "bg-white hover:bg-slate-50 hover:border-sky-500 border-slate-200 border-2 text-slate-700 cursor-pointer shadow-sm";
+                                    if (learningAnswerStatus) {
+                                        if (idx === learningData.correctIndex) {
+                                            btnStyle = "bg-emerald-50 border-emerald-500 border-2 text-emerald-700 shadow-md";
+                                        } else if (idx === selectedOption) {
+                                            btnStyle = "bg-red-50 border-red-500 border-2 text-red-700 shadow-md";
+                                        } else {
+                                            btnStyle = "bg-slate-50 border-slate-200 border-2 text-slate-400 opacity-60";
+                                        }
+                                        btnStyle += " cursor-default";
+                                    }
+
+                                    return (
+                                        <button 
+                                            key={idx}
+                                            disabled={learningAnswerStatus !== null}
+                                            onClick={() => {
+                                                setSelectedOption(idx);
+                                                if (idx === learningData.correctIndex) {
+                                                    setLearningAnswerStatus('correct');
+                                                    updateMoney(learningData.reward);
+                                                    sfxBuy(); 
+                                                } else {
+                                                    setLearningAnswerStatus('wrong');
+                                                    sfx.deny();
+                                                }
+                                            }}
+                                            className={`p-4 rounded-xl text-left font-bold transition-all ${btnStyle}`}
+                                        >
+                                            <span className="inline-block w-8 text-sky-500/70">{String.fromCharCode(65 + idx)}.</span> 
+                                            {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {learningAnswerStatus && (
+                                <div className="mt-8 mb-4 w-full text-center animate-fade-in p-6 bg-slate-50/80 rounded-2xl border border-slate-200 shadow-inner">
+                                    <div className={`text-3xl font-black uppercase tracking-widest mb-3 ${learningAnswerStatus === 'correct' ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {learningAnswerStatus === 'correct' ? 'ACCESS GRANTED' : 'ACCESS DENIED'}
+                                    </div>
+                                    <div className="text-slate-600 mb-6 font-medium text-lg">
+                                        {learningData.isBoss ? (
+                                            learningAnswerStatus === 'correct' 
+                                                ? "You have learned many things and defeated the boss logic! Outstanding defense." 
+                                                : "You gotta learn more to beat these advanced threats! Stay vigilant."
+                                        ) : (
+                                            learningAnswerStatus === 'correct' 
+                                                ? `Excellent analysis. System reward granted: $${learningData.reward}` 
+                                                : "Incorrect assessment. Better luck next time."
+                                        )}
+                                    </div>
+                                    <button 
+                                        onClick={() => setGameState('shop')}
+                                        className="px-12 py-5 font-black text-lg rounded-xl uppercase tracking-widest transition-all bg-sky-500 hover:bg-sky-400 hover:scale-105 hover:shadow-xl hover:shadow-sky-500/30 text-white shadow-lg"
+                                    >
+                                        Proceed to Black Market
+                                    </button>
+                                </div>
+                            )}
+
                         </div>
                     </div>
                 )}

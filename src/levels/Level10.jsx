@@ -51,7 +51,7 @@ const CLUE_INFO = {
 };
 
 const Level10 = () => {
-    const { completeLevel, adjustAssets, assets, setSafetyScore, lives, adjustLives } = useGameState();
+    const { completeLevel, adjustAssets, assets, adjustSafetyScore, lives, adjustLives } = useGameState();
     const [gameState, setGameState] = useState('pre_waking_up'); // pre_waking_up, room, phone, laptop, outcome
     const [playerPos, setPlayerPos] = useState({ x: 800, y: 400 });
     const keysRef = useRef({});
