@@ -1,17 +1,49 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameState } from '../context/GameStateContext';
 import Player from '../components/Player';
+import InteractionPrompt from '../components/InteractionPrompt';
 
 const ROOM_WIDTH = 1200;
 const ROOM_HEIGHT = 800;
 const SPEED = 8;
 const PLAYER_SIZE = 44;
 
+const HintManager = ({ gameState, phoneApp, day, storyProgress, profileChecked }) => {
+  const [hintText, setHintText] = useState(null);
+
+  useEffect(() => {
+    if (gameState === 'phone') {
+      if (phoneApp === 'instagram' && day === 1 && storyProgress === 0) {
+        const timer = setTimeout(() => {
+          setHintText("Someone is saying they are lonely... I should check it out");
+        }, 1000);
+        return () => { clearTimeout(timer); setHintText(null); };
+      } else if (phoneApp === 'insta_profile' && day === 1 && storyProgress === 0 && !profileChecked) {
+        let timer2;
+        const timer1 = setTimeout(() => {
+          setHintText("I should check out the account");
+          timer2 = setTimeout(() => {
+            setHintText("I should message her");
+          }, 5000);
+        }, 1000);
+        return () => { clearTimeout(timer1); clearTimeout(timer2); setHintText(null); };
+      } else {
+        setHintText(null);
+      }
+    } else {
+      setHintText(null);
+    }
+  }, [gameState, phoneApp, day, storyProgress, profileChecked]);
+
+  if (!hintText) return null;
+  return <InteractionPrompt text={hintText} showKey={false} />;
+};
+
 const Level11 = () => {
   const { completeLevel, adjustAssets, adjustSafetyScore } = useGameState();
 
   // CORE STATE
-  const [gameState, setGameState] = useState('exploration'); // intro, exploration, phone, results, awareness, act3, profile_view
+  const [gameState, setGameState] = useState('waking_up'); // intro, exploration, phone, results, awareness, act3, profile_view, waking_up
   const [day, setDay] = useState(1);
   const [points, setPoints] = useState(0);
   const [playerPos, setPlayerPos] = useState({ x: 500, y: 550 });
@@ -29,6 +61,70 @@ const Level11 = () => {
   const [waUnknownHistory, setWaUnknownHistory] = useState([]);
   const [showUnknownNotif, setShowUnknownNotif] = useState(false);
   const [blackmailProgress, setBlackmailProgress] = useState(0);
+
+  // ROOM WALK STATE & AUDIO
+  const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 800, y: 450 });
+  const [roomInteractionTarget, setRoomInteractionTarget] = useState(null);
+
+  const audioCtxRef = useRef(null);
+  const getAudioContext = () => {
+    if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioCtxRef.current;
+  };
+
+  const playSynthSound = (type) => {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+
+    if (type === 'noti_buzz') {
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc1.frequency.setValueAtTime(880, ctx.currentTime);
+      osc2.frequency.setValueAtTime(1320, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+      osc1.start();
+      osc2.start();
+      osc1.stop(ctx.currentTime + 0.5);
+      osc2.stop(ctx.currentTime + 0.5);
+    } else if (type === 'noti_vibration') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const mod = ctx.createOscillator();
+      const modGain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(80, ctx.currentTime);
+      mod.type = 'square';
+      mod.frequency.setValueAtTime(10, ctx.currentTime);
+      modGain.gain.setValueAtTime(0.5, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+      gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.25);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+      mod.connect(modGain);
+      modGain.connect(osc.frequency);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      mod.start();
+      osc.stop(ctx.currentTime + 0.45);
+      mod.stop(ctx.currentTime + 0.45);
+    }
+  };
+
+  // CHAT SEQUENCER STATE
+  const [dmHistory, setDmHistory] = useState([]);
+  const [pendingSequence, setPendingSequence] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [choicesLocked, setChoicesLocked] = useState(false);
 
   // FLAGS (Narrative Choices)
   const [profileChecked, setProfileChecked] = useState(false);
@@ -53,13 +149,30 @@ const Level11 = () => {
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
 
       if (e.key.toLowerCase() === 'e') {
-        if (gameState === 'exploration') setGameState('phone');
-        else if (gameState === 'phone') setGameState('exploration');
+        if (gameState === 'waking_up') {
+          setGameState('phone');
+          setPhoneApp('instagram');
+        } else if (gameState === 'exploration') {
+          setGameState('phone');
+        } else if (gameState === 'phone') {
+          if (storyProgress === 0.5) {
+            setGameState('room_walk');
+            setRoomPlayerPos({ x: 800, y: 400 });
+          } else {
+            setGameState('exploration');
+          }
+        } else if (gameState === 'room_walk' && roomInteractionTarget === 'bathroom') {
+          setGameState('room_walk_freshened');
+        } else if (gameState === 'room_walk_freshened' && roomInteractionTarget === 'bed') {
+          setGameState('phone');
+          setPhoneApp('dm');
+          setStoryProgress(0.75);
+        }
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [gameState]);
+  }, [gameState, storyProgress, roomInteractionTarget]);
 
   // MOVEMENT LOOP
   useEffect(() => {
@@ -82,6 +195,82 @@ const Level11 = () => {
     frameId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frameId);
   }, [gameState]);
+
+  // ROOM WALK MOVEMENT LOOP
+  useEffect(() => {
+    if (gameState !== 'room_walk' && gameState !== 'room_walk_freshened') return;
+    let frameId;
+    const loop = () => {
+      setRoomPlayerPos(p => {
+        let nx = p.x, ny = p.y;
+        const keys = keysRef.current;
+        if (keys['w'] || keys['arrowup']) ny -= SPEED;
+        if (keys['s'] || keys['arrowdown']) ny += SPEED;
+        if (keys['a'] || keys['arrowleft']) nx -= SPEED;
+        if (keys['d'] || keys['arrowright']) nx += SPEED;
+        
+        // Approximate boundaries for Level 5 bedroom
+        nx = Math.max(250, Math.min(nx, 1300));
+        ny = Math.max(300, Math.min(ny, 650));
+
+        let target = null;
+        if (nx < 350) target = 'bathroom';
+        if (nx > 500 && ny > 300) target = 'bed';
+        setRoomInteractionTarget(target);
+
+        return { x: nx, y: ny };
+      });
+      frameId = requestAnimationFrame(loop);
+    };
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, [gameState]);
+
+  // FRESHENED NOTIFICATION
+  useEffect(() => {
+    if (gameState === 'room_walk_freshened') {
+      const timer = setTimeout(() => {
+        playSynthSound('noti_buzz');
+        playSynthSound('noti_vibration');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState]);
+  // CHAT SEQUENCER LOGIC
+  useEffect(() => {
+    if (pendingSequence.length > 0) {
+      setChoicesLocked(true);
+      const nextMsg = pendingSequence[0];
+      let timer;
+      if (nextMsg.type === 'priya') {
+        setIsTyping(true);
+        const delay = Math.max(1500, Math.min(nextMsg.text.length * 40, 4000));
+        timer = setTimeout(() => {
+          setIsTyping(false);
+          if (nextMsg.app === 'wa') setWaHistory(prev => [...prev, nextMsg]);
+          else setDmHistory(prev => [...prev, nextMsg]);
+          setPendingSequence(prev => prev.slice(1));
+        }, delay);
+      } else if (nextMsg.type === 'system') {
+        timer = setTimeout(() => {
+          if (nextMsg.app === 'wa') setWaHistory(prev => [...prev, nextMsg]);
+          else setDmHistory(prev => [...prev, nextMsg]);
+          setPendingSequence(prev => prev.slice(1));
+        }, 800);
+      } else {
+        // player
+        setIsTyping(false);
+        timer = setTimeout(() => {
+          if (nextMsg.app === 'wa') setWaHistory(prev => [...prev, nextMsg]);
+          else setDmHistory(prev => [...prev, nextMsg]);
+          setPendingSequence(prev => prev.slice(1));
+        }, 500);
+      }
+      return () => { clearTimeout(timer); setIsTyping(false); };
+    } else {
+      setChoicesLocked(false);
+    }
+  }, [pendingSequence]);
 
   const handleChoice = (option) => {
     if (option.impact) option.impact();
@@ -174,6 +363,19 @@ const Level11 = () => {
   const InstaProfileApp = () => {
     const [showMenu, setShowMenu] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [selectedPostId, setSelectedPostId] = useState(null);
+    const scrollContainerRef = useRef(null);
+
+    // Auto-scroll to selected post when feed view opens
+    useEffect(() => {
+      if (selectedPostId !== null && scrollContainerRef.current) {
+        const postElement = document.getElementById(`full-post-${selectedPostId}`);
+        if (postElement) {
+          const headerOffset = 60; // approximate height of sticky header
+          scrollContainerRef.current.scrollTop = postElement.offsetTop - headerOffset;
+        }
+      }
+    }, [selectedPostId]);
 
     const handleCheckAbout = () => {
       if (!profileBonusFound) {
@@ -183,13 +385,46 @@ const Level11 = () => {
       }
     };
 
+    if (selectedPostId !== null) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950 overflow-y-auto custom-scrollbar text-white relative" ref={scrollContainerRef}>
+          <div className="p-4 border-b border-white/10 flex items-center sticky top-0 bg-zinc-950 z-20 shadow-md">
+            <span className="text-xl cursor-pointer mr-4" onClick={() => setSelectedPostId(null)}>←</span> 
+            <span className="font-bold text-lg">Posts</span>
+          </div>
+          <div className="flex flex-col pb-10">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((num) => (
+              <div key={num} id={`full-post-${num}`} className="flex flex-col border-b border-white/5 pb-4 pt-2">
+                <div className="flex items-center gap-2 p-3">
+                  <div className="w-8 h-8 rounded-full border border-indigo-500 overflow-hidden bg-zinc-800 shrink-0">
+                    <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="Profile" />
+                  </div>
+                  <span className="font-bold text-sm">_priya.sunshine_</span>
+                </div>
+                <div className="aspect-square bg-zinc-900 overflow-hidden">
+                  <img src={`/assets/${num}.png`} className="w-full h-full object-cover" alt={`Post ${num}`} />
+                </div>
+                <div className="p-3">
+                  <div className="flex gap-4 mb-2 text-xl">❤️ 💬 🚀</div>
+                  <div className="text-xs mb-1">
+                    <span className="font-bold">_priya.sunshine_</span> {num === 1 ? "Lost in the colors of the sky 🎀✨" : "random dumps ✨"}
+                  </div>
+                  <div className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider">{14 - num} DAYS AGO</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 flex flex-col bg-zinc-950 overflow-y-auto custom-scrollbar pt-8 text-white relative">
         <div className="p-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-zinc-950 z-20">
-          <span className="font-bold text-lg cursor-pointer flex items-center gap-2" onClick={() => setPhoneApp('instagram')}>
-            <span className="text-xl">←</span> <span>@_priya.sunshine_</span>
+          <span className="font-bold text-lg flex items-center gap-2">
+            <span>@_priya.sunshine_</span>
           </span>
-          <span className="text-xl cursor-pointer" onClick={() => setShowMenu(true)}>⋮</span>
+          <span className="text-xl cursor-pointer p-2" onClick={() => { setShowMenu(true); if (!profileBonusFound) handleCheckAbout(); }}>⋮</span>
         </div>
 
         {/* Profile Header */}
@@ -199,7 +434,7 @@ const Level11 = () => {
               <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="Profile" />
             </div>
             <div className="flex gap-4 text-center">
-              <div><div className="font-bold text-lg">1</div><div className="text-[10px] text-zinc-400">Posts</div></div>
+              <div><div className="font-bold text-lg">13</div><div className="text-[10px] text-zinc-400">Posts</div></div>
               <div><div className="font-bold text-lg">{isFollowing ? "1,241" : "1,240"}</div><div className="text-[10px] text-zinc-400">Followers</div></div>
               <div><div className="font-bold text-lg">4,521</div><div className="text-[10px] text-zinc-400">Following</div></div>
             </div>
@@ -218,10 +453,12 @@ const Level11 = () => {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-3 gap-[2px] mt-2 pb-12">
-          <div className="aspect-square bg-zinc-800 overflow-hidden relative border border-zinc-900 border-opacity-50">
-            <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="Post" />
-          </div>
+        <div className="grid grid-cols-3 gap-[2px] mt-2 pb-12 px-[1px]">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map(num => (
+            <div key={num} onClick={() => setSelectedPostId(num)} className="aspect-square bg-zinc-800 overflow-hidden relative border border-zinc-900/30 cursor-pointer">
+              <img src={`/assets/${num}.png`} className="w-full h-full object-cover" alt={`Post ${num}`} />
+            </div>
+          ))}
         </div>
 
         {/* 3-Dot Menu Modal */}
@@ -230,22 +467,24 @@ const Level11 = () => {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMenu(false)} />
             <div className="w-full bg-zinc-900 rounded-t-2xl p-4 relative z-10 animate-fadeIn min-h-[50%] flex flex-col justify-end shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
               <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto mb-6 opacity-30" />
-              <button
-                onClick={() => handleCheckAbout()}
-                className="w-full text-left p-4 hover:bg-zinc-800 rounded-xl flex flex-col gap-2 active:bg-zinc-800 transition-colors mb-2 group"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-2xl group-hover:scale-110 transition-transform">ℹ️</span>
-                  <div className="font-bold text-sm tracking-wide">About this account</div>
+              
+              <div className="w-full text-left p-4 bg-zinc-800/50 border border-white/5 rounded-xl flex flex-col gap-1 mb-4">
+                <div className="flex items-center gap-3 text-zinc-400 mb-1">
+                  <span className="text-lg">ℹ️</span>
+                  <span className="font-bold text-[10px] uppercase tracking-widest text-zinc-500">Account Information</span>
                 </div>
-                {profileBonusFound && (
-                  <div className="text-xs text-zinc-400 mt-2 pb-2 animate-fadeIn pl-3 ml-12 py-2 pr-2 leading-relaxed">
-                    Date joined: May 2024<br />Former usernames: 3
-                  </div>
-                )}
+                <div className="text-xs text-zinc-300 pl-8 leading-relaxed">
+                  <p>Date joined: May 2024</p>
+                  <p>Former usernames: <span className="text-indigo-400 font-bold">3</span></p>
+                </div>
+              </div>
+
+              <button className="w-full text-left p-4 hover:bg-zinc-800/80 rounded-xl text-red-500 font-bold mb-2 text-sm flex items-center gap-4 transition-colors">
+                <span className="text-xl opacity-70">🚩</span> Report
               </button>
-              <button className="w-full text-left p-4 hover:bg-zinc-800/80 rounded-xl text-red-500 font-bold mb-2 text-sm flex items-center gap-4 transition-colors"><span className="text-xl">🚩</span> Report</button>
-              <button className="w-full text-left p-4 hover:bg-zinc-800/80 rounded-xl text-red-500 font-bold mb-6 text-sm flex items-center gap-4 transition-colors" onClick={() => setShowMenu(false)}><span className="text-xl">🚫</span> Block</button>
+              <button className="w-full text-left p-4 hover:bg-zinc-800/80 rounded-xl text-red-500 font-bold mb-6 text-sm flex items-center gap-4 transition-colors" onClick={() => setShowMenu(false)}>
+                <span className="text-xl opacity-70">🚫</span> Block
+              </button>
             </div>
           </div>
         )}
@@ -302,13 +541,48 @@ const Level11 = () => {
               </div>
             </div>
             {renderChoices([
-              { text: "A) 'Hey, saw your comment. Hope you're okay. Just saying hi.'", points: 15, impact: () => setFirstMsgType('cautious') },
-              { text: "B) 'Hey! I also feel lonely sometimes. Wanna talk?'", points: 15, impact: () => setFirstMsgType('friendly') },
-              { text: "C) 'Hi, my grandfather just passed away and I'm really struggling. Wanna talk?'", points: 0, feedback: "DANGER: Options A or B are better. Never share personal grief with strangers.", impact: () => setFirstMsgType('oversharing') }
+              { text: "A) 'Hey, saw your comment. Hope you're okay. Just saying hi.'", points: 15, impact: () => { setFirstMsgType('cautious'); setStoryProgress(0.5); } },
+              { text: "B) 'Hey! I also feel lonely sometimes. Wanna talk?'", points: 15, impact: () => { setFirstMsgType('friendly'); setStoryProgress(0.5); } },
+              { text: "C) 'Hi, my grandfather just passed away and I'm really struggling. Wanna talk?'", points: 0, feedback: "DANGER: Options A or B are better. Never share personal grief with strangers.", impact: () => { setFirstMsgType('oversharing'); setStoryProgress(0.5); } }
             ])}
           </div>
         );
       }
+    }
+
+    if (storyProgress === 0.5) {
+      return (
+        <div className="flex-1 flex flex-col bg-zinc-950 relative">
+          <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
+            {renderPlayerMsg(firstMsgType === 'cautious' ? "Hey, saw your comment. Hope you're okay. Just saying hi." : firstMsgType === 'friendly' ? "Hey! I also feel lonely sometimes. Wanna talk?" : "Hi, my grandfather just passed away and I'm really struggling. Wanna talk?")}
+          </div>
+          <div className="absolute inset-x-0 bottom-0 pointer-events-none z-[5000] flex flex-col items-center pb-8 gap-4">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+            <div className="relative flex flex-col items-center gap-3 animate-pulse">
+                <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                <div className="flex items-center gap-3 whitespace-nowrap">
+                    <span className="text-white font-bold text-sm uppercase tracking-[0.25em] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+                        let's gets freshen up
+                    </span>
+                </div>
+            </div>
+            <div className="relative flex flex-col items-center gap-3 animate-pulse">
+                <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                <div className="flex items-center gap-3 whitespace-nowrap">
+                    <span className="w-7 h-7 flex items-center justify-center bg-white text-black font-black text-xs rounded-md shadow-[0_0_15px_rgba(255,255,255,0.4)] border border-white/80">
+                        E
+                    </span>
+                    <span className="text-white font-bold text-sm uppercase tracking-[0.25em] drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+                        get up
+                    </span>
+                </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (storyProgress === 0.75) {
       return (
         <div className="flex-1 flex flex-col bg-zinc-950">
           <div className="flex-1 p-4 overflow-y-auto custom-scrollbar pt-10">
@@ -1113,9 +1387,26 @@ const Level11 = () => {
     </div>
   );
 
+  const renderWakingUp = () => (
+    <div className="w-full h-full bg-[#0f172a] flex items-center justify-center overflow-hidden relative font-sans">
+      <div
+          className="w-full h-full transition-all duration-1000"
+          style={{
+              backgroundImage: `url("/assets/morning_bed.png")`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+          }}
+      />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 text-center z-50 animate-fadeIn">
+        <p className="text-white font-serif italic text-3xl font-bold tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">"Nothing to do... maybe see what's trending on Instagram."</p>
+      </div>
+      <InteractionPrompt text="Press E to open Insta" />
+    </div>
+  );
+
   const renderExploration = () => {
     const getBackground = () => {
-      if (day === 1) return '/assets/study.png';
+      if (day === 1) return '/assets/morning_bed.png';
       if (day >= 2 && day <= 7) return '/assets/bedplain.png';
       if (day >= 8 && day <= 13) return '/assets/garden_night.png';
       if (day === 14) return '/assets/morning_bed.png';
@@ -1125,7 +1416,7 @@ const Level11 = () => {
     };
 
     const getLocationTitle = () => {
-      if (day === 1) return "Thatha's Study";
+      if (day === 1) return "Bedroom";
       if (day >= 2 && day <= 7) return "Bedroom";
       if (day >= 8 && day <= 13) return "Garden Terrace";
       if (day === 14) return "Bedroom";
@@ -1135,7 +1426,7 @@ const Level11 = () => {
     };
 
     const getLocationDesc = () => {
-      if (day === 1) return "The House of Grief. Listening to the silence.";
+      if (day === 1) return "Nothing to do... maybe see what's trending on Instagram.";
       if (day >= 2 && day <= 7) return "The glow of the phone is the only light.";
       if (day >= 8 && day <= 13) return "Warm evening breeze.";
       if (day === 14) return "Morning sun streams in.";
@@ -1282,8 +1573,19 @@ const Level11 = () => {
                 .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
             `}} />
       {gameState === 'intro' && renderIntro()}
-      {gameState === 'exploration' && renderExploration()}
+      {gameState === 'waking_up' && renderWakingUp()}
+      {(gameState === 'exploration' || gameState === 'phone') && (
+        <div className={`w-full h-full transition-all duration-1000 ${gameState === 'phone' ? 'blur-sm scale-105 opacity-60' : ''}`}>
+          {day === 1 && storyProgress === 0 && gameState === 'phone' ? (
+             <img src="/assets/morning_bed.png" className="w-full h-full object-cover" alt="bg" />
+          ) : (
+             renderExploration()
+          )}
+        </div>
+      )}
       {gameState === 'phone' && renderPhone()}
+      {gameState === 'room_walk' && renderRoomWalk()}
+      {gameState === 'room_walk_freshened' && renderRoomWalkFreshened()}
       {gameState === 'act3' && renderAct3()}
       {gameState === 'awareness' && renderAwareness()}
       {gameState === 'report' && renderReport()}
@@ -1295,8 +1597,50 @@ const Level11 = () => {
           <div className="bg-black/80 px-4 py-2 border border-emerald-500/50 text-xs font-mono text-emerald-400 font-bold uppercase tracking-widest shadow-xl rounded backdrop-blur-sm shadow-[0_0_20px_rgba(16,185,129,0.1)]">Assets: ₹{assets.toLocaleString('en-IN')}</div>
         </div>
       )}
+
+      <HintManager 
+        gameState={gameState} 
+        phoneApp={phoneApp} 
+        day={day} 
+        storyProgress={storyProgress} 
+        profileChecked={profileChecked} 
+      />
     </div>
   );
+
+  function renderRoomWalk() {
+    return (
+      <div className="flex-1 w-full h-full relative bg-black overflow-hidden animate-fadeIn">
+        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("/assets/morning_bedplain.png")` }} />
+        <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
+
+        {roomInteractionTarget !== 'bathroom' && (
+          <InteractionPrompt text="Walk left to get freshen up" showKey={false} />
+        )}
+        {roomInteractionTarget === 'bathroom' && (
+          <InteractionPrompt text="freshen up" showKey={true} />
+        )}
+      </div>
+    );
+  }
+
+  function renderRoomWalkFreshened() {
+    return (
+      <div className="flex-1 w-full h-full relative bg-black overflow-hidden">
+        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("/assets/morning_bedplain.png")` }} />
+        <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
+        
+        <div className="absolute top-[400px] left-[700px] w-20 h-20 bg-indigo-500/20 rounded-full animate-ping pointer-events-none"></div>
+
+        {roomInteractionTarget !== 'bed' && (
+          <InteractionPrompt text="Walk to bed to see phone" showKey={false} />
+        )}
+        {roomInteractionTarget === 'bed' && (
+          <InteractionPrompt text="see phone" showKey={true} />
+        )}
+      </div>
+    );
+  }
 
   function renderAct3() {
     return (
