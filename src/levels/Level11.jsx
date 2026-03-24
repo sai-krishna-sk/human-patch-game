@@ -39,6 +39,33 @@ const HintManager = ({ gameState, phoneApp, day, storyProgress, profileChecked }
   return <InteractionPrompt text={hintText} showKey={false} />;
 };
 
+const AuditItem = ({ audit }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <div className={`bg-white rounded-2xl border ${audit.isCorrect ? 'border-emerald-100 shadow-[0_2px_10px_rgba(16,185,129,0.05)]' : 'border-red-100 shadow-[0_2px_10px_rgba(239,68,68,0.05)]'} overflow-hidden transition-all duration-300`}>
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`w-full p-5 flex justify-between items-center text-left transition-colors ${audit.isCorrect ? 'hover:bg-emerald-50/50' : 'hover:bg-red-50/50'}`}
+      >
+        <div className="flex items-center gap-4">
+          <div className={`w-3 h-3 rounded-full ${audit.isCorrect ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
+          <h4 className={`font-bold text-sm ${audit.isCorrect ? 'text-emerald-900' : 'text-red-900'} pr-4`}>{audit.title}</h4>
+        </div>
+        <span className={`text-xl transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+          {isExpanded ? '−' : '+'}
+        </span>
+      </button>
+      {isExpanded && (
+        <div className={`px-12 pb-6 pt-2 animate-fadeIn text-xs leading-relaxed font-medium ${audit.isCorrect ? 'text-emerald-700' : 'text-red-700'}`}>
+          <p className="bg-slate-50/50 p-4 rounded-xl border border-current/10 whitespace-pre-wrap">
+            {audit.isCorrect ? audit.correctDetail : audit.wrongDetail}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Level11 = () => {
   const { completeLevel, adjustAssets, adjustSafetyScore } = useGameState();
 
@@ -65,6 +92,34 @@ const Level11 = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionText, setTransitionText] = useState("");
   const [isPostTransition, setIsPostTransition] = useState(false);
+  const [decisions, setDecisions] = useState([]);
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
+  const [likedPosts, setLikedPosts] = useState([]);
+  const [bgCycleIndex, setBgCycleIndex] = useState(-1);
+  const footstepAudio = useRef(null);
+  const transitionBgs = ['/assets/bed.png', '/assets/home_office.jpeg', '/assets/morning_bed.png', '/assets/temppho.png'];
+
+  const getBackground = () => {
+    if (bgCycleIndex >= 0) return transitionBgs[bgCycleIndex];
+    if (day === 1) {
+      if (gameState === 'room_walk' || gameState === 'room_walk_freshened' || gameState === 'exploration') {
+          return '/assets/morning_bedplain.png';
+      }
+      return '/assets/morning_bed.png';
+    }
+    if (day >= 2 && day <= 7) return '/assets/bedplain.png';
+    if (day >= 8 && day <= 13) return '/assets/garden_night.png';
+    if (day === 14) return '/assets/morning_bed.png';
+    if (day === 15) return '/assets/office_inside.png';
+    if (day >= 16) return '/assets/study.png';
+    return '/assets/study.png';
+  };
+
+  const toggleLike = (postId) => {
+    setLikedPosts(prev => 
+      prev.includes(postId) ? prev.filter(id => id !== postId) : [...prev, postId]
+    );
+  };
 
   // ROOM WALK STATE & AUDIO
   const [roomPlayerPos, setRoomPlayerPos] = useState({ x: 800, y: 450 });
@@ -125,7 +180,7 @@ const Level11 = () => {
   };
 
   // CHAT SEQUENCER STATE
-  const [dmHistory, setDmHistory] = useState([{ type: 'system', text: "Day 1, 9:47 PM" }]);
+  const [dmHistory, setDmHistory] = useState([{ type: 'system', text: "Day 1" }]);
   const [pendingSequence, setPendingSequence] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
   const [choicesLocked, setChoicesLocked] = useState(false);
@@ -153,6 +208,54 @@ const Level11 = () => {
     window.addEventListener('keyup', uk);
     return () => { window.removeEventListener('keydown', dk); window.removeEventListener('keyup', uk); };
   }, []);
+
+  // Walking Audio Initialization
+  useEffect(() => {
+    footstepAudio.current = new Audio('/audio/foot.m4a');
+    if (footstepAudio.current) {
+      footstepAudio.current.loop = true;
+      footstepAudio.current.volume = 0.4;
+    }
+    return () => {
+      if (footstepAudio.current) {
+        footstepAudio.current.pause();
+        footstepAudio.current = null;
+      }
+    };
+  }, []);
+
+  // Walking Audio Monitor
+  useEffect(() => {
+    const isMovingState = gameState === 'exploration' || gameState === 'room_walk' || gameState === 'room_walk_freshened';
+    if (!isMovingState) {
+      if (footstepAudio.current) footstepAudio.current.pause();
+      return;
+    }
+
+    let frameId;
+    const checkMovement = () => {
+      const keys = keysRef.current;
+      const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'] || 
+                       keys['arrowup'] || keys['arrowdown'] || keys['arrowleft'] || keys['arrowright'];
+      
+      if (isMoving) {
+        if (footstepAudio.current && footstepAudio.current.paused) {
+          footstepAudio.current.play().catch(() => {});
+        }
+      } else {
+        if (footstepAudio.current && !footstepAudio.current.paused) {
+          footstepAudio.current.pause();
+        }
+      }
+      frameId = requestAnimationFrame(checkMovement);
+    };
+
+    frameId = requestAnimationFrame(checkMovement);
+    return () => {
+      cancelAnimationFrame(frameId);
+      if (footstepAudio.current) footstepAudio.current.pause();
+    };
+  }, [gameState]);
 
   // Cinematic transition helper
   const triggerSceneTransition = (newStateUpdate, text = "") => {
@@ -308,6 +411,10 @@ const Level11 = () => {
             setDmHistory(newHist);
           }
           
+          if (nextMsg.text.includes("5 DAYS LATER") || bgCycleIndex >= 0) {
+            setBgCycleIndex(prev => (prev + 1) % transitionBgs.length);
+          }
+          
           setPendingSequence(prev => prev.slice(nextInitialMsg ? 2 : 1));
         }, 3000);
       } else if (nextMsg.type === 'system') {
@@ -334,6 +441,16 @@ const Level11 = () => {
   const handleChoice = (option) => {
     if (option.impact) option.impact();
     setPoints(prev => prev + (option.points || 0));
+
+    // Log decision for the report audit
+    if (option.text && !['Continue', 'Open WhatsApp', 'Go To Home Screen'].includes(option.text)) {
+      setDecisions(prev => [...prev, {
+        label: option.chatText || option.text,
+        points: option.points || 0,
+        isCorrect: (option.points || 0) > 0 || (option.text.includes("Block") && !option.text.includes("Contacts")),
+        category: phoneApp.includes('whatsapp') ? 'WhatsApp' : 'Instagram'
+      }]);
+    }
 
     if (option.feedback) {
       setFeedback(option.feedback);
@@ -371,9 +488,9 @@ const Level11 = () => {
 
   const InstagramApp = () => {
     const posts = [
-      { user: 'celebrity_quotes', img: '/assets/celebrity_girl.png', text: '“The sun will rise again. Believe in yourself.” ✨', comments: ['Stay strong!', 'Needed this today.'] },
-      { user: 'foodie_chennai', img: '/assets/market_bg.png', text: 'Best Biryani in Anna Nagar! 🍛', comments: ['Price?', 'Address please!'] },
-      { user: 'digital_safety', img: '/assets/phone_noti.png', text: 'Never share your OTP with anyone. Stay safe!', comments: ['Thanks for the tip.', 'Important!'] },
+      { id: 'feed_1', user: 'celebrity_quotes', img: '/assets/celebrity_girl.png', text: '“The sun will rise again. Believe in yourself.” ✨', comments: ['Stay strong!', 'Needed this today.'] },
+      { id: 'feed_2', user: 'foodie_chennai', img: '/assets/market_bg.png', text: 'Best Biryani in Anna Nagar! 🍛', comments: ['Price?', 'Address please!'] },
+      { id: 'feed_3', user: 'digital_safety', img: '/assets/phone_noti.png', text: 'Never share your OTP with anyone. Stay safe!', comments: ['Thanks for the tip.', 'Important!'] },
     ];
 
     return (
@@ -400,7 +517,16 @@ const Level11 = () => {
                 <img src={post.img} className="w-full h-full object-cover" alt="post" />
               </div>
               <div className="p-3">
-                <div className="flex gap-4 mb-2">❤️ 💬 🚀</div>
+                <div className="flex gap-4 mb-2 text-xl">
+                  <span 
+                    onClick={() => toggleLike(post.id)} 
+                    className={`cursor-pointer transition-transform active:scale-125 ${likedPosts.includes(post.id) ? 'text-red-500' : 'text-white/40'}`}
+                  >
+                    {likedPosts.includes(post.id) ? '❤️' : '🤍'}
+                  </span> 
+                  <span>💬</span> 
+                  <span>🚀</span>
+                </div>
                 <div className="text-xs mb-1"><span className="font-bold">{post.user}</span> {post.text}</div>
                 {(day === 1 || storyProgress === 0) && i === 0 && (
                   <div className="bg-indigo-500/20 p-2 mt-2 rounded border border-indigo-500/30 animate-pulse cursor-pointer"
@@ -418,7 +544,7 @@ const Level11 = () => {
 
   const InstaProfileApp = ({
     profileBonusFound, setProfileBonusFound, setPoints, setFeedback, 
-    setProfileChecked, setPhoneApp, day, storyProgress
+    setProfileChecked, setPhoneApp, day, storyProgress, likedPosts, toggleLike
   }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
@@ -464,7 +590,16 @@ const Level11 = () => {
                   <img src={`/assets/${num}.png`} className="w-full h-full object-cover" alt={`Post ${num}`} />
                 </div>
                 <div className="p-3">
-                  <div className="flex gap-4 mb-2 text-xl">❤️ 💬 🚀</div>
+                  <div className="flex gap-4 mb-2 text-xl">
+                    <span 
+                      onClick={() => toggleLike(`profile_${num}`)} 
+                      className={`cursor-pointer transition-transform active:scale-125 ${likedPosts.includes(`profile_${num}`) ? 'text-red-500' : 'text-white/40'}`}
+                    >
+                      {likedPosts.includes(`profile_${num}`) ? '❤️' : '🤍'}
+                    </span>
+                    <span>💬</span> 
+                    <span>🚀</span>
+                  </div>
                   <div className="text-xs mb-1">
                     <span className="font-bold">_priya.sunshine_</span> {num === 1 ? "Lost in the colors of the sky 🎀✨" : "random dumps ✨"}
                   </div>
@@ -625,7 +760,7 @@ const Level11 = () => {
       }
       if (storyProgress === 4) {
         return [
-          { text: "A) Someone close… not ready to say", priyaResponse: "that’s okay… take your time ❤️", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 },
+          { text: "A) Someone close… not ready to say", points: 20, priyaResponse: "that’s okay… take your time ❤️", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 },
           { text: "B) My grandfather", priyaResponse: "i’m sorry… that must hurt a lot 😔", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 },
           { text: "C) My grandfather passed away… left me money too", priyaResponse: "oh… that’s really tough 😔 at least he cared for u", nextMessages: [{ type: 'priya', text: "honestly talking to u makes me feel so much better. everything else just feels so heavy right now. do you have anyone you can really talk to? like... a safety net?" }], nextStep: 5 }
         ];
@@ -639,7 +774,7 @@ const Level11 = () => {
       }
       if (storyProgress === 6) {
         return [
-          { text: "A) not really… still a student", priyaResponse: "yeah same… life is tough rn 😭", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 },
+          { text: "A) not really… still a student", points: 25, priyaResponse: "yeah same… life is tough rn 😭", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 },
           { text: "B) a little bit, family money", priyaResponse: "oh okay… that’s nice at least", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 },
           { text: "C) yeah… i have quite a lot", priyaResponse: "oh wow… that’s really good… lucky u", transition: "A FEW DAYS LATER...", nextMessages: [{ type: 'priya', text: "Krish I think i'm starting to... idk. like you? more than just a friend? ❤️" }], nextStep: 7 }
         ];
@@ -648,6 +783,7 @@ const Level11 = () => {
         return [
           { 
             text: "A) Let’s take it slow", 
+            points: 10,
             priyaResponse: "yeah… i just wanted to be honest ❤️", 
             nextMessages: [{ type: 'priya', text: "hey... can i have your whatsapp? instagram is kinda glitchy. 📱" }],
             nextStep: 8 
@@ -674,6 +810,7 @@ const Level11 = () => {
             impact: () => {
               setTransitionText("SWITCHING TO WHATSAPP...");
               setIsTransitioning(true);
+              if (bgCycleIndex >= 0) setBgCycleIndex(prev => (prev + 1) % transitionBgs.length);
               setTimeout(() => {
                 setIsTransitioning(false);
                 setIsPostTransition(true);
@@ -684,6 +821,7 @@ const Level11 = () => {
           },
           {
             text: "B) I don't know... maybe later?",
+            points: 10,
             priyaResponse: "aww pls? 🥺 i just wanna talk more comfortably. insta is so annoying.",
             nextMessages: [{ type: 'priya', text: "just trust me? ❤️" }],
             nextStep: 8.5
@@ -698,6 +836,7 @@ const Level11 = () => {
             impact: () => {
               setTransitionText("SWITCHING TO WHATSAPP...");
               setIsTransitioning(true);
+              if (bgCycleIndex >= 0) setBgCycleIndex(prev => (prev + 1) % transitionBgs.length);
               setTimeout(() => {
                 setIsTransitioning(false);
                 setIsPostTransition(true);
@@ -722,7 +861,7 @@ const Level11 = () => {
           </div>
           <div>
             <p className="font-bold text-xs">_priya.sunshine_</p>
-            <p className="text-[9px] text-green-500">Active now</p>
+            <p className="text-[9px] text-green-500"></p>
           </div>
         </div>
 
@@ -755,6 +894,11 @@ const Level11 = () => {
         </div>
 
         {/* Footer / Choices */}
+        {storyProgress === 0.5 && (
+          <div className="absolute bottom-[100px] left-0 right-0 flex justify-center z-30 pointer-events-none animate-fadeIn">
+            <InteractionPrompt text="probably time to freshen up" showKey={false} />
+          </div>
+        )}
         {choices && !isTyping && pendingSequence.length === 0 ? renderChoices(choices) : storyProgress === 0.5 && (
           <InteractionPrompt text="get up" />
         )}
@@ -768,7 +912,6 @@ const Level11 = () => {
       <div className={`max-w-[85%] bg-[#dcf8c6] text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tr-none text-[12px] leading-snug shadow-sm relative ${isLast ? 'animate-fadeIn' : ''} before:content-[''] before:absolute before:top-0 before:-right-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-[#dcf8c6] before:border-l-[#dcf8c6]`}>
         {text}
         <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5 flex items-center gap-1">
-          10:32 PM
           <svg viewBox="0 0 16 15" width="12" height="12" className="text-[#53bdeb]"><path fill="currentColor" d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z"></path></svg>
         </span>
       </div>
@@ -779,7 +922,7 @@ const Level11 = () => {
     <div className="flex justify-start mb-4 relative z-0">
       <div className={`max-w-[85%] bg-white text-black pt-2 pb-2.5 px-3 rounded-lg rounded-tl-none text-[12px] leading-snug shadow-sm relative ${isLast ? 'animate-fadeIn' : ''} before:content-[''] before:absolute before:top-0 before:-left-2 before:w-0 before:h-0 before:border-[8px] before:border-transparent before:border-t-white before:border-r-white`}>
         {text}
-        <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5">10:31 PM</span>
+        <span className="float-right text-[9px] text-black/40 mt-1 ml-3 mt-1.5"></span>
       </div>
     </div>
   );
@@ -1035,7 +1178,7 @@ const Level11 = () => {
       <div className="flex-1 flex flex-col bg-[#075e54] relative text-white pt-10">
         <div className="flex-1 p-4 flex flex-col items-center justify-center relative border-b border-[#25d366]/20">
           <p className="z-10 text-lg text-white/80 mb-8 font-mono">
-            {isRinging ? "Incoming Voice Call" : formatTime(callDuration)}
+            {isRinging ? "Incoming Voice Call" : "Voice Call"}
           </p>
           <div className="z-10 w-32 h-32 rounded-full bg-zinc-300 mb-6 flex items-center justify-center text-4xl shadow-xl border-4 border-[#25d366]/50 mb-4 overflow-hidden relative">
             <img src="/assets/priya_real.png" className="w-full h-full object-cover" alt="DP" />
@@ -1097,27 +1240,19 @@ const Level11 = () => {
             src="/Dia_audio/lvl1/priyavideo.mp4"
             autoPlay
             playsInline
-            onEnded={() => setShowResponse(true)}
+            onEnded={() => {
+              setTimeout(handleEndCall, 1500);
+            }}
             className="w-full h-full object-cover"
           />
 
           {/* Player PIP (Picture-in-Picture) */}
           <div className="absolute top-24 right-4 w-28 h-40 bg-zinc-800 rounded-lg border-2 border-white/20 z-20 shadow-xl overflow-hidden">
-            {!showResponse ? (
-              <img
-                src="/assets/protagonist.png"
-                alt="Player"
-                className="object-cover w-full h-full scale-x-[-1]"
-              />
-            ) : (
-              <video
-                src="/Dia_audio/lvl1/proresponse.mp4"
-                autoPlay
-                playsInline
-                onEnded={handleEndCall}
-                className="w-full h-full object-cover scale-x-[-1]"
-              />
-            )}
+            <img
+              src="/assets/protagonist.png"
+              alt="Player"
+              className="object-cover w-full h-full scale-x-[-1]"
+            />
           </div>
 
           {/* Call Controls Overlay */}
@@ -1139,7 +1274,7 @@ const Level11 = () => {
 
         {/* Background (Blurred Character Image) */}
         <div className="absolute inset-0 bg-zinc-900 z-0 overflow-hidden">
-          <img src="protagonist.png" alt="Protagonist" className="object-cover w-full h-full scale-x-[-1] opacity-40 blur-sm" />
+          <img src="/assets/protagonist.png" alt="Protagonist" className="object-cover w-full h-full scale-x-[-1] opacity-40 blur-sm" />
           <div className="absolute inset-0 bg-black/40" />
         </div>
 
@@ -1294,7 +1429,7 @@ const Level11 = () => {
     return (
       <div className="flex-1 flex flex-col bg-[#ece5dd] relative w-full h-full">
         <div className="absolute inset-0 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] bg-cover opacity-10 pointer-events-none" />
-        <WAHeader title={savedContact ? "Priya" : "+91 94440 12345"} subtitle={savedContact ? (isTyping ? "typing..." : "online") : "Unknown"} showBack={true} />
+        <WAHeader title={savedContact ? "Priya" : "+91 94440 12345"} subtitle={savedContact ? (isTyping ? "typing..." : "") : "Unknown"} showBack={true} />
 
 
         {!savedContact && (
@@ -1352,6 +1487,7 @@ const Level11 = () => {
                   setTimeout(() => {
                     setTransitionText("1 DAY LATER");
                     setIsTransitioning(true);
+                    if (bgCycleIndex >= 0) setBgCycleIndex(prev => (prev + 1) % transitionBgs.length);
                     setTimeout(() => {
                       setIsTransitioning(false);
                       setIsPostTransition(true);
@@ -1370,6 +1506,7 @@ const Level11 = () => {
                   setTimeout(() => {
                     setTransitionText("1 DAY LATER");
                     setIsTransitioning(true);
+                    if (bgCycleIndex >= 0) setBgCycleIndex(prev => (prev + 1) % transitionBgs.length);
                     setTimeout(() => {
                       setIsTransitioning(false);
                       setIsPostTransition(true);
@@ -1388,6 +1525,7 @@ const Level11 = () => {
                   setTimeout(() => {
                     setTransitionText("1 DAY LATER");
                     setIsTransitioning(true);
+                    if (bgCycleIndex >= 0) setBgCycleIndex(prev => (prev + 1) % transitionBgs.length);
                     setTimeout(() => {
                       setIsTransitioning(false);
                       setIsPostTransition(true);
@@ -1458,7 +1596,7 @@ const Level11 = () => {
       <div
           className="w-full h-full transition-all duration-1000"
           style={{
-              backgroundImage: `url("/assets/morning_bed.png")`,
+              backgroundImage: `url(${getBackground()})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
           }}
@@ -1471,16 +1609,6 @@ const Level11 = () => {
   );
 
   const renderExploration = () => {
-    const getBackground = () => {
-      if (day === 1) return '/assets/morning_bed.png';
-      if (day >= 2 && day <= 7) return '/assets/bedplain.png';
-      if (day >= 8 && day <= 13) return '/assets/garden_night.png';
-      if (day === 14) return '/assets/morning_bed.png';
-      if (day === 15) return '/assets/office_inside.png';
-      if (day >= 16) return '/assets/study.png';
-      return '/assets/study.png';
-    };
-
     const getLocationTitle = () => {
       if (day === 1) return "Bedroom";
       if (day >= 2 && day <= 7) return "Bedroom";
@@ -1536,6 +1664,7 @@ const Level11 = () => {
         setPoints={setPoints} setFeedback={setFeedback}
         setProfileChecked={setProfileChecked} setPhoneApp={setPhoneApp}
         day={day} storyProgress={storyProgress}
+        likedPosts={likedPosts} toggleLike={toggleLike}
       />
     );
     else if (phoneApp === 'dm') AppToRender = DMApp();
@@ -1587,7 +1716,7 @@ const Level11 = () => {
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-baseline mb-1">
                 <span className="font-bold text-sm truncate">{savedContact ? "Priya" : "+91 94440 12345"}</span>
-                {(storyProgress === 6.5 || storyProgress === 6) ? <span className="text-[10px] text-[#25d366] font-bold">10:31 PM</span> : <span className="text-[10px] text-zinc-400">10:31 PM</span>}
+                <span className="text-[10px] text-zinc-400"></span>
               </div>
               <p className="text-xs text-zinc-500 truncate">{waHistory.length > 0 ? waHistory[waHistory.length - 1]?.text : "Waiting for messages..."}</p>
             </div>
@@ -1602,7 +1731,7 @@ const Level11 = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-baseline mb-1">
                   <span className="font-bold text-sm truncate text-red-600">+91 98941 23094</span>
-                  <span className="text-[10px] text-[#25d366] font-bold">Just Now</span>
+                  <span className="text-[10px] text-[#25d366] font-bold"></span>
                 </div>
                 <p className="text-xs text-zinc-600 truncate font-semibold italic">{waUnknownHistory[waUnknownHistory.length - 1]?.text}</p>
               </div>
@@ -1625,7 +1754,7 @@ const Level11 = () => {
       <div className="w-full h-full bg-black/40 flex items-center justify-center animate-in zoom-in duration-300 backdrop-blur-sm z-[200] absolute inset-0 py-8">
         <div className="w-[360px] h-full max-h-[760px] shrink-0 bg-zinc-900 rounded-[3rem] border-[10px] border-zinc-950 shadow-[0_0_100px_rgba(0,0,0,0.8)] relative overflow-hidden flex flex-col ring-1 ring-zinc-800">
           <div className="h-8 flex justify-between px-8 items-center text-[10px] text-white font-mono absolute top-0 left-0 right-0 z-[100] mix-blend-difference pointer-events-none">
-            <span>10:31 PM</span>
+            <span></span>
             <div className="flex gap-1 items-center"><span>📱 🛜 🔋</span></div>
           </div>
           {AppToRender}
@@ -1640,10 +1769,10 @@ const Level11 = () => {
   };
 
   const renderResults = () => {
-    const rank = points >= 230 ? "Cyber Detective Elite" : points >= 150 ? "Vigilant Defender" : points >= 80 ? "Awareness Student" : "Compromised";
+    const rank = points >= 170 ? "Cyber Detective Elite" : points >= 110 ? "Vigilant Defender" : points >= 60 ? "Awareness Student" : "Compromised";
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-12 bg-zinc-950">
-        <h1 className="text-9xl font-black mb-2 italic tracking-tighter">{points} / 230</h1>
+        <h1 className="text-9xl font-black mb-2 italic tracking-tighter">{points} / 170</h1>
         <p className="text-3xl font-black text-indigo-400 mb-12 uppercase">{rank}</p>
         <div className="max-w-2xl text-zinc-400 italic mb-12 text-lg">
           "You kept your promise, beta. You protected the assets. I am proud of you." <span className="text-white block mt-2">— Grandfather Rajan</span>
@@ -1672,7 +1801,7 @@ const Level11 = () => {
       {gameState === 'phone' && (
         <div className={`w-full h-full transition-all duration-1000 blur-sm scale-105 opacity-60`}>
           <img 
-            src={storyProgress < 1 ? "/assets/morning_bed.png" : "/assets/morning_bedplain.png"} 
+            src={getBackground()} 
             className="w-full h-full object-cover" 
             alt="bg" 
           />
@@ -1719,7 +1848,7 @@ const Level11 = () => {
   function renderRoomWalk() {
     return (
       <div className="flex-1 w-full h-full relative bg-black overflow-hidden animate-fadeIn">
-        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("/assets/morning_bedplain.png")` }} />
+        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${getBackground()})` }} />
         <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
 
         {roomInteractionTarget !== 'bathroom' && (
@@ -1735,7 +1864,7 @@ const Level11 = () => {
   function renderRoomWalkFreshened() {
     return (
       <div className="flex-1 w-full h-full relative bg-black overflow-hidden animate-fadeIn">
-        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url("/assets/morning_bedplain.png")` }} />
+        <div className="absolute inset-0 bg-cover bg-center transition-all duration-1000" style={{ backgroundImage: `url(${getBackground()})` }} />
         <Player x={roomPlayerPos.x} y={roomPlayerPos.y} />
         
         <div className="absolute top-[400px] left-[700px] w-20 h-20 bg-indigo-500/20 rounded-full animate-ping pointer-events-none"></div>
@@ -1860,233 +1989,173 @@ const Level11 = () => {
   }
 
   function renderReport() {
+    const amountLost = 4200000 - assets;
+    const isSuccess = amountLost === 0;
+
     return (
-      <div className="flex flex-col h-full bg-[#e5e7eb] text-black p-4 md:p-8 overflow-y-auto font-serif relative">
-        <div className="max-w-4xl mx-auto bg-white p-8 md:p-12 shadow-2xl border border-zinc-300 relative w-full mb-12">
-          {/* Watermark */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none overflow-hidden">
-            <span className="text-[200px] font-black uppercase tracking-tighter rotate-[-45deg] whitespace-nowrap">CLASSIFIED</span>
+      <div className="flex flex-col h-full bg-[#f8fafc] text-slate-900 p-4 md:p-8 overflow-y-auto font-sans relative">
+        <div className="max-w-4xl mx-auto w-full space-y-8 pb-12 animate-fadeIn">
+          
+          {/* Header Section */}
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 uppercase">Case Review: Romance Fraud</h1>
+            <p className="text-slate-500 font-medium tracking-wide pb-4 border-b border-slate-200">
+              National Cyber Crime Reporting Portal • Case #CYB/2024/00847
+            </p>
           </div>
 
-          <div className="text-center border-b-2 border-zinc-800 pb-6 mb-8 relative z-10">
-            <h1 className="text-2xl font-black uppercase tracking-widest text-zinc-900 mb-1">CYBERCRIME INVESTIGATION DIVISION</h1>
-            <h2 className="text-lg font-bold text-zinc-700 uppercase tracking-wider mb-6">Government of India — National Cyber Crime Reporting Portal</h2>
-            <div className="bg-zinc-100 border border-zinc-300 p-4 flex flex-col items-center">
-              <span className="font-black text-lg uppercase tracking-widest">Official Cybercrime Investigation Report</span>
-              <span className="font-bold text-zinc-600 mt-1">Case: Romance Fraud + Catfishing + Deepfake Blackmail</span>
-              <span className="font-bold text-red-700 mt-2">Complaint No: CYB/2024/CHN/00847</span>
+          {/* Impact Dashboard */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Financial Loss</span>
+              <span className={`text-4xl font-black ${amountLost > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                ₹{amountLost.toLocaleString('en-IN')}
+              </span>
+              <p className="text-sm text-slate-500 mt-2">
+                {isSuccess ? "Excellent! You protected the full inheritance." : "Partial funds were lost to the scammer."}
+              </p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Investigation Status</span>
+              <span className="text-4xl font-black text-indigo-600">RESOLVED</span>
+              <p className="text-sm text-slate-500 mt-2">Suspect traced to Rajasthan & Arrested.</p>
             </div>
           </div>
 
-          <div className="relative z-10 text-sm leading-relaxed space-y-8">
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-4 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 group-hover:bg-zinc-100 transition-colors">SECTION 1 — CASE DETAILS</h3>
-              <table className="w-full text-left border-collapse border border-zinc-300 mb-4">
-                <tbody>
-                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50 w-1/3">Report Date</th><td className="p-2">Filed via cybercrime.gov.in | Helpline: 1930</td></tr>
-                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50">Investigating Unit</th><td className="p-2">Cyber Crime Cell, Chennai — Economic Offences Wing</td></tr>
-                  <tr className="border-b border-zinc-300">
-                    <th className="p-2 border-r border-zinc-300 bg-zinc-50 align-top">VICTIM PROFILE</th>
-                    <td className="p-2"><b>Name:</b> [Player — You]<br /><b>Age:</b> 24 years<br /><b>Occupation:</b> IT Professional<br /><b>City:</b> Chennai, Tamil Nadu<br /><b>Status:</b> Recently bereaved (grandfather's passing)</td>
-                  </tr>
-                  <tr className="border-b border-zinc-300">
-                    <th className="p-2 border-r border-zinc-300 bg-zinc-50 align-top">SUSPECT PROFILE</th>
-                    <td className="p-2"><b>Alias Used:</b> 'Priya' / @_priya.sunshine_<br /><b>Actual Gender:</b> Male<br /><b>Age (claimed):</b> 23 years old female<br /><b>Actual Location:</b> Rajasthan (traced via IP)<br /><b>Operation Type:</b> Organised Syndicate</td>
-                  </tr>
-                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50">Duration of Operation</th><td className="p-2">16 days — Day 1 (Instagram DM) to Day 16 (Blackmail received)</td></tr>
-                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50">Fraud Type</th><td className="p-2">Catfishing + Romance Fraud + Deepfake Video Call + Multi-Account Blackmail</td></tr>
-                  <tr className="border-b border-zinc-300"><th className="p-2 border-r border-zinc-300 bg-zinc-50 text-red-800">Amount Demanded</th><td className="p-2 font-bold text-red-700">₹1,20,000 (initial) | Escalation potential: Full ₹42,00,000 inheritance</td></tr>
-                  <tr><th className="p-2 border-r border-zinc-300 bg-zinc-50 text-green-800">Amount Lost</th><td className="p-2 font-bold text-green-700">₹{4200000 - assets} — Victim {4200000 - assets > 0 ? "transferred funds under pressure." : "did not transfer any funds. Case reported promptly."}</td></tr>
-                </tbody>
-              </table>
-            </section>
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-4 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800">SECTION 2 — INVESTIGATION SUMMARY</h3>
-              <p className="mb-4">On Day 1 of this operation, the victim — a 24-year-old IT professional based in Chennai — was in a state of emotional vulnerability following the death of his paternal grandfather. He was scrolling Instagram when he encountered a comment posted by the account <b>@_priya.sunshine_</b> under a popular actress's post. The comment read: <i>"dm for frndz chat... im so loneoly 😔 just need smone to tlk to..."</i></p>
-              <p className="mb-4">The victim, who had recently experienced the loss of a close family member, felt an emotional resonance with this comment and sent a direct message to the account. This initiated a 16-day calculated deception by a male fraudster operating from Rajasthan, who was posing as a 23-year-old woman named 'Priya.'</p>
-              <p className="mb-4">Investigation revealed that the suspect — identified as <b>Ramesh (age 31)</b> — was running this account as part of an organised fraud syndicate operating 8 to 12 similar fake identities simultaneously. The profile photographs were stolen from a real woman's Instagram account based in Bengaluru, who was unaware of the impersonation.</p>
-              <p className="mb-4">The suspect used a combination of scripted emotional manipulation, pre-recorded female voice clips, and a real-time AI-powered deepfake application during a WhatsApp video call on Day 14. The victim's face and voice were recorded without consent during this call and were prepared as blackmail material.</p>
-              <p className="mb-4">The blackmail was executed on Day 16, with demands arriving simultaneously from multiple fake Instagram accounts and the original 'Priya' number. The victim did not comply with the financial demands, documented all evidence, and filed a complaint — which led to the successful identification and arrest of the primary operator.</p>
-            </section>
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 3 — MISTAKES COMMITTED: A CHRONOLOGICAL ANALYSIS</h3>
-              <p className="mb-6 italic text-zinc-600">The following section documents each critical error made by the victim during the 16-day interaction. These are presented not to assign blame — the victim's emotional state was deliberately exploited — but as a clear, factual record for awareness and learning. Every entry below is a lesson that can protect you and others from future harm.</p>
-
-              <div className="space-y-6">
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #1 — Responding to a Stranger's Comment on Social Media</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> You saw a comment posted by an unknown account under a celebrity's Instagram post and sent a direct message without prior knowledge of who the person was.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> This is the primary entry point of almost every romance fraud. Scammers deliberately post emotionally resonant comments — loneliness, grief, sadness — on high-traffic posts specifically to attract vulnerable individuals. A comment is not an introduction. It is anonymous, unverifiable bait. Your grandfather had just passed away. Your emotional guard was naturally lowered, which is exactly when you are most vulnerable to this kind of targeting. The suspect's data showed he had identified you as a target two days earlier — your condolence post about your grandfather had appeared in public feeds, and he positioned the 'Priya' comment to appear when you were most likely to be online.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Avoid responding to strangers' public social media comments, especially during periods of grief, stress, or loneliness. If you feel the need to connect with someone, reach out to known friends, family, or verified mental health communities. Never treat a stranger's social media comment as an invitation to develop a personal relationship.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #2 — Failing to Properly Verify the Profile Before Engaging</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> You briefly checked her profile — photos, follower count, post history — but did not conduct a reverse image search or deeper verification before investing emotionally in the conversation.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> A fraudulent profile can be constructed in under two hours. Stolen photos from a real person's account, a believable bio, a modest follower count, and a few months of posts are all achievable quickly. The account <b>@_priya.sunshine_</b> had been active for only 4 months. A reverse image search of her profile photo on Google Images or TinEye would have immediately returned results showing the same photo on a real woman's account in Bengaluru — proof that the profile was fake. You did not run this check.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Before engaging with any stranger you meet through social media, run a reverse image search on their profile photo. Check how old the account is and whether the posting history feels genuine or thin. A real person's account typically has years of history, tagged friends, event photos, and mutual connections. When these are absent, it is a red flag. Use tools like Google Reverse Image Search or TinEye — they are free and take 30 seconds.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #3 — Sharing Your Grandfather's Death and Personal Grief Within Days</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> Within 3 to 4 days of first contact, you disclosed that your grandfather had recently passed away and that you were struggling emotionally.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> Personal grief is highly sensitive information in the hands of a manipulator. The suspect used this disclosure to build a false emotional mirror — he claimed he had also 'lost his father two years ago,' which was entirely fabricated to create a sense of shared trauma and accelerate emotional bonding. He also used this information to calculate your vulnerability level and your potential access to inherited money. Every detail of personal loss you shared was logged and weaponised. The disclosure of your grandfather's death directly enabled him to later ask about your financial situation — knowing there would likely be an inheritance.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> In any online relationship — romantic, platonic, or professional — you should not share serious personal losses, mental health struggles, or family tragedies within the first two to three weeks of contact. Wait until identity is verified in person. Grief is a human vulnerability, and predators are specifically trained to identify and exploit it.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #4 — Mentioning the ₹42 Lakh Inheritance to a Stranger</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> During the 16-day interaction, you disclosed that your grandfather had left behind a significant financial inheritance. Even if you did not state the exact amount directly, your responses confirmed the existence of substantial inherited assets.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> This was the most operationally significant mistake of the entire interaction. The suspect's primary objective from Day 1 was to determine whether you had money worth targeting. Once you confirmed the existence of an inheritance — even vaguely — the operation shifted from 'assessment' to 'extraction.' The blackmail amount of ₹1,20,000 was not random. It was calibrated based on what the suspect believed you could pay quickly without raising family suspicion. The final escalation target was your full inherited amount. Financial information shared with unverified online contacts is a loaded weapon aimed at yourself.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Never disclose inheritance details, savings amounts, property ownership, or any significant financial information to anyone you have not met in person and verified through multiple trusted channels. This rule applies regardless of how long you have been talking online, how close you feel, or how genuine the person appears. An emotional connection built online is not proof of a person's identity or intentions.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #5 — Sharing Your Personal WhatsApp Phone Number</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> On approximately Day 11, you shared your personal WhatsApp number with the suspect, moving the conversation from Instagram's relatively monitored platform to a private messaging application.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> Your phone number is a primary identity anchor. It is linked to your UPI accounts, your bank's two-factor authentication, your Aadhaar-linked services, and your entire contact network. By sharing it with an unverified stranger, you handed a potential attacker direct access to the most sensitive communication channel you own. On WhatsApp, messages are end-to-end encrypted — meaning there is no platform moderation, no fraud detection, and no ability to report or trace easily. The suspect was now operating in a space where he had far greater control.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Never share your personal phone number with someone you have only met online, regardless of how long you have been talking. If you wish to communicate outside of a social media platform, use the platform's own voice and video call features — which offer more accountability and reporting mechanisms — until you have met the person in person and verified their identity.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #6 — Allowing the Stranger to Follow Your Instagram Account</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> You allowed the suspect's account to follow your personal Instagram, giving them access to your posts, your tagged photos, your friends' profiles, and your location check-ins.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> Your Instagram account is a map of your life. Your tagged locations revealed your daily patterns. Your friends and family became identifiable targets. Your posts — including your public condolence post about your grandfather — gave the suspect advance intelligence about your financial situation and emotional state. Following back an unverified stranger is not a small social gesture. It is opening your door and showing them around your home.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Keep your personal social media accounts private. Do not allow unknown individuals to follow you until you have verified their identity in person. Even after verification, be selective about what personal information is publicly visible on your profile. Audit your privacy settings regularly.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #7 — Accepting a WhatsApp Video Call from an Unverified Stranger</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> On Day 14, you accepted a WhatsApp video call from the suspect. During this 23-minute call, your face, voice, expressions, and surroundings were recorded without your knowledge or consent.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> This was the act that provided the blackmail material. The 'Priya' visible on your screen was not a real person — it was a man's face processed in real time through an AI deepfake application, overlaid with a stolen female face model. While you were laughing and speaking openly, software was capturing your biometric data: your face at multiple angles, your voice pattern, your emotional expressions. This footage was then edited by the syndicate to create fabricated compromising content used in the blackmail on Day 16. You gave consent for none of this. But by accepting the call, you made it possible.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> Refuse video calls with people you have not verified in person. If a video call is requested by an online contact you have never met, this is a serious warning sign — not a step toward closeness. If you do proceed, use official video platforms (Google Meet, Zoom) rather than WhatsApp, as these offer better reporting mechanisms. Meeting someone in person in a public place before conducting video calls is the safest standard.</p>
-                </div>
-
-                <div className="border border-zinc-300 p-4 bg-zinc-50 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-red-600"></div>
-                  <h4 className="font-black text-md mb-2">MISTAKE #8 — Not Escalating Suspicion When the First Money Request Arrived</h4>
-                  <p className="mb-2"><span className="font-bold">What You Did:</span> On Day 15, when 'Priya' sent a message asking for ₹45,000 for a landlord emergency, you hesitated but engaged with the request rather than immediately recognising it as a classic fraud signal and terminating contact.</p>
-                  <p className="mb-2"><span className="font-bold text-red-700">Why It Was Dangerous:</span> A financial request from an online contact you have never met in person is a universally recognised fraud signal. It does not matter how long you have been talking. It does not matter how real the emergency sounds. It does not matter how emotional the message is. This is the moment every romance fraud operation is built toward. Every day of warmth, every shared secret, every late-night voice note — all of it was infrastructure for this single moment. The suspect expected you to feel guilty saying no because of the emotional investment he had manufactured. When a stranger asks for money online, the correct response is always zero engagement and immediate reporting.</p>
-                  <p><span className="font-bold text-green-700">What You Should Have Done:</span> The moment any online contact — regardless of how close you feel — requests financial assistance, terminate contact and report the account immediately to the platform and to the National Cyber Crime Helpline (1930). Do not send any amount — even a small one. A partial payment confirms to the suspect that you can be pressured, and the demands will escalate. Paying does not end the blackmail. It begins it.</p>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 4 — TACTICS USED AGAINST YOU: HOW IT WORKED</h3>
-              <div className="space-y-4">
-                <p><b>4.1 — The Targeting Strategy:</b> You were not selected randomly. The suspect monitored public Instagram posts with grief-related content. Your post memorialising your grandfather appeared two days before 'Priya's' comment was planted. You were chosen because: you were emotionally vulnerable, you were young and likely to have access to money, your public profile confirmed a recent bereavement (likely linked to financial inheritance), and you had no prior public association with cybersecurity awareness.</p>
-                <p><b>4.2 — Emotional Mirroring:</b> Every emotional detail you shared was reflected back to you. You mentioned loneliness — she claimed loneliness. You mentioned grief — she fabricated a dead father. You mentioned comfort food — she matched it. You mentioned feeling empty — she said exactly the same words. This technique is called emotional mirroring and is a core manipulation tactic used in both romance fraud and cult recruitment. It creates an artificial sense of deep compatibility designed to accelerate trust beyond what 16 days of normal friendship would produce.</p>
-                <p><b>4.3 — The Voice and the Deepfake:</b> The voice you heard on WhatsApp calls was a pre-recorded audio clip of a female voice — the suspect used his cousin's audio recordings played through a soundboard application. The video call on Day 14 used a real-time deepfake application that superimposed a stolen female face model over the suspect's actual face. This technology, once available only to film studios, is now accessible as a consumer application. The output — at standard video call quality — is indistinguishable from a real person to the untrained eye.</p>
-                <p><b>4.4 — The Multi-Account Blackmail Structure:</b> When blackmail was deployed on Day 16, it did not come from 'Priya' alone. Multiple unknown Instagram accounts messaged simultaneously — this is a deliberate pressure tactic designed to make the victim feel surrounded, exposed, and helpless. The goal is to overwhelm rational thinking and force payment before the victim can consult anyone. The fabricated screenshot used as blackmail material was created from footage recorded during your Day 14 video call.</p>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 5 — CYBER AWARENESS: PROTECTING YOURSELF</h3>
-
-              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-6">
-                <h4 className="font-bold text-orange-800 mb-2">The 8 Warning Signs of Romance Fraud — Know Them Before You Need Them</h4>
-                <ol className="list-decimal pl-5 space-y-1 text-orange-900">
-                  <li>You were found through a public comment, not through mutual friends or verified platforms.</li>
-                  <li>The emotional bond escalated unusually fast — feelings of deep connection within days.</li>
-                  <li>The person always had a reason to avoid meeting in person.</li>
-                  <li>They remembered every personal detail you shared — building a manipulation profile.</li>
-                  <li>They asked about your finances early, framing it as concern or personal sharing.</li>
-                  <li>A financial emergency arrived after weeks of emotional investment.</li>
-                  <li>A video call was used — but you were never able to verify identity independently.</li>
-                  <li>Multiple accounts appeared simultaneously when you refused to pay.</li>
-                </ol>
-              </div>
-
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
-                <h4 className="font-bold text-blue-800 mb-2">What is Deepfake Technology and Why It Matters</h4>
-                <p className="text-blue-900 mb-2">A deepfake is a video or audio output generated by artificial intelligence that replaces a real person's face or voice with someone else's. Deepfake technology is now available as consumer software and can run in real time on a standard laptop.</p>
-                <p className="text-blue-900 font-bold">During a video call with a deepfake operator:</p>
-                <ul className="list-disc pl-5 space-y-1 text-blue-900 mb-2">
-                  <li>The face you see is not the person speaking to you.</li>
-                  <li>Your reactions, your face, and your voice are being recorded.</li>
-                  <li>The recorded footage can be edited to fabricate scenes that never happened.</li>
-                  <li>This fabricated content is then used for blackmail, defamation, or account fraud.</li>
-                </ul>
-                <p className="text-blue-900 font-bold italic">The only way to verify identity is to meet someone in person, in a public place, with a witness, before developing any emotional or financial trust with them.</p>
-              </div>
-
-              <div className="bg-green-50 border-l-4 border-green-600 p-4">
-                <h4 className="font-bold text-green-900 mb-2">The Golden Rules for Online Relationships</h4>
-                <ol className="list-decimal pl-5 space-y-1 text-green-900 font-medium">
-                  <li>Never share grief, trauma, or emotional vulnerability with unverified strangers online.</li>
-                  <li>Never share your phone number, address, workplace, or daily routine with someone you have not met in person.</li>
-                  <li>Never accept video calls from unverified strangers — your face and voice are biometric data.</li>
-                  <li>Never share financial information — inheritance, savings, account details — with any online contact.</li>
-                  <li>A request for money from an online contact, regardless of the reason or amount, is always a fraud signal.</li>
-                  <li>Run a reverse image search on any new contact's profile photo before trusting them.</li>
-                  <li>If you receive blackmail threats: do not pay, do not engage, screenshot everything, and report immediately.</li>
-                  <li>Report to: cybercrime.gov.in or call 1930 (National Cyber Crime Helpline, India)</li>
-                </ol>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 6 — INVESTIGATION OUTCOME</h3>
-              <p className="mb-6">Following the victim's prompt report on Day 16, the Cyber Crime Cell, Chennai initiated a digital trace operation. IP analysis of the multiple Instagram accounts used in the blackmail converged on a single rented room in Rajasthan. The suspect — <b>Ramesh, 31</b> — was operating under multiple aliases with a known network of 6 associates.</p>
-              <p className="mb-6">At the time of arrest, 23 active fraud operations were found on his devices — all targeting young men between the ages of 22 and 35 who had recently experienced bereavement or financial windfalls. The 'Priya' profile was one of 8 active identities. All victims were in various stages of emotional grooming.</p>
-
-              <div className="flex gap-4 mb-6">
-                <div className="flex-1 bg-green-50 border border-green-200 p-4">
-                  <h4 className="font-black text-green-800 mb-2">WHAT SAVED YOU</h4>
-                  <ul className="text-green-900 text-sm space-y-1">
-                    <li>✓ You did not pay any amount</li>
-                    <li>✓ You did not transfer UPI money under pressure</li>
-                    <li>✓ You documented all evidence before blocking</li>
-                    <li>✓ You reported immediately via 1930</li>
-                    <li>✓ You did not share OTPs or banking passwords</li>
-                  </ul>
-                </div>
-                <div className="flex-1 bg-red-50 border border-red-200 p-4">
-                  <h4 className="font-black text-red-800 mb-2">WHAT PUT YOU AT RISK</h4>
-                  <ul className="text-red-900 text-sm space-y-1">
-                    <li>✗ Responding to a stranger's public comment</li>
-                    <li>✗ Sharing your grief and financial situation</li>
-                    <li>✗ Giving your WhatsApp number</li>
-                    <li>✗ Accepting the video call</li>
-                    <li>✗ Not recognising the money request as fraud instantly</li>
-                  </ul>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h3 className="font-black text-lg border-b border-zinc-300 pb-2 mb-6 bg-zinc-50 pl-2 border-l-4 border-l-zinc-800 mt-8">SECTION 7 — INVESTIGATOR'S CLOSING NOTE</h3>
-              <p className="mb-4"><b>To the Victim:</b></p>
-              <p className="mb-4">You were targeted during one of the most painful moments of your life — the loss of someone you loved. That was not a coincidence. It was calculated. The people behind this operation look for grief, look for loneliness, and look for the exact vulnerability you were experiencing. You are not naive. You are not foolish. You were hunted by professionals.</p>
-              <p className="mb-4">The mistakes documented in this report are not character flaws. They are simply the gaps these fraudsters are trained to find. Every one of those gaps can be closed — not by becoming cold or untrusting, but by knowing what the warning signs look like before they appear.</p>
-              <p className="mb-4">You did the most important thing: you did not pay. And you reported it. Because of that decision, 23 other potential victims were protected.</p>
-              <p className="mb-6 italic text-zinc-700 font-bold border-l-4 border-zinc-300 pl-4 py-2">Remember the promise you made to your grandfather: Think before you click. Verify before you trust. Protect before you react.</p>
-              <p className="font-bold">You kept it when it mattered most.</p>
-              <p className="mt-8 text-right font-black italic border-t border-zinc-300 pt-4">— Cyber Crime Cell, Chennai | Case Closed: RESOLVED</p>
-            </section>
+          {/* Case Narrative Card */}
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <h3 className="font-black text-lg uppercase tracking-tight flex items-center gap-2">
+              <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+              Investigation Summary
+            </h3>
+            <p className="text-slate-600 leading-relaxed">
+              The suspect, <span className="font-bold text-slate-900">Ramesh (31)</span>, operated the fake identity <span className="font-bold text-indigo-600">@_priya.sunshine_</span> from a rented room in Rajasthan. He used AI-powered deepfake technology during video calls to mimic a woman's face and voice, targeting you during a period of emotional vulnerability. 
+            </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {['Catfishing', 'Deepfake', 'Social Engineering', 'Blackmail'].map(tag => (
+                <span key={tag} className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-bold">{tag}</span>
+              ))}
+            </div>
           </div>
 
-          <div className="mt-12 text-center text-xs text-zinc-400 font-sans font-bold flex flex-col md:flex-row justify-between uppercase border-t-2 border-zinc-800 pt-4">
-            <span>cybercrime.gov.in | Helpline: 1930</span>
-            <span>Team: Human Patch — Amrita Vishwa Vidyapeetham</span>
+          {/* Key Risk Factors & Lessons */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-red-50 p-6 rounded-2xl border border-red-100 space-y-3">
+              <h4 className="font-black text-red-800 text-sm uppercase flex items-center gap-2">
+                ⚠️ Critical Risks Found
+              </h4>
+              <ul className="text-sm text-red-900 leading-relaxed space-y-2">
+                <li className="flex gap-2"><span>•</span> Responding to strangers' social media comments.</li>
+                <li className="flex gap-2"><span>•</span> Sharing personal grief and financial details early.</li>
+                <li className="flex gap-2"><span>•</span> Accepting video calls with unverified online contacts.</li>
+              </ul>
+            </div>
+            <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 space-y-3">
+              <h4 className="font-black text-emerald-800 text-sm uppercase flex items-center gap-2">
+                ✅ Protective Actions
+              </h4>
+              <ul className="text-sm text-emerald-900 leading-relaxed space-y-2">
+                <li className="flex gap-2"><span>•</span> Reporting to 1930 immediately after the threat.</li>
+                <li className="flex gap-2"><span>•</span> Refusing to pay any amount despite pressure.</li>
+                <li className="flex gap-2"><span>•</span> Documenting evidence before blocking intruders.</li>
+              </ul>
+            </div>
           </div>
 
-          <div className="mt-16 text-center font-sans">
-            <button onClick={() => setGameState('results')} className="px-16 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest hover:bg-zinc-800 shadow-xl border border-zinc-700 rounded transition-transform active:scale-95 text-lg">
-              Sign Case File & View Final Results
-            </button>
+          {/* Expandable Behavioral Audit */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+              <span className="w-8 h-px bg-slate-200"></span>
+              Behavioral Breakdown
+              <span className="w-8 h-px bg-slate-200"></span>
+            </h3>
+            
+            {[
+              {
+                id: 'profile',
+                title: 'Check "Account Information" via the 3-dot menu',
+                isCorrect: profileBonusFound,
+                correctDetail: "Excellent. You verified the account's history (Date joined, former usernames) before trusting the profile. This is the first line of defense against catfishing.",
+                wrongDetail: "You engaged with the profile without checking its validity. Scammers often use new accounts or change usernames frequently to hide their history."
+              },
+              {
+                id: 'privacy',
+                title: 'Option A: "Someone close… not ready to say"',
+                isCorrect: decisions.some(d => d.label.includes("not ready to say")),
+                correctDetail: "By keeping your personal grief private, you denied the scammer the emotional leverage they needed to build a false 'soulmate' connection.",
+                wrongDetail: "Sharing deep personal losses with strangers online provides them with 'emotional hooks' that they use to manipulate you into a false sense of intimacy."
+              },
+              {
+                id: 'finance_status',
+                title: 'Option A: "not really… still a student"',
+                isCorrect: decisions.some(d => d.label.includes("still a student")),
+                correctDetail: "Smart move. Hiding your financial status makes you a 'low value' target for scammers who are primarily looking for large inheritance or savings.",
+                wrongDetail: "Mentioning inheritance or assets immediately signaled to the scammer that you were worth the time and effort of a long-term 'pig butchering' scam."
+              },
+              {
+                id: 'boundaries',
+                title: 'Option A: "Let’s take it slow"',
+                isCorrect: decisions.some(d => d.label.includes("Let’s take it slow")),
+                correctDetail: "Setting boundaries is critical. Scammers use 'Love Bombing' to create rapid intimacy; slowing down breaks their planned psychological cycle.",
+                wrongDetail: "Reciprocating romantic intensity too quickly allows the scammer to accelerate the grooming process and prepare you for a financial 'emergency'."
+              },
+              {
+                id: 'platform',
+                title: "Option B: \"I don't know... maybe later?\"",
+                isCorrect: decisions.some(d => d.label.includes("maybe later?")),
+                correctDetail: "You resisted moving to WhatsApp. Scammers move off-platform to avoid being flagged by Instagram's security algorithms and to control the environment.",
+                wrongDetail: "Agreeing to move to WhatsApp immediately is a high-risk action. It takes the conversation into an unmonitored space where reporting becomes harder."
+              },
+              {
+                id: 'finance_direct',
+                title: 'Option A: "I\'d rather not talk finances"',
+                isCorrect: decisions.some(d => d.label.includes("I'd rather not talk finances")),
+                correctDetail: "Direct rejection of financial questions is a perfect defense. Valid online contacts do not need to know your private banking details.",
+                wrongDetail: "Discussing specific inheritance amounts confirmed you had the 42 lakhs. This information is what triggered the final 'emergency' and blackmail phase."
+              },
+              {
+                id: 'emergency',
+                title: 'Option C: "I cannot send money to anyone online"',
+                isCorrect: decisions.some(d => d.label.includes("I cannot send money to anyone online")),
+                correctDetail: "Maintaining a 'No Online Transfers' rule is a foolproof way to stay safe from romance fraud, regardless of how convincing the story sounds.",
+                wrongDetail: "Attempting to verify an emergency or sending funds is the ultimate goal of the fraud. Scammers create fake crises to bypass your logical thinking."
+              },
+              {
+                id: 'blackmail',
+                title: 'Option C: Screenshot, Block, and Dial 1930',
+                isCorrect: decisions.some(d => d.label.includes("Screenshot, Block, and Dial 1930")),
+                correctDetail: "You handled the blackmail perfectly. Reporting to 1930 and blocking is the only way to stop the cycle. Paying never makes it go away.",
+                wrongDetail: "Engagement/payment during blackmail only signals to the criminal that you are easy to squeeze for more. They never delete the evidence after payment."
+              }
+            ].map((audit, idx) => (
+              <AuditItem key={idx} audit={audit} />
+            ))}
+          </div>
+
+          {/* Final Advice Card */}
+          <div className="bg-slate-900 p-8 rounded-3xl text-white relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-indigo-500/30 transition-colors"></div>
+            <h4 className="font-black text-xl mb-3">A Message from the Cyber Cell</h4>
+            <p className="text-slate-300 leading-relaxed text-sm mb-6">
+              "You were targeted during a painful time. Scammers exploit grief, but you broke the chain by reporting it. Your actions protected yourself and 23 other potential victims."
+            </p>
+            <div className="flex justify-between items-center border-t border-white/10 pt-6">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Digital Signature</span>
+                <span className="font-serif italic text-lg opacity-80 underline underline-offset-4 decoration-indigo-500">I.G. Cyber Crime Cell</span>
+              </div>
+              <button 
+                onClick={() => setGameState('results')} 
+                className="px-8 py-3 bg-white text-slate-900 font-black uppercase text-xs tracking-widest rounded-xl hover:bg-slate-100 transition shadow-lg hover:shadow-white/10 active:scale-95"
+              >
+                Sign & Finalize Results
+              </button>
+            </div>
+          </div>
+
+          <div className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em] pt-4 pb-4">
+            cybercrime.gov.in • Helpline: 1930
+            <br /><span>Team: Human Patch — Amrita Vishwa Vidyapeetham</span>
           </div>
         </div>
       </div>
