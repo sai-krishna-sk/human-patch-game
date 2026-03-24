@@ -416,7 +416,10 @@ const Level11 = () => {
     );
   };
 
-  const InstaProfileApp = () => {
+  const InstaProfileApp = ({
+    profileBonusFound, setProfileBonusFound, setPoints, setFeedback, 
+    setProfileChecked, setPhoneApp, day, storyProgress
+  }) => {
     const [showMenu, setShowMenu] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [selectedPostId, setSelectedPostId] = useState(null);
@@ -797,6 +800,29 @@ const Level11 = () => {
       ))}
     </div>
   );
+  
+  const renderChatStream = (history, chatEndRef) => (
+    <div className="flex-1 p-4 flex flex-col pt-6 pb-6 overflow-y-auto custom-scrollbar relative z-10 w-full">
+      {history.map((msg, idx) => {
+        const isLast = idx === history.length - 1;
+        if (msg.type === 'system') return <React.Fragment key={idx}>{renderWARSystemMsg(msg.text)}</React.Fragment>;
+        if (msg.type === 'priya') return <React.Fragment key={idx}>{renderWARPriyaMsg(msg.text, isLast)}</React.Fragment>;
+        if (msg.type === 'unknown') return (
+          <div key={idx} className={`p-3 bg-red-100 border border-red-300 rounded-lg text-black text-[10px] my-4 leading-tight font-bold shadow-sm ${isLast ? 'animate-fadeIn' : ''}`}>
+            <span className="text-red-700 block mb-1">Unknown Number:</span>
+            {msg.text}
+            {msg.img && (
+              <div className="mt-2 rounded-lg overflow-hidden border border-red-400">
+                <img src={msg.img} className="w-auto h-auto" alt="blackmail" />
+              </div>
+            )}
+          </div>
+        );
+        return <React.Fragment key={idx}>{renderWARPlayerMsg(msg.text, isLast)}</React.Fragment>;
+      })}
+      <div ref={chatEndRef} />
+    </div>
+  );
 
   const WAHeader = ({ title, subtitle, isCall, showBack }) => (
     <div className="bg-[#075e54] p-4 pt-10 flex items-center gap-3 text-white sticky top-0 z-20 shadow-md">
@@ -1152,7 +1178,17 @@ const Level11 = () => {
       </div>
     );
   };
-  const WhatsAppApp = () => {
+  const WhatsAppApp = ({ 
+    storyProgress, setStoryProgress, 
+    waHistory, setWaHistory, 
+    waUnknownHistory, setWaUnknownHistory,
+    savedContact, setSavedContact,
+    setFeedback, phoneApp, setPhoneApp,
+    showUnknownNotif, setShowUnknownNotif,
+    blackmailProgress, setBlackmailProgress,
+    handleChoice, renderWARChoices, WAHeader, renderChatStream,
+    isTyping, setIsTyping
+  }) => {
     // Determine which chat to show based on phoneApp override, otherwise default to Priya
     const isUnknown = phoneApp === 'whatsapp_unknown';
     const currentHistory = isUnknown ? waUnknownHistory : waHistory;
@@ -1198,16 +1234,6 @@ const Level11 = () => {
           ];
         });
       }
-      if (storyProgress === 12) {
-        setWaHistory(prev => {
-          if (prev.some(m => m.text.includes('80,000 ASAP'))) return prev;
-          setTimeout(() => setShowUnknownNotif(true), 1500);
-          return [
-            ...prev,
-            { type: 'priya', text: "Krish where are you?? ₹80,000 ASAP!!" }
-          ];
-        });
-      }
       if (storyProgress === 12.5) {
         setWaHistory(prev => {
           if (prev.some(m => m.text.includes('i had to tell them'))) return prev;
@@ -1221,29 +1247,6 @@ const Level11 = () => {
 
     const addToWA = (msg) => setWaHistory(prev => [...prev, msg]);
     const addToUnknown = (msg) => setWaUnknownHistory(prev => [...prev, msg]);
-
-    const renderChatStream = (history) => (
-      <div className="flex-1 p-4 flex flex-col pt-6 pb-6 overflow-y-auto custom-scrollbar relative z-10 w-full">
-        {history.map((msg, idx) => {
-          const isLast = idx === history.length - 1;
-          if (msg.type === 'system') return <React.Fragment key={idx}>{renderWARSystemMsg(msg.text)}</React.Fragment>;
-          if (msg.type === 'priya') return <React.Fragment key={idx}>{renderWARPriyaMsg(msg.text, isLast)}</React.Fragment>;
-          if (msg.type === 'unknown') return (
-            <div key={idx} className={`p-3 bg-red-100 border border-red-300 rounded-lg text-black text-[10px] my-4 leading-tight font-bold shadow-sm ${isLast ? 'animate-fadeIn' : ''}`}>
-              <span className="text-red-700 block mb-1">Unknown Number:</span>
-              {msg.text}
-              {msg.img && (
-                <div className="mt-2 rounded-lg overflow-hidden border border-red-400">
-                  <img src={msg.img} className="w-full h-auto" alt="blackmail" />
-                </div>
-              )}
-            </div>
-          );
-          return <React.Fragment key={idx}>{renderWARPlayerMsg(msg.text, isLast)}</React.Fragment>;
-        })}
-        <div ref={chatEndRef} />
-      </div>
-    );
 
     if (isUnknown) {
       return (
@@ -1291,7 +1294,8 @@ const Level11 = () => {
     return (
       <div className="flex-1 flex flex-col bg-[#ece5dd] relative w-full h-full">
         <div className="absolute inset-0 bg-[url('https://i.pinimg.com/736x/8c/98/99/8c98994518b575bfd8c949e91d20548b.jpg')] bg-cover opacity-10 pointer-events-none" />
-        <WAHeader title={savedContact ? "Priya" : "+91 94440 12345"} subtitle={savedContact ? (storyProgress === 6.5 ? "online" : "typing...") : "Unknown"} showBack={true} />
+        <WAHeader title={savedContact ? "Priya" : "+91 94440 12345"} subtitle={savedContact ? (isTyping ? "typing..." : "online") : "Unknown"} showBack={true} />
+
 
         {!savedContact && (
           <div className="bg-white/90 backdrop-blur p-4 border-b border-zinc-200 flex flex-col gap-3 relative z-20 animate-fadeIn">
@@ -1321,7 +1325,7 @@ const Level11 = () => {
           </div>
         )}
 
-        {renderChatStream(waHistory)}
+        {renderChatStream(waHistory, chatEndRef)}
 
         <div className="z-20 pb-10 pt-2 shrink-0 w-full bg-[#f0f0f0] shadow-[0_-5px_15px_rgba(0,0,0,0.05)] flex flex-col">
             {storyProgress === 9 && renderWARChoices([
@@ -1401,16 +1405,19 @@ const Level11 = () => {
               text: "A) Send ₹45,000 via UPI immediately.", points: 0, setDay: 16, impact: () => {
                 setStoryProgress(12);
                 setPhoneApp('gpay_45k');
+                setTimeout(() => setShowUnknownNotif(true), 1500);
               }
             },
             {
               text: "B) Give me your landlord's number to verify.", points: 20, setDay: 16, impact: () => {
                 setStoryProgress(12);
+                setTimeout(() => setShowUnknownNotif(true), 1500);
               }
             },
             {
               text: "C) I cannot send money to anyone online.", points: 25, setDay: 16, impact: () => {
                 setStoryProgress(12);
+                setTimeout(() => setShowUnknownNotif(true), 1500);
               }
             }
           ])}
@@ -1523,11 +1530,44 @@ const Level11 = () => {
   const renderPhone = () => {
     let AppToRender = HomeScreen();
     if (phoneApp === 'instagram') AppToRender = InstagramApp();
-    else if (phoneApp === 'insta_profile') AppToRender = <StableInstaProfileApp />;
+    else if (phoneApp === 'insta_profile') AppToRender = (
+      <StableInstaProfileApp 
+        profileBonusFound={profileBonusFound} setProfileBonusFound={setProfileBonusFound}
+        setPoints={setPoints} setFeedback={setFeedback}
+        setProfileChecked={setProfileChecked} setPhoneApp={setPhoneApp}
+        day={day} storyProgress={storyProgress}
+      />
+    );
     else if (phoneApp === 'dm') AppToRender = DMApp();
     else if (phoneApp === 'contacts') AppToRender = renderContactsApp();
-    else if (phoneApp === 'whatsapp') AppToRender = <StableWhatsAppApp />;
-    else if (phoneApp === 'whatsapp_unknown') AppToRender = <StableWhatsAppApp />;
+    else if (phoneApp === 'whatsapp') AppToRender = (
+      <StableWhatsAppApp 
+        storyProgress={storyProgress} setStoryProgress={setStoryProgress}
+        waHistory={waHistory} setWaHistory={setWaHistory}
+        waUnknownHistory={waUnknownHistory} setWaUnknownHistory={setWaUnknownHistory}
+        savedContact={savedContact} setSavedContact={setSavedContact}
+        setFeedback={setFeedback} phoneApp={phoneApp} setPhoneApp={setPhoneApp}
+        showUnknownNotif={showUnknownNotif} setShowUnknownNotif={setShowUnknownNotif}
+        blackmailProgress={blackmailProgress} setBlackmailProgress={setBlackmailProgress}
+        handleChoice={handleChoice} renderWARChoices={renderWARChoices} 
+        WAHeader={WAHeader} renderChatStream={(history, ref) => renderChatStream(history, ref)}
+        isTyping={isTyping} setIsTyping={setIsTyping}
+      />
+    );
+    else if (phoneApp === 'whatsapp_unknown') AppToRender = (
+      <StableWhatsAppApp 
+        storyProgress={storyProgress} setStoryProgress={setStoryProgress}
+        waHistory={waHistory} setWaHistory={setWaHistory}
+        waUnknownHistory={waUnknownHistory} setWaUnknownHistory={setWaUnknownHistory}
+        savedContact={savedContact} setSavedContact={setSavedContact}
+        setFeedback={setFeedback} phoneApp={phoneApp} setPhoneApp={setPhoneApp}
+        showUnknownNotif={showUnknownNotif} setShowUnknownNotif={setShowUnknownNotif}
+        blackmailProgress={blackmailProgress} setBlackmailProgress={setBlackmailProgress}
+        handleChoice={handleChoice} renderWARChoices={renderWARChoices} 
+        WAHeader={WAHeader} renderChatStream={(history, ref) => renderChatStream(history, ref)}
+        isTyping={isTyping} setIsTyping={setIsTyping}
+      />
+    );
     else if (phoneApp === 'dm_transition') AppToRender = (
       <div className="flex-1 flex flex-col bg-zinc-950 items-center justify-center text-white p-6 text-center animate-fadeIn relative overflow-hidden">
         <p className="font-mono text-xl tracking-widest text-zinc-400 z-10 animate-pulse">{transitionText}</p>
