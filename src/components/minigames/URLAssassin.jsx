@@ -196,13 +196,13 @@ const URLAssassin = ({ onBack }) => {
             <div className="flex gap-4">
                 <button
                     onClick={onBack}
-                    className="px-8 py-3 bg-slate-600 hover:bg-slate-700 text-slate-900 font-bold rounded-lg transition-all uppercase tracking-widest text-xs"
+                    className="px-8 py-3 bg-white hover:bg-slate-50 text-slate-500 font-bold rounded-xl transition-all uppercase tracking-widest text-xs border border-slate-200"
                 >
                     Cancel
                 </button>
                 <button
                     onClick={startGame}
-                    className="px-12 py-3 bg-red-600 hover:bg-red-500 text-slate-900 font-bold rounded-lg shadow-lg shadow-red-900/20 transition-all uppercase tracking-widest text-sm"
+                    className="px-12 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl shadow-lg shadow-rose-900/10 transition-all uppercase tracking-widest text-sm"
                 >
                     Start Training
                 </button>
@@ -235,9 +235,9 @@ const URLAssassin = ({ onBack }) => {
                 </div>
 
                 {/* Laptop Browser Interface */}
-                <div className="w-full max-w-4xl bg-[#e8ebee] rounded-xl overflow-hidden shadow-2xl border-4 border-[#ced4da]">
+                <div className="w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.1)] border border-slate-200">
                     {/* Browser Chrome */}
-                    <div className="bg-[#f1f3f4] px-4 py-2 flex items-center gap-4 border-b border-[#ced4da]">
+                    <div className="bg-slate-50 px-4 py-3 flex items-center gap-4 border-b border-slate-200">
                         <div className="flex gap-1.5">
                             <div className="w-3 h-3 rounded-full bg-[#ff5f57]" />
                             <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />

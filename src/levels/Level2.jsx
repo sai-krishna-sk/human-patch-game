@@ -1487,13 +1487,52 @@ const Level2 = () => {
                 noise.start();
                 break;
             }
+            case 'breach_alarm': {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+                
+                gain.gain.setValueAtTime(0, ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.25);
+                break;
+            }
         }
+    };
+
+    const resetLevel = () => {
+        setGameState('pov_intro');
+        setHackerProgress(0);
+        setCluesFound([]);
+        setInteractionTarget(null);
+        setPlayerPos({ x: 800, y: 700 });
+        setLivingRoomPlayerPos({ x: 800, y: 160 });
+        setHasTriggeredPhone(false);
+        setIsPhoneOpen(false);
+        setNotificationStep(0);
+        setIsChairExited(false);
+        setIsTransitioning(true);
+        setTimeout(() => setIsTransitioning(false), 500);
     };
 
     const showFeedback = (msg) => {
         setFeedbackMsg(msg);
         setTimeout(() => setFeedbackMsg(null), 3500);
     };
+
+    useEffect(() => {
+        if (hackerProgress >= 100 && gameState === 'room') {
+            setGameState('breach');
+            playSynthSound('breach_alarm');
+        }
+    }, [hackerProgress, gameState]);
 
     const discoverClue = (id) => {
         if (!cluesFound.includes(id)) {
@@ -1855,6 +1894,36 @@ const Level2 = () => {
                 </div>
             )}
 
+            {gameState === 'breach' && (
+                <div className="fixed inset-0 z-[9500] bg-black flex flex-col items-center justify-center p-8 animate-fadeIn">
+                    <div className="absolute inset-0 bg-red-950/20 animate-pulse pointer-events-none"></div>
+                    <div className="relative mb-8">
+                        <div className="w-24 h-24 bg-red-600 rounded-full flex items-center justify-center text-white text-5xl animate-bounce shadow-[0_0_50px_rgba(220,38,38,0.5)]">
+                            ⚠️
+                        </div>
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-[1em] text-red-500 mb-4 text-center pl-[1em]">ACCESS DENIED</div>
+                    <h1 className="text-6xl font-black text-white mb-4 uppercase tracking-[0.1em] text-center">Account Breached</h1>
+                    <div className="h-1 w-24 bg-red-600 mx-auto mb-10"></div>
+                    <p className="text-zinc-400 max-w-lg mx-auto text-center mb-12 font-medium leading-relaxed">
+                        The hacker has bypassed your security infrastructure. <br/>Your credentials have been compromised due to delayed response.
+                    </p>
+                    <button
+                        onClick={resetLevel}
+                        className="group relative px-20 py-5 rounded-full transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(220,38,38,0.2)]"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-500 rounded-full"></div>
+                        <span className="relative z-10 text-white font-black text-xs uppercase tracking-[0.4em]">Restart Level</span>
+                    </button>
+                    
+                    <div className="mt-12 flex items-center gap-4 opacity-30">
+                        <div className="h-px w-12 bg-zinc-700"></div>
+                        <span className="text-[8px] font-mono text-red-900 uppercase tracking-[0.5em]">System Failure // Data Lost</span>
+                        <div className="h-px w-12 bg-zinc-700"></div>
+                    </div>
+                </div>
+            )}
+
             {gameState === 'cinematic_outro' && (
                 <div className="fixed inset-0 z-[9500] bg-black animate-fadeIn overflow-hidden">
                     <div className="w-full h-full flex flex-col items-center justify-center relative">
@@ -2209,7 +2278,7 @@ const Level2 = () => {
                                         <span className="text-red-500 text-[10px] font-bold">{Math.floor(hackerProgress)}%</span>
                                     </div>
                                     <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                        <div className={`h-full transition-all duration-500 ${hackerProgress > 70 ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${hackerProgress}%` }}></div>
+                                        <div className={`h-full ${hackerProgress > 70 ? 'bg-red-500' : 'bg-cyan-500'}`} style={{ width: `${hackerProgress}%` }}></div>
                                     </div>
                                 </div>
                             </div>

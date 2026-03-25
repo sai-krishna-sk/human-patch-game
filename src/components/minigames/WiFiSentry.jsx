@@ -189,9 +189,9 @@ const WiFiSentry = ({ onBack }) => {
 
             <div className="flex-1 flex bg-slate-50 overflow-hidden relative">
 
-                {/* Main View: Central Phone Mockup (Black Theme Frame, White Theme Content) */}
+                {/* Main View: Central Phone Mockup (Slate Theme Frame, White Theme Content) */}
                 <div className="flex-1 flex items-center justify-center p-4">
-                    <div className="w-[320px] h-[600px] bg-black rounded-[3rem] border-[10px] border-[#1a1a1a] shadow-[0_30px_60px_rgba(0,0,0,0.5)] overflow-hidden relative flex flex-col scale-[1.1]">
+                    <div className="w-[320px] h-[600px] bg-slate-100 rounded-[3rem] border-[10px] border-slate-200 shadow-[0_30px_60px_rgba(0,0,0,0.1)] overflow-hidden relative flex flex-col scale-[1.1]">
 
                         {/* Status Bar */}
                         <div className="h-6 w-full flex justify-between items-center px-8 pt-3 pb-1">
@@ -285,11 +285,11 @@ const WiFiSentry = ({ onBack }) => {
                     </div>
                 </div>
 
-                {/* Right Verdict Sidebar (Similar to FileFortress) */}
-                <div className="shrink-0 w-80 bg-black border-l border-slate-900 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.5)] z-40">
+                {/* Right Verdict Sidebar */}
+                <div className="shrink-0 w-80 bg-white border-l border-slate-100 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-40">
 
                     {/* Verdict Controls */}
-                    <div className="flex-1 flex flex-col p-8 justify-center gap-4 border-b border-slate-900">
+                    <div className="flex-1 flex flex-col p-8 justify-center gap-4 border-b border-slate-100">
                         <div className="text-center mb-4">
                             <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2 underline decoration-cyan-500">Verdict Panel</span>
                             <h3 className="text-slate-900 font-bold text-xs tracking-tight leading-relaxed">Evaluation Protocol</h3>
@@ -298,34 +298,34 @@ const WiFiSentry = ({ onBack }) => {
                         <button
                             onClick={() => handleAction('connect')}
                             disabled={!!feedback}
-                            className="w-full py-6 bg-emerald-600/10 border-2 border-emerald-500/20 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
+                            className="w-full py-6 bg-emerald-50 border-2 border-emerald-100 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-2xl group-hover:scale-110 transition-transform">✓</span>
-                            <span className="font-black text-emerald-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Connect</span>
+                            <span className="font-black text-emerald-600 group-hover:text-white uppercase tracking-widest text-[10px]">Connect</span>
                         </button>
 
                         <button
                             onClick={() => handleAction('vpn')}
                             disabled={!!feedback}
-                            className="w-full py-6 bg-amber-600/10 border-2 border-amber-500/20 rounded-2xl group hover:bg-amber-600 hover:border-amber-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
+                            className="w-full py-6 bg-amber-50 border-2 border-amber-100 rounded-2xl group hover:bg-amber-600 hover:border-amber-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-2xl group-hover:scale-110 transition-transform">🛡️</span>
-                            <span className="font-black text-amber-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Use VPN</span>
+                            <span className="font-black text-amber-600 group-hover:text-white uppercase tracking-widest text-[10px]">Use VPN</span>
                         </button>
 
                         <button
                             onClick={() => handleAction('avoid')}
                             disabled={!!feedback}
-                            className="w-full py-6 bg-rose-600/10 border-2 border-rose-500/20 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
+                            className="w-full py-6 bg-rose-50 border-2 border-rose-100 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-2xl group-hover:scale-110 transition-transform">✕</span>
-                            <span className="font-black text-rose-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Avoid</span>
+                            <span className="font-black text-rose-600 group-hover:text-white uppercase tracking-widest text-[10px]">Avoid</span>
                         </button>
                     </div>
 
                     {/* Smaller Tactical Analysis */}
-                    <div className="p-6 bg-[#050505]">
-                        <h4 className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-6">Analyzing Available Infrastructure</h4>
+                    <div className="p-6 bg-slate-50">
+                        <h4 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-6">Analyzing Available Infrastructure</h4>
 
                         <div className="space-y-6">
                             <div className="flex gap-4">
@@ -351,8 +351,8 @@ const WiFiSentry = ({ onBack }) => {
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-6 border-t border-slate-900">
-                            <div className="p-4 bg-[#0a0a0a] rounded-xl border border-slate-900 text-center">
+                        <div className="mt-8 pt-6 border-t border-slate-100">
+                            <div className="p-4 bg-white rounded-xl border border-slate-100 text-center shadow-sm">
                                 <span className="text-[8px] text-slate-400 font-black uppercase tracking-widest block mb-1">Aegis Guidance</span>
                                 <p className="text-[8px] text-slate-500 italic leading-snug">"Infrastructure is only as secure as the user connecting to it."</p>
                             </div>

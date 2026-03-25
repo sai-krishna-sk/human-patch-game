@@ -232,7 +232,7 @@ const ImpersonationHunt = ({ onBack }) => {
                 {/* Mobile Framework Wrapper */}
                 <div className="relative animate-fade-in group">
                     {/* Phone Case/Frame */}
-                    <div className="relative w-[360px] h-[720px] bg-[#1a1a1a] rounded-[4rem] p-[10px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.9),inset_0_0_20px_rgba(255,255,255,0.05)] border-[1px] border-white/10 overflow-hidden ring-1 ring-white/5">
+                    <div className="relative w-[360px] h-[720px] bg-slate-100 rounded-[4rem] p-[10px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.1),inset_0_0_20px_rgba(255,255,255,0.8)] border-[1px] border-slate-200 overflow-hidden ring-1 ring-slate-100">
                         {/* Side Buttons (CSS Art) */}
                         <div className="absolute top-32 -left-[2px] w-[3px] h-10 bg-gradient-to-b from-slate-700 to-slate-900 rounded-r-sm border-r border-white/10" />
                         <div className="absolute top-48 -left-[2px] w-[3px] h-16 bg-gradient-to-b from-slate-700 to-slate-900 rounded-r-sm border-r border-white/10" />
@@ -240,7 +240,7 @@ const ImpersonationHunt = ({ onBack }) => {
                         <div className="absolute top-60 -right-[2px] w-[3px] h-24 bg-gradient-to-b from-slate-700 to-slate-900 rounded-l-sm border-l border-white/10" />
 
                         {/* Inner Screen Border */}
-                        <div className="w-full h-full bg-black rounded-[3.2rem] overflow-hidden relative border-[4px] border-[#0a0a0a]">
+                        <div className="w-full h-full bg-white rounded-[3.2rem] overflow-hidden relative border-[4px] border-slate-50">
                             {/* Status Bar */}
                             <div className="absolute top-0 left-0 right-0 h-12 px-10 flex items-center justify-between text-[11px] font-bold z-[60] mix-blend-difference">
                                 <span className="text-slate-900/90">{new Date().getHours()}:{new Date().getMinutes().toString().padStart(2, '0')}</span>
@@ -251,14 +251,14 @@ const ImpersonationHunt = ({ onBack }) => {
                             </div>
 
                             {/* Dynamic Island / Notch */}
-                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-8 bg-black rounded-full z-[70] shadow-inner border border-white/5 flex items-center justify-end px-3">
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-8 bg-slate-900 rounded-full z-[70] shadow-inner border border-white/5 flex items-center justify-end px-3">
                                 <div className="w-2.5 h-2.5 rounded-full bg-[#1c1c1e] border border-blue-500/10 shadow-[inset_0_0_2px_rgba(0,0,0,1)]" />
                             </div>
 
                             {/* App Body */}
-                            <div className="h-full pt-12 flex flex-col bg-black">
+                            <div className="h-full pt-12 flex flex-col bg-white">
                                 {/* IG Header */}
-                                <div className="flex items-center justify-between px-4 h-14 border-b border-white/[0.08]">
+                                <div className="flex items-center justify-between px-4 h-14 border-b border-slate-100">
                                     <div className="flex items-center gap-6">
                                         <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
                                         <div className="flex flex-col">
@@ -284,13 +284,13 @@ const ImpersonationHunt = ({ onBack }) => {
                                         <div className="flex items-center gap-6">
                                             <div className="relative flex-shrink-0">
                                                 <div className="w-20 h-20 rounded-full p-[2.5px] bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7]">
-                                                    <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden border-[2.5px] border-black">
-                                                        <div className="w-full h-full rounded-full flex items-center justify-center text-3xl font-black text-slate-900" style={{ backgroundColor: profile.brandColor }}>
+                                                    <div className="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden border-[2.5px] border-white">
+                                                        <div className="w-full h-full rounded-full flex items-center justify-center text-3xl font-black text-white" style={{ backgroundColor: profile.brandColor }}>
                                                             {profile.pfpText}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#0095f6] rounded-full border-[3px] border-black flex items-center justify-center text-sm font-bold text-slate-900 shadow-lg">
+                                                <div className="absolute bottom-0 right-0 w-6 h-6 bg-[#0095f6] rounded-full border-[3px] border-white flex items-center justify-center text-sm font-bold text-white shadow-lg">
                                                     +
                                                 </div>
                                             </div>
@@ -320,17 +320,17 @@ const ImpersonationHunt = ({ onBack }) => {
 
                                             {/* Action Buttons Realistic */}
                                             <div className="flex gap-2">
-                                                <button className="flex-1 bg-white text-black font-black h-8 rounded-lg text-xs hover:bg-slate-200 transition-colors">Follow</button>
-                                                <button className="flex-1 bg-white/10 text-slate-900 font-black h-8 rounded-lg text-xs hover:bg-white/20 transition-colors">Message</button>
-                                                <button className="w-8 bg-white/10 text-slate-900 font-black h-8 rounded-lg text-xs flex items-center justify-center hover:bg-white/20 transition-colors">👤</button>
+                                                <button className="flex-1 bg-slate-100 text-black font-black h-8 rounded-lg text-xs hover:bg-slate-200 transition-colors">Follow</button>
+                                                <button className="flex-1 bg-slate-50 text-slate-900 font-black h-8 rounded-lg text-xs hover:bg-slate-100 transition-colors">Message</button>
+                                                <button className="w-8 bg-slate-50 text-slate-900 font-black h-8 rounded-lg text-xs flex items-center justify-center hover:bg-slate-100 transition-colors">👤</button>
                                             </div>
                                         </div>
 
                                         {/* Grid View */}
-                                        <div className="grid grid-cols-3 gap-[1px] border-t border-white/10 pt-[1px]">
+                                        <div className="grid grid-cols-3 gap-[1px] border-t border-slate-100 pt-[1px]">
                                             {[...Array(15)].map((_, i) => (
-                                                <div key={i} className="aspect-square bg-[#1c1c1e] flex items-center justify-center relative group overflow-hidden">
-                                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                                <div key={i} className="aspect-square bg-slate-50 flex items-center justify-center relative group overflow-hidden">
+                                                    <div className="absolute inset-0 bg-gradient-to-tr from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                                     <span className="text-xl opacity-20 filter grayscale">📸</span>
                                                 </div>
                                             ))}
@@ -339,7 +339,7 @@ const ImpersonationHunt = ({ onBack }) => {
                                 </div>
 
                                 {/* Bottom Nav */}
-                                <div className="h-14 border-t border-white/[0.08] flex items-center justify-around px-4 bg-black pb-2">
+                                <div className="h-14 border-t border-slate-100 flex items-center justify-around px-4 bg-white pb-2">
                                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900" stroke="currentColor" strokeWidth="2" fill="currentColor"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
                                     <svg viewBox="0 0 24 24" className="w-6 h-6 text-slate-900/40" stroke="currentColor" strokeWidth="2"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     <div className="w-6 h-6 border-2 border-white/40 rounded-md flex items-center justify-center text-[18px] text-slate-900/40 leading-none pb-0.5">+</div>
@@ -351,8 +351,8 @@ const ImpersonationHunt = ({ onBack }) => {
 
                         {/* Result Overlay */}
                         {feedback && (
-                            <div className={`absolute inset-[10px] rounded-[3.2rem] flex items-center justify-center z-[110] backdrop-blur-2xl transition-all duration-500 ${feedback === 'correct' ? 'bg-emerald-500/15' : 'bg-gradient-to-br from-red-400 to-rose-500'}`}>
-                                <div className="text-center p-8 bg-[#0a0a0a]/95 rounded-[3rem] border border-white/10 shadow-3xl transform animate-pop-in max-w-[280px]">
+                            <div className={`absolute inset-[10px] rounded-[3.2rem] flex items-center justify-center z-[110] backdrop-blur-2xl transition-all duration-500 ${feedback === 'correct' ? 'bg-emerald-500/10' : 'bg-gradient-to-br from-red-50 to-rose-50'}`}>
+                                <div className="text-center p-8 bg-white/95 rounded-[3rem] border border-slate-100 shadow-3xl transform animate-pop-in max-w-[280px]">
                                     <div className={`w-16 h-16 rounded-full mx-auto mb-6 flex items-center justify-center text-4xl shadow-2xl ${feedback === 'correct' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
                                         {feedback === 'correct' ? '🛡️' : '🚨'}
                                     </div>

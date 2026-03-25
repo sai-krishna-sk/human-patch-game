@@ -11,17 +11,16 @@ const levelNames = {
     7: 'The Open Network',
     8: 'The Ghost Store',
     9: 'Ghost Profile',
-    10: 'The Voice That Wasn\'t',
-    11: 'I am so lonely',
-    12: 'Conclusion'
+    10: 'I am so lonely',
+    11: 'Conclusion'
 };
 
 const levelDifficulty = {
     1: 'EASY', 2: 'EASY', 3: 'EASY',
     4: 'MEDIUM', 5: 'MEDIUM', 6: 'MEDIUM',
     7: 'HARD', 8: 'HARD', 9: 'HARD',
-    10: 'EXPERT', 11: 'EXPERT',
-    12: 'ENDING'
+    10: 'EXPERT',
+    11: 'ENDING'
 };
 
 const difficultyColor = {
@@ -80,9 +79,9 @@ const LevelSelector = () => {
 
                 {/* Levels Grid */}
                 <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-5 pr-2 relative z-10 custom-scrollbar">
-                    {[...Array(12)].map((_, i) => {
+                    {[...Array(11)].map((_, i) => {
                         const levelNum = i + 1;
-                        const isUnlocked = levelNum <= 12;
+                        const isUnlocked = levelNum <= 11;
                         const difficulty = levelDifficulty[levelNum];
 
                         return (

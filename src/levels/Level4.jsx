@@ -672,7 +672,7 @@ const Level4 = () => {
                 <div className="z-10 w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col items-center">
                     {/* Status bar */}
                     <div className="w-full flex justify-between items-center px-8 pt-3 pb-1 text-[10px] text-slate-400 font-mono">
-                        <span>9:41 AM</span>
+                        <span>9:41 PM</span>
                         <span>●●●● WiFi 🔋</span>
                     </div>
 
@@ -692,7 +692,7 @@ const Level4 = () => {
 
                     {/* Single SMS Message */}
                     <div className="flex-1 w-full flex flex-col p-4 gap-3 overflow-y-auto">
-                        <p className="text-slate-600 text-[10px] text-center mb-2">Today, 9:38 AM</p>
+                        <p className="text-slate-600 text-[10px] text-center mb-2">Today, 9:38 PM</p>
                         <div className="bg-slate-800 text-slate-100 p-4 rounded-2xl rounded-tl-sm w-5/6 shadow-md border border-slate-700/50 text-sm leading-relaxed">
                             Dear Customer, your SBI YONO app access will expire in 24hrs due to incomplete KYC verification. To avoid account suspension, update your app immediately. Download the latest secure version: <span className="text-blue-400 font-mono text-xs break-all cursor-pointer hover:underline" onClick={() => { setClickedSmsLink(true); setGameState('sms_clicked'); }}>https://sbi-kyc-update24.app/download</span>
                         </div>
@@ -1010,7 +1010,7 @@ const Level4 = () => {
                 <div className="z-10 w-[380px] h-[750px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.9)] relative overflow-hidden flex flex-col">
                     {/* Status bar */}
                     <div className="w-full flex justify-between items-center px-8 pt-3 pb-1 text-[10px] text-slate-400 font-mono bg-white">
-                        <span className="text-black">9:45 AM</span>
+                        <span className="text-black">9:45 PM</span>
                         <span className="text-black">●●●● 5G 🔋</span>
                     </div>
 

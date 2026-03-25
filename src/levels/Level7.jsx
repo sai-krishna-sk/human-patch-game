@@ -54,6 +54,26 @@ const Level7 = () => {
     const ROOM_WIDTH = 1600;
     const ROOM_HEIGHT = 1100;
 
+    // Audio Refs
+    const footstepAudioRef = React.useRef(null);
+    const drivingAudioRef = React.useRef(null);
+
+    // Initialize Audio
+    useEffect(() => {
+        footstepAudioRef.current = new Audio('/audio/foot.m4a');
+        footstepAudioRef.current.loop = true;
+        footstepAudioRef.current.volume = 0.6;
+
+        drivingAudioRef.current = new Audio('/audio/driving.mp3');
+        drivingAudioRef.current.loop = true;
+        drivingAudioRef.current.volume = 0.8;
+
+        return () => {
+            if (footstepAudioRef.current) footstepAudioRef.current.pause();
+            if (drivingAudioRef.current) drivingAudioRef.current.pause();
+        };
+    }, []);
+
     const showFeedback = (msg, color = 'cyan') => {
         setFeedbackMsg({ text: msg, color });
         setTimeout(() => setFeedbackMsg(null), 3500);
@@ -256,19 +276,22 @@ const Level7 = () => {
                         showFeedback("I'm starving... I'll drive down to the café and grab something to eat.", 'cyan');
                     }, 1000);
                 } else if (gameState === 'room_intro' && interactionTarget === 'room_door') {
-                    // Enter Living Room from the right door (Study entrance)
+                    new Audio('/audio/home door.mp3').play().catch(() => {});
                     triggerTransition('living_room', null, { x: 1480, y: 550 });
                 } else if (gameState === 'living_room' && interactionTarget === 'main_door') {
-                    // Enter Garden from the top door (House entrance)
+                    new Audio('/audio/home door.mp3').play().catch(() => {});
                     triggerTransition('garden', null, null, { x: 800, y: 100 });
                 } else if (gameState === 'garden' && interactionTarget === 'car') {
+                    new Audio('/audio/car.mp3').play().catch(() => {});
                     triggerTransition('travel');
                 } else if (gameState === 'cafe_exterior') {
                     if (interactionTarget === 'exterior_car_exit') {
+                        new Audio('/audio/car.mp3').play().catch(() => {});
                         setIsCarExited(true);
                         showFeedback("Time to get a coffee.", 'cyan');
                     } else if (interactionTarget === 'exterior_car') {
                         if (cafePhase === 'leaving') {
+                            new Audio('/audio/car.mp3').play().catch(() => {});
                             setGameState('cinematic_outro');
                             setOutroStep(2);
                             setTimeout(() => {
@@ -284,6 +307,7 @@ const Level7 = () => {
                         if (cafePhase === 'leaving') {
                             showFeedback("I already sent the email. Let's go home now.", 'orange');
                         } else {
+                            new Audio('/audio/home door.mp3').play().catch(() => {});
                             triggerTransition('level_title_card');
                         }
                     }
@@ -334,14 +358,39 @@ const Level7 = () => {
         return () => window.removeEventListener('keydown', handleE);
     }, [gameState, interactionTarget]);
 
+    // Footstep management for other phases
+    useEffect(() => {
+        const isMoving = (keys['w'] || keys['arrowup'] || keys['s'] || keys['arrowdown'] || keys['a'] || keys['arrowleft'] || keys['d'] || keys['arrowright']);
+        const canWalk = ['room_intro', 'living_room', 'garden', 'cafe_exterior', 'cafe_topdown'].includes(gameState);
+
+        if (isMoving && canWalk && (gameState !== 'room_intro' || isChairExited) && (gameState !== 'cafe_exterior' || isCarExited)) {
+            if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+                footstepAudioRef.current.play().catch(() => {});
+            }
+        } else {
+            if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+                footstepAudioRef.current.pause();
+                footstepAudioRef.current.currentTime = 0;
+            }
+        }
+    }, [keys, gameState, isChairExited, isCarExited]);
+
     // Travel Effect
     useEffect(() => {
         if (gameState === 'travel') {
+            if (drivingAudioRef.current) drivingAudioRef.current.play().catch(() => {});
             const timer = setTimeout(() => {
                 triggerTransition('cafe_exterior');
                 showFeedback("Arrived at the café. Press [E] to get out of the car and head inside.", 'cyan');
             }, 3500);
-            return () => clearTimeout(timer);
+            return () => {
+                clearTimeout(timer);
+            };
+        } else {
+            if (drivingAudioRef.current) {
+                drivingAudioRef.current.pause();
+                drivingAudioRef.current.currentTime = 0;
+            }
         }
     }, [gameState]);
 

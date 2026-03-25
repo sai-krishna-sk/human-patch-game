@@ -184,8 +184,6 @@ const LevelBedroom = () => {
                 setDialogueIndex(prev => prev + 1);
             } else {
                 setPhase('reward');
-                // Give 42L
-                adjustAssets(4200000);
                 setTimeout(() => {
                     enterLevel(1); // To Level 1
                 }, 5000);

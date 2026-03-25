@@ -240,12 +240,12 @@ const AppArmor = ({ onBack }) => {
         <div className="w-full flex items-center justify-center animate-fade-in relative py-4 h-full">
 
             {/* Phone Container */}
-            <div className="w-[380px] h-[780px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col pointer-events-auto">
+            <div className="w-[380px] h-[780px] bg-slate-100 border-x-[12px] border-t-[12px] border-b-[24px] border-slate-200 rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.1)] relative overflow-hidden flex flex-col pointer-events-auto">
                 <StatusBar />
 
                 {/* Notch */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-zinc-800 rounded-b-2xl z-[150] flex items-center justify-center">
-                    <div className="w-12 h-1 bg-zinc-900 rounded-full opacity-40"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-200 rounded-b-2xl z-[150] flex items-center justify-center">
+                    <div className="w-12 h-1 bg-slate-300 rounded-full opacity-40"></div>
                 </div>
 
                 <div className="w-full h-full bg-white overflow-hidden flex flex-col relative pt-12">
@@ -386,11 +386,6 @@ const AppArmor = ({ onBack }) => {
                     <span className="text-[10px] text-cyan-500 font-black uppercase tracking-[0.3em] block mb-2">Agent Progress</span>
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <div className="flex gap-2">
-                                {[...Array(3)].map((_, i) => (
-                                    <span key={i} className={`text-xl transition-all ${i < lives ? 'opacity-100' : 'opacity-20 grayscale'}`}>❤️</span>
-                                ))}
-                            </div>
                         </div>
                         <div className="text-right">
                             <p className="text-2xl font-black text-slate-900">{currentIndex + 1}<span className="text-slate-500 text-lg">/{APPS.length}</span></p>
@@ -407,7 +402,7 @@ const AppArmor = ({ onBack }) => {
                     <div className="text-5xl font-black text-cyan-400 tracking-tighter">{score.toLocaleString()}</div>
                 </div>
 
-                <div className="bg-indigo-950/20 border border-indigo-500/20 p-8 rounded-3xl border-dashed">
+                <div className="bg-indigo-50 border border-indigo-100 p-8 rounded-3xl border-dashed">
                     <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic">
                         The full forensic breakdown will be available in the session report after all evaluations are complete.
                     </p>
@@ -452,7 +447,6 @@ const AppArmor = ({ onBack }) => {
                         { label: 'Score', value: score.toLocaleString(), color: 'text-cyan-400' },
                         { label: 'Accuracy', value: `${accuracy}%`, color: accuracy >= 70 ? 'text-emerald-400' : 'text-red-400' },
                         { label: 'Time', value: formatTime(elapsed), color: 'text-amber-400' },
-                        { label: 'Lives Left', value: lives, color: lives > 0 ? 'text-indigo-400' : 'text-rose-400' },
                     ].map((stat, i) => (
                         <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
                             <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>

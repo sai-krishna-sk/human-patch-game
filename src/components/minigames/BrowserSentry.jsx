@@ -520,7 +520,7 @@ const BrowserSentry = ({ onBack }) => {
     const renderPlaying = () => (
         <div className="w-screen h-screen flex flex-col animate-fade-in font-sans bg-slate-50 overflow-hidden">
             {/* Top Navigation Bar (Status) */}
-            <div className="shrink-0 w-full bg-black/60 border-b border-slate-200 px-8 py-3 flex items-center justify-between z-50 backdrop-blur-md">
+            <div className="shrink-0 w-full bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between z-50">
                 <div className="flex items-center gap-8">
                     <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">WEBSITES</span>
@@ -544,29 +544,29 @@ const BrowserSentry = ({ onBack }) => {
                 {/* Main Browser Window */}
                 <div className="flex-1 flex flex-col p-6 items-center justify-center relative bg-[radial-gradient(circle_at_50%_40%,rgba(99,102,241,0.05)_0%,transparent_70%)]">
 
-                    <div className="w-full h-full max-w-[1000px] max-h-[700px] bg-[#1a1c1e] rounded-t-2xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] border border-white/10 flex flex-col overflow-hidden relative group">
+                    <div className="w-full h-full max-w-[1000px] max-h-[700px] bg-slate-100 rounded-t-2xl shadow-[0_40px_100px_rgba(0,0,0,0.1)] border border-slate-200 flex flex-col overflow-hidden relative group">
 
                         {/* Browser Chrome: Tabs */}
-                        <div className="h-10 w-full flex items-end px-4 gap-1 bg-[#1a1c1e] border-b border-black/40">
-                            <div className="h-8 px-4 bg-white/5 rounded-t-lg flex items-center gap-2 border-x border-t border-white/10 relative">
-                                <div className="w-3 h-3 bg-indigo-500/20 rounded-full flex items-center justify-center text-[8px]">🎯</div>
-                                <span className="text-[11px] text-gray-300 font-bold truncate max-w-[120px]">{currentSite.title}</span>
-                                <span className="text-[10px] text-gray-600">✕</span>
+                        <div className="h-10 w-full flex items-end px-4 gap-1 bg-slate-100 border-b border-slate-200">
+                            <div className="h-8 px-4 bg-white rounded-t-lg flex items-center gap-2 border-x border-t border-slate-200 relative">
+                                <div className="w-3 h-3 bg-indigo-500/10 rounded-full flex items-center justify-center text-[8px]">🎯</div>
+                                <span className="text-[11px] text-slate-600 font-bold truncate max-w-[120px]">{currentSite.title}</span>
+                                <span className="text-[10px] text-slate-400">✕</span>
                             </div>
                             <div className="h-7 w-7 rounded-full flex items-center justify-center text-gray-400 hover:bg-white/5 transition-colors cursor-pointer mb-1 text-sm">+</div>
                         </div>
 
                         {/* Browser Chrome: Address Bar */}
-                        <div className="h-12 w-full bg-[#1a1c1e] border-b border-black/80 flex items-center px-4 gap-4">
-                            <div className="flex gap-4 text-gray-500">
+                        <div className="h-12 w-full bg-white border-b border-slate-200 flex items-center px-4 gap-4">
+                            <div className="flex gap-4 text-slate-400">
                                 <span className="hover:text-slate-900 cursor-pointer transition-colors">←</span>
                                 <span className="hover:text-slate-900 cursor-pointer transition-colors">→</span>
                                 <span className="hover:text-slate-900 cursor-pointer transition-colors">↻</span>
                             </div>
                             <div className={`flex-1 h-8 rounded-full border px-4 flex items-center gap-3 transition-all duration-300 shadow-inner
                                 ${currentSite.isSecure
-                                    ? 'bg-[#0f1112] border-white/5 text-gray-400'
-                                    : 'bg-rose-500/5 border-rose-500/20 text-rose-400'}`}>
+                                    ? 'bg-slate-50 border-slate-200 text-slate-600'
+                                    : 'bg-rose-50 border-rose-200 text-rose-600'}`}>
 
                                 {currentSite.isSecure ? (
                                     <span className="text-emerald-500 text-xs">🔒</span>
@@ -606,7 +606,7 @@ const BrowserSentry = ({ onBack }) => {
                                                 </button>
                                                 <button
                                                     onClick={() => setShowAdvanced(!showAdvanced)}
-                                                    className={`px-10 py-4 rounded-xl uppercase tracking-[0.2em] text-[10px] transition-all border ${showAdvanced ? 'bg-white/10 border-white/20 text-slate-900' : 'bg-white/5 border-transparent text-slate-500 hover:bg-white/10'}`}
+                                                    className={`px-10 py-4 rounded-xl uppercase tracking-[0.2em] text-[10px] transition-all border ${showAdvanced ? 'bg-slate-100 border-slate-200 text-slate-900' : 'bg-slate-50 border-transparent text-slate-500 hover:bg-slate-100'}`}
                                                 >
                                                     Advanced Logic
                                                 </button>
@@ -648,10 +648,10 @@ const BrowserSentry = ({ onBack }) => {
                 </div>
 
                 {/* Right Verdict Sidebar */}
-                <div className="shrink-0 w-80 bg-black border-l border-slate-900 flex flex-col shadow-[-20px_0_40px_rgba(0,0,0,0.4)] z-40">
+                <div className="shrink-0 w-80 bg-white border-l border-slate-200 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-40">
 
                     {/* Verdict Controls */}
-                    <div className="flex-1 flex flex-col p-8 justify-center gap-4 border-b border-slate-900">
+                    <div className="flex-1 flex flex-col p-8 justify-center gap-4 border-b border-slate-100">
                         <div className="text-center mb-6">
                             <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2 underline decoration-indigo-500">Judgment Module</span>
                             <h3 className="text-slate-900 font-bold text-xs tracking-tight leading-relaxed">Identity Protection Protocol</h3>
@@ -660,25 +660,25 @@ const BrowserSentry = ({ onBack }) => {
                         <button
                             onClick={() => handleAction('enter')}
                             disabled={!!feedback || currentSite.hasCertError}
-                            className="w-full py-6 bg-emerald-600/10 border-2 border-emerald-500/20 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-5 active:scale-95"
+                            className="w-full py-6 bg-emerald-50 border-2 border-emerald-100 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-5 active:scale-95"
                         >
                             <span className="text-3xl group-hover:scale-110 transition-transform">🔑</span>
-                            <span className="font-black text-emerald-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Enter Credentials</span>
+                            <span className="font-black text-emerald-600 group-hover:text-white uppercase tracking-widest text-[10px]">Enter Credentials</span>
                         </button>
 
                         <button
                             onClick={() => handleAction('exit')}
                             disabled={!!feedback}
-                            className="w-full py-6 bg-rose-600/10 border-2 border-rose-500/20 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
+                            className="w-full py-6 bg-rose-50 border-2 border-rose-100 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-20 active:scale-95"
                         >
                             <span className="text-3xl group-hover:scale-110 transition-transform">🚪</span>
-                            <span className="font-black text-rose-500 group-hover:text-slate-900 uppercase tracking-widest text-[10px]">Exit Page</span>
+                            <span className="font-black text-rose-600 group-hover:text-white uppercase tracking-widest text-[10px]">Exit Page</span>
                         </button>
                     </div>
 
                     {/* Tactical Analysis Section (Requested style) */}
-                    <div className="p-6 bg-[#050505]">
-                        <h4 className="text-[10px] text-slate-500 opacity-50 font-black uppercase tracking-widest mb-6">Analyzing Available Infrastructure</h4>
+                    <div className="p-6 bg-slate-50">
+                        <h4 className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-6">Analyzing Available Infrastructure</h4>
 
                         <div className="space-y-6">
                             <div className="flex gap-4 group">
@@ -711,8 +711,8 @@ const BrowserSentry = ({ onBack }) => {
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-6 border-t border-slate-900">
-                            <div className="p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 border-dashed text-center">
+                        <div className="mt-8 pt-6 border-t border-slate-200">
+                            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 border-dashed text-center">
                                 <span className="text-[8px] text-indigo-400 font-black uppercase tracking-widest block mb-1">Aegis Guidance</span>
                                 <p className="text-[8px] text-slate-500 italic leading-snug">"Infrastructure is only as secure as the user connecting to it."</p>
                             </div>

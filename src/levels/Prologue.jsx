@@ -73,7 +73,10 @@ const Prologue = () => {
     const dialogueAudioRef = useRef(null);
 
     useEffect(() => {
-        drivingAudioRef.current = new Audio('/audio/driving.mp3');
+        const audio = new Audio('/audio/driving.mp3');
+        audio.loop = true;
+        audio.volume = 0.8;
+        drivingAudioRef.current = audio;
         return () => {
             if (drivingAudioRef.current) {
                 drivingAudioRef.current.pause();
@@ -443,10 +446,14 @@ const Prologue = () => {
     // Estate Phase Transition
     useEffect(() => {
         if (phase === 'travel') {
-            if (drivingAudioRef.current) drivingAudioRef.current.play().catch(() => {});
+            if (drivingAudioRef.current) {
+                drivingAudioRef.current.loop = true;
+                drivingAudioRef.current.volume = 1.0;
+                drivingAudioRef.current.play().catch(() => {});
+            }
             const timer = setTimeout(() => setPhase('estate_exterior'), 4000);
             return () => clearTimeout(timer);
-        } else if (phase === 'estate_exterior') {
+        } else if (phase === 'estate_exterior' || phase === 'dialogue') {
             if (drivingAudioRef.current) drivingAudioRef.current.pause();
         }
     }, [phase]);

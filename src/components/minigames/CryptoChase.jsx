@@ -473,11 +473,6 @@ const CryptoChase = ({ onBack }) => {
                         {Math.floor(Math.max(0, -playerRef.current.y + 550))}m
                     </div>
                     <div className="h-6 w-px bg-slate-300 mx-2"></div>
-                    <div className="flex gap-2 text-red-500 text-xl">
-                        {[...Array(3)].map((_, i) => (
-                            <span key={i} className={`transition-all duration-300 ${i < lives ? 'opacity-100 scale-100 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]' : 'opacity-20 scale-75 grayscale'}`}>❤️</span>
-                        ))}
-                    </div>
                     <div className="h-6 w-px bg-slate-300 mx-2"></div>
                     <div className="flex gap-2 text-cyan-400 text-xl items-center">
                         {[...Array(5)].map((_, i) => (

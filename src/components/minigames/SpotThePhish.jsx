@@ -605,10 +605,10 @@ const SpotThePhish = ({ onBack }) => {
             </div>
 
             <div className="flex gap-4 mt-4">
-                <button onClick={startGame} className="px-14 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 shadow-lg shadow-emerald-500/30 rounded-xl text-slate-900 font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 text-sm">
+                <button onClick={startGame} className="px-14 py-4 bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20 rounded-xl text-white font-black uppercase tracking-widest transition-all text-sm">
                     START DRILL
                 </button>
-                <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
+                <button onClick={onBack} className="px-8 py-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-500 transition-all font-bold text-sm shadow-sm">
                     EXIT
                 </button>
             </div>
@@ -757,10 +757,10 @@ const SpotThePhish = ({ onBack }) => {
 
                                 {/* Feedback overlay */}
                                 {feedback && (
-                                    <div className={`absolute inset-0 flex items-center justify-center z-30 backdrop-blur-sm transition-all ${feedback === 'correct' ? 'bg-emerald-500/25' : 'bg-red-500/25'}`}>
-                                        <div className="text-center p-8 rounded-2xl" style={{ backgroundColor: feedback === 'correct' ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.15)' }}>
-                                            <span className="text-8xl block mb-3">{feedback === 'correct' ? '✅' : '❌'}</span>
-                                            <span className={`text-4xl font-black uppercase tracking-wider ${feedback === 'correct' ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    <div className={`absolute inset-0 flex items-center justify-center z-30 backdrop-blur-sm transition-all ${feedback === 'correct' ? 'bg-emerald-500/15' : 'bg-rose-500/15'}`}>
+                                        <div className="text-center p-8 rounded-[2rem] bg-white shadow-2xl scale-110 border border-slate-100">
+                                            <span className="text-8xl block mb-3 animate-bounce">{feedback === 'correct' ? '✅' : '❌'}</span>
+                                            <span className={`text-4xl font-black uppercase tracking-wider ${feedback === 'correct' ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                 {feedback === 'correct' ? 'CORRECT!' : 'WRONG!'}
                                             </span>
                                         </div>
@@ -771,30 +771,30 @@ const SpotThePhish = ({ onBack }) => {
                     </div>
 
                     {/* Right-side verdict panel */}
-                    <div className="shrink-0 w-[280px] bg-gradient-to-b from-blue-50 to-indigo-50 border-l border-blue-200/50 flex flex-col items-center justify-center gap-6 p-6">
+                    <div className="shrink-0 w-[280px] bg-white border-l border-slate-100 flex flex-col items-center justify-center gap-6 p-6 shadow-[-10px_0_30px_rgba(0,0,0,0.02)]">
                         <div className="text-center mb-4">
-                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2">Your Verdict</span>
-                            <span className="text-slate-500 text-xs">Is this email real or fake?</span>
+                            <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-1">Your Verdict</span>
+                            <span className="text-slate-400 text-[10px] uppercase font-bold">Analysis Required</span>
                         </div>
 
                         <button
                             onClick={() => handleAnswer(false)}
                             disabled={!!feedback}
-                            className="w-full py-6 bg-red-600/10 border-2 border-red-500/30 rounded-2xl group hover:bg-red-600 hover:border-red-500 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
+                            className="w-full py-6 bg-rose-50 border-2 border-rose-100 rounded-2xl group hover:bg-rose-600 hover:border-rose-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
                         >
                             <span className="text-4xl group-hover:scale-110 transition-transform">🚫</span>
-                            <span className="font-black text-red-400 group-hover:text-slate-900 uppercase tracking-widest text-sm">Phishing</span>
-                            <span className="text-[10px] text-slate-400 group-hover:text-red-600">This email is fake</span>
+                            <span className="font-black text-rose-600 group-hover:text-white uppercase tracking-widest text-sm">Phishing</span>
+                            <span className="text-[9px] text-slate-400 group-hover:text-white uppercase font-black">Malicious Intent</span>
                         </button>
 
                         <button
                             onClick={() => handleAnswer(true)}
                             disabled={!!feedback}
-                            className="w-full py-6 bg-emerald-600/10 border-2 border-emerald-500/30 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-500 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none"
+                            className="w-full py-6 bg-emerald-50 border-2 border-emerald-100 rounded-2xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-30 disabled:pointer-events-none active:scale-95 shadow-sm"
                         >
                             <span className="text-4xl group-hover:scale-110 transition-transform">✅</span>
-                            <span className="font-black text-emerald-400 group-hover:text-slate-900 uppercase tracking-widest text-sm">Legitimate</span>
-                            <span className="text-[10px] text-slate-400 group-hover:text-emerald-700">This email is real</span>
+                            <span className="font-black text-emerald-600 group-hover:text-white uppercase tracking-widest text-sm">Legitimate</span>
+                            <span className="text-[9px] text-slate-400 group-hover:text-white uppercase font-black">Verified Safe</span>
                         </button>
                     </div>
                 </div>
@@ -884,10 +884,10 @@ const SpotThePhish = ({ onBack }) => {
                 </div>
 
                 <div className="flex gap-4">
-                    <button onClick={resetGame} className="px-12 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30 font-black uppercase tracking-widest rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all shadow-lg text-sm">
+                    <button onClick={resetGame} className="px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 font-black uppercase tracking-widest rounded-xl transition-all text-sm">
                         RETRY DRILL
                     </button>
-                    <button onClick={onBack} className="px-8 py-4 bg-slate-600 hover:bg-slate-700 rounded-xl text-white transition-all font-bold text-sm shadow-md">
+                    <button onClick={onBack} className="px-8 py-4 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-500 transition-all font-bold text-sm shadow-sm">
                         BACK TO LAB
                     </button>
                 </div>

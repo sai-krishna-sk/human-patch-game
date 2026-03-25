@@ -8,7 +8,7 @@ export const GameStateProvider = ({ children }) => {
     // ═══ PERSISTENT STATE ═══
     const [assets, setAssets] = useState(() => {
         const saved = localStorage.getItem('hpg_assets');
-        return saved !== null ? Number(saved) : 0;
+        return saved !== null ? Number(saved) : 4200000;
     });
     const [safetyScore, setSafetyScore] = useState(() => {
         const saved = localStorage.getItem('hpg_safetyScore');
@@ -34,7 +34,7 @@ export const GameStateProvider = ({ children }) => {
         localStorage.removeItem('hpg_safetyScore');
         localStorage.removeItem('hpg_rank');
         localStorage.removeItem('hpg_lives');
-        setAssets(0);
+        setAssets(4200000);
         setSafetyScore(0);
         setRank('Rookie');
         setLives(3);

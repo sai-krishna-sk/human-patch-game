@@ -85,6 +85,8 @@ const Level5 = () => {
     const [isBinderOpen, setIsBinderOpen] = useState(false);
     const [outroStep, setOutroStep] = useState(0);
     const [outroSuccess, setOutroSuccess] = useState(true);
+    const [isStickerFalling, setIsStickerFalling] = useState(false);
+    const [canContinueFromPeel, setCanContinueFromPeel] = useState(false);
 
     // Garden state
     const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 600, y: 150 });
@@ -106,6 +108,28 @@ const Level5 = () => {
         drivingAudioRef.current.loop = true;
     }
     const drivingAudio = drivingAudioRef.current;
+
+    const marketAudioRef = React.useRef(null);
+    if (!marketAudioRef.current) {
+        const audio = new Audio('/audio/marketaudio.mp3');
+        audio.loop = true;
+        audio.volume = 1.0;
+        audio.preload = "auto";
+        audio.load(); // Explicitly force load
+        marketAudioRef.current = audio;
+    }
+    const marketAudio = marketAudioRef.current;
+    // Audio status sync
+    useEffect(() => {
+        const setPlaying = () => {}; // No longer need to track state for a button
+        const setPaused = () => {}; // No longer need to track state for a button
+        marketAudio.addEventListener('play', setPlaying);
+        marketAudio.addEventListener('pause', setPaused);
+        return () => {
+            marketAudio.removeEventListener('play', setPlaying);
+            marketAudio.removeEventListener('pause', setPaused);
+        };
+    }, [marketAudio]);
 
     // Handle walking sound
     useEffect(() => {
@@ -146,8 +170,45 @@ const Level5 = () => {
         return () => {
             walkAudio.pause();
             drivingAudio.pause();
+            marketAudio.pause();
         };
-    }, [walkAudio, drivingAudio]);
+    }, [walkAudio, drivingAudio, marketAudio]);
+
+    // Handle market ambience sound
+    useEffect(() => {
+        const isInMarket = (
+            gameState === 'market_walk' || 
+            gameState === 'dialogue' || 
+            gameState === 'peeling_minigame' || 
+            gameState === 'correct_path' || 
+            gameState === 'gpay_payment' || 
+            gameState === 'market_return'
+        );
+
+        if (!isInMarket) {
+            marketAudio.pause();
+            return;
+        }
+
+        // Try to play immediately
+        marketAudio.play().catch(() => {
+            // Autoplay blocked — wait for first user interaction
+            const unlock = () => {
+                marketAudio.play().catch(() => { });
+                window.removeEventListener('click', unlock);
+                window.removeEventListener('keydown', unlock);
+                window.removeEventListener('touchstart', unlock);
+            };
+            window.addEventListener('click', unlock);
+            window.addEventListener('keydown', unlock);
+            window.addEventListener('touchstart', unlock);
+        });
+
+        return () => {
+            // Only pause when leaving market states entirely
+            // (the next effect run will decide whether to pause or play)
+        };
+    }, [gameState, marketAudio]);
 
     // Helper to play one-off sounds
     const playSound = (path) => {
@@ -771,6 +832,11 @@ const Level5 = () => {
                     {/* Player Position - Direct Control for Animation */}
                     <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
 
+                    {/* Guidance */}
+                    {gameState === 'bedroom' && !bedroomInteractionTarget && (
+                        <InteractionPrompt text="Head to the bathroom on the left to freshen up. 🚿" showKey={false} />
+                    )}
+
                     {/* Interactive Bathroom (Left) */}
                     {bedroomInteractionTarget === 'bathroom' && gameState === 'bedroom' && (
                         <InteractionPrompt text="Press E to freshen up" />
@@ -781,14 +847,6 @@ const Level5 = () => {
                         <InteractionPrompt text="Press E to exit room" />
                     )}
                 </div>
-
-                {gameState === 'bedroom_freshened' && (
-                    <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
-                            Walk to the living room (door at bottom)
-                        </div>
-                    </div>
-                )}
             </div>
         );
     }
@@ -1075,8 +1133,8 @@ const Level5 = () => {
                 <div className="absolute top-8 left-8 z-50 bg-white/95 p-4 rounded-3xl border-2 border-slate-800 shadow-[0_4px_0_#1e293b] flex items-center gap-4">
                     <div className="w-10 h-10 bg-sky-100 rounded-lg border-2 border-slate-800 flex items-center justify-center text-xl shadow-inner">🏪</div>
                     <div>
-                        <h3 className="text-slate-900 font-black text-lg uppercase tracking-wide">Level 4: QR Scams</h3>
-                        <p className="text-slate-500 text-[10px] font-bold font-mono">KAILASH ROAD MARKET</p>
+                        <h3 className="text-slate-900 font-black text-lg uppercase tracking-wide">Level 5: QR Scams</h3>
+                        <p className="text-slate-500 text-[10px] font-bold tracking-widest uppercase opacity-60">KAILASH ROAD MARKET</p>
                     </div>
                 </div>
             </div>
@@ -1415,23 +1473,15 @@ const Level5 = () => {
                                     </div>
                                 </div>
 
-                                {/* Safe/Danger Actions (Shown only after clues found) */}
-                                {allCluesCollected ? (
-                                    <div className="space-y-2 pb-4 relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-500 flex-shrink-0">
-                                        <button className="w-full bg-[#1c2128] hover:bg-slate-800 text-white py-3 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-base border border-white/10" onClick={() => setGameState('correct_path')}>
-                                            DECLINE PAYMENT
-                                        </button>
-                                        <button className="w-full bg-[#1c2128] hover:bg-slate-800 text-white py-3 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-base border border-white/10" onClick={() => setGameState('pin_entry')}>
-                                            APPROVE & ENTER PIN
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2 pb-4 relative z-10 flex flex-col flex-shrink-0">
-                                        <div className="w-full border-2 border-dashed border-slate-400 text-slate-400 py-3 rounded-2xl font-black text-center text-xs animate-pulse bg-slate-100">
-                                            COLLECT ALL 4 CLUES TO DECIDE
-                                        </div>
-                                    </div>
-                                )}
+                                {/* Safe/Danger Actions (Shown immediately) */}
+                                <div className="space-y-2 pb-4 relative z-10 flex flex-col flex-shrink-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <button className="w-full bg-[#1c2128] hover:bg-slate-800 text-white py-3 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-base border border-white/10" onClick={() => setGameState('correct_path')}>
+                                        DECLINE PAYMENT
+                                    </button>
+                                    <button className="w-full bg-[#1c2128] hover:bg-slate-800 text-white py-3 rounded-2xl font-black transition-all shadow-xl active:scale-95 text-base border border-white/10" onClick={() => setGameState('pin_entry')}>
+                                        APPROVE & ENTER PIN
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1793,41 +1843,54 @@ const Level5 = () => {
         const handlePointerUp = () => {
             if (!isDraggingPeel) return;
             setIsDraggingPeel(false);
-            if (peelProgress > 80) {
-                try {
-                    const bgSynth = new window.AudioContext();
-                    const o = bgSynth.createOscillator();
-                    const g = bgSynth.createGain();
-                    o.type = 'sawtooth';
-                    o.frequency.exponentialRampToValueAtTime(800, bgSynth.currentTime + 0.5);
-                    g.gain.setValueAtTime(0.1, bgSynth.currentTime);
-                    g.gain.exponentialRampToValueAtTime(0.01, bgSynth.currentTime + 0.5);
-                    o.connect(g);
-                    g.connect(bgSynth.destination);
-                    o.start();
-                    o.stop(bgSynth.currentTime + 0.5);
-                } catch (e) { }
 
-                setEvidence(prev => {
-                    if (!prev.find(e => e.id === 'fake_qr')) {
-                        return [...prev, { id: 'fake_qr', title: 'Fraudulent QR Overlay', desc: 'Scans to: unknown_collector@okSbi. Recovered from: Selvi\'s Vegetable Stall.' }];
-                    }
-                    return prev;
-                });
+            if (peelProgress > 90) {
+                // Cinematic Falling Animation
+                setIsStickerFalling(true);
+                setPeelProgress(100);
 
-                showFeedback("📁 Evidence auto-filed to Incident Folder!");
-                setIsBinderOpen(true);
-                setTimeout(() => setIsBinderOpen(false), 2000);
-
+                // Wait for animation to finish before showing the proceed button
                 setTimeout(() => {
-                    setGameState('correct_path');
-                    setInspectedZones(prev => [...prev, 20]);
-                    setCluesFound(prev => [...new Set([...prev, 2, 6])]);
-                    showFeedback("🔍 Fake Sticker Found & Removed!");
-                }, 2500);
+                    setCanContinueFromPeel(true);
+                }, 1000);
             } else {
                 setPeelProgress(0);
             }
+        };
+
+        const handleProceedFromPeeling = () => {
+            try {
+                const bgSynth = new window.AudioContext();
+                const o = bgSynth.createOscillator();
+                const g = bgSynth.createGain();
+                o.type = 'sawtooth';
+                o.frequency.exponentialRampToValueAtTime(800, bgSynth.currentTime + 0.5);
+                g.gain.setValueAtTime(0.1, bgSynth.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, bgSynth.currentTime + 0.5);
+                o.connect(g);
+                g.connect(bgSynth.destination);
+                o.start();
+                o.stop(bgSynth.currentTime + 0.5);
+            } catch (e) { }
+
+            setEvidence(prev => {
+                const newEv = [...prev];
+                if (!newEv.find(e => e.id === 'fake_qr')) {
+                    newEv.push({ id: 'fake_qr', title: 'FRAUDULENT QR OVERLAY', desc: 'A weathered sticker found placed over the authentic merchant QR at Selvi\'s Stall.' });
+                }
+                return newEv;
+            });
+
+            showFeedback("📁 Evidence auto-filed to Incident Folder!");
+            setIsBinderOpen(true);
+            setTimeout(() => setIsBinderOpen(false), 2000);
+
+            setTimeout(() => {
+                setGameState('correct_path');
+                setInspectedZones(prev => [...prev, 20]);
+                setCluesFound(prev => [...new Set([...prev, 2, 6])]);
+                showFeedback("🔍 Fake Sticker Removed! Proceeding to Payment...");
+            }, 2500);
         };
 
         return (
@@ -1844,74 +1907,88 @@ const Level5 = () => {
                     ))}
                 </div>
 
-                {/* QR Board Container — significantly redesigned */}
-                <div className="w-[420px] h-[480px] bg-gradient-to-b from-slate-200 to-slate-100 p-5 rounded-3xl shadow-[0_30px_80px_rgba(0,0,0,0.8),0_0_60px_rgba(59,130,246,0.1)] relative select-none border-2 border-white/50"
+                {/* QR Board Container — White Plastic Materiality */}
+                <div className="w-[420px] h-[480px] bg-[#f8fafc] p-6 rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-4px_10px_rgba(0,0,0,0.05)] relative select-none border border-slate-200/50"
                     onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
 
-                    {/* Board clip at top */}
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-24 h-8 bg-gradient-to-b from-slate-400 to-slate-500 rounded-t-lg shadow-md border border-slate-600 z-20 flex items-center justify-center">
-                        <div className="w-16 h-2 bg-slate-300 rounded-full"></div>
+                    {/* Board clip at top — more mechanical look */}
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-32 h-10 bg-gradient-to-b from-slate-400 to-slate-600 rounded-xl shadow-lg border-x border-t border-slate-500 z-20 flex items-center justify-center">
+                        <div className="w-20 h-1.5 bg-slate-200/50 rounded-full shadow-inner"></div>
                     </div>
 
-                    {/* The Real Underneath QR — same position as fake, different pattern, black on white */}
-                    <div className="absolute inset-5 bg-white rounded-xl flex items-center justify-center relative overflow-hidden" style={{ zIndex: 2 }}>
-                        <div className="absolute inset-0 flex flex-col gap-0.5 p-6">
-                            {originalQrPattern.map((row, i) => (
-                                <div key={i} className="flex gap-0.5 flex-1">
-                                    {row.map((filled, j) => (
-                                        <div key={j} className={`flex-1 rounded-[1px] ${filled ? 'bg-black' : 'bg-transparent'}`}></div>
-                                    ))}
-                                </div>
+                    {/* The Real Underneath QR — Sharp and Professional Reveal */}
+                    <div className="absolute inset-7 bg-white rounded-2xl p-6 shadow-[inset_0_0_40px_rgba(0,0,0,0.02)] overflow-hidden z-[2]">
+                        <div className="grid grid-cols-12 gap-1 w-full h-full aspect-square">
+                            {originalQrPattern.flat().map((filled, idx) => (
+                                <div key={idx} className={`w-full h-full rounded-[1px] ${filled ? 'bg-black shadow-[0_0_1px_rgba(0,0,0,0.5)]' : 'bg-transparent'}`}></div>
                             ))}
                         </div>
-                        {/* Selvi's UPI ID — only shows when peeled enough */}
-                        {peelProgress > 50 && (
-                            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-800 px-3 py-1 rounded-full z-20 animate-in fade-in duration-300">
-                                <span className="text-white font-mono text-[9px] uppercase tracking-[0.2em] font-bold">selvi.vegetables@oksbi</span>
+                        {/* Selvi's UPI ID — Clean Glassmorphic Overlay */}
+                        {(peelProgress > 50 || canContinueFromPeel) && (
+                            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/90 backdrop-blur-md px-4 py-1.5 rounded-full z-20 shadow-xl border border-white/10 animate-in zoom-in duration-500">
+                                <span className="text-white font-mono text-[9px] uppercase tracking-[0.25em] font-black italic">selvi.vegetables@oksbi</span>
                             </div>
                         )}
-                        {/* "ORIGINAL" label — only shows when peeled enough */}
-                        {peelProgress > 50 && (
-                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-emerald-600 px-4 py-1.5 rounded-full z-20 shadow-md animate-in fade-in duration-300">
-                                <span className="text-white font-mono text-[10px] uppercase tracking-[0.3em] font-bold">✓ ORIGINAL QR</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* The Fake Peeling Sticker — peels from top-left to bottom-right */}
-                    <div className="absolute inset-5 bg-white border-4 border-sky-200 rounded-xl overflow-hidden shadow-[0_8px_25px_rgba(0,0,0,0.4)] flex items-center justify-center pointer-events-none"
-                        style={{
-                            clipPath: `polygon(${peelProgress}% 0, 100% 0, 100% 100%, 0 100%, 0 ${peelProgress}%)`,
-                            transition: isDraggingPeel ? 'none' : 'clip-path 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                            zIndex: 5
-                        }}>
-                        <div className="absolute inset-0 flex flex-col gap-0.5 p-6">
-                            {qrPattern.map((row, i) => (
-                                <div key={i} className="flex gap-0.5 flex-1">
-                                    {row.map((filled, j) => (
-                                        <div key={j} className={`flex-1 rounded-[1px] ${filled ? 'bg-black' : 'bg-transparent'}`}></div>
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
-                        {/* Red "FAKE" watermark on sticker */}
-                        {peelProgress > 30 && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-red-500/20 font-black text-6xl uppercase rotate-[-25deg] tracking-[0.3em]">FAKE</span>
+                        {/* "AUTHENTIC" label */}
+                        {(peelProgress > 50 || canContinueFromPeel) && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-emerald-500 px-6 py-2 rounded-full z-20 shadow-[0_10px_30px_rgba(16,185,129,0.3)] border-2 border-white/20 animate-in slide-in-from-bottom duration-500">
+                                <span className="text-white font-black text-[10px] uppercase tracking-[0.4em]">✓ AUTHENTIC SOURCE</span>
                             </div>
                         )}
                     </div>
 
-                    {/* The Curl Effect — small fold at top-left corner */}
-                    <div className="absolute left-5 top-5 bg-gradient-to-br from-slate-300 via-slate-200 to-white origin-top-left shadow-[4px_4px_12px_rgba(0,0,0,0.3)] cursor-pointer"
+                    {/* The Fake Peeling Sticker — Weathered and Matte Layer with Fall Animation */}
+                    <div className={`absolute inset-7 bg-[#f1f5f9] rounded-2xl overflow-hidden shadow-[0_15px_45px_rgba(0,0,0,0.5)] flex items-center justify-center pointer-events-none grayscale-[0.3] sepia-[0.1]
+                        ${isStickerFalling ? 'transition-all duration-[1000ms] ease-in' : ''}`}
                         style={{
-                            width: `${Math.min(120, Math.max(40, peelProgress * 1.5))}px`,
-                            height: `${Math.min(120, Math.max(40, peelProgress * 1.5))}px`,
-                            clipPath: 'polygon(0 0, 100% 0, 0 100%)',
+                            clipPath: isStickerFalling ? 'none' : `polygon(${peelProgress}% 0, 100% 0, 100% 100%, 0 100%, 0 ${peelProgress}%)`,
+                            transform: isStickerFalling ? 'translate(50px, 1200px) rotate(45deg) scale(0.9)' : 'none',
+                            opacity: isStickerFalling ? 0 : 0.95,
                             transition: isDraggingPeel ? 'none' : 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                            opacity: peelProgress > 80 ? 0 : 1,
-                            zIndex: 3
-                        }}
+                            zIndex: 10
+                        }}>
+                        {/* Material Texture Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-black/10 mix-blend-overlay pointer-events-none" />
+                        
+                        <div className="absolute inset-0 flex flex-col gap-1 p-8 opacity-95">
+                            {qrPattern.map((row, i) => (
+                                <div key={i} className="flex gap-1 flex-1">
+                                    {row.map((filled, j) => (
+                                        <div key={j} className={`flex-1 rounded-[1px] ${filled ? 'bg-slate-800' : 'bg-transparent'}`}></div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Dynamic Edge Highlight & Depth Shadow — Disabled during fall */}
+                    {!isStickerFalling && peelProgress > 0 && peelProgress < 100 && (
+                        <div className="absolute inset-7 pointer-events-none z-[11]" style={{ clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0)` }}>
+                            {/* The shadow cast by the lifting edge */}
+                            <div 
+                                className="absolute w-[600px] h-[60px] bg-gradient-to-b from-black/40 via-black/5 to-transparent blur-xl"
+                                style={{
+                                    left: '-150px',
+                                    top: '0',
+                                    transform: `rotate(-45deg) translate(${peelProgress * 3.8 - 40}px, ${peelProgress * 3.8}px)`,
+                                    transformOrigin: 'center'
+                                }}
+                            />
+                            {/* The bright edge highlight */}
+                            <div 
+                                className="absolute w-[600px] h-[10px] bg-white/50 blur-[2px]"
+                                style={{
+                                    left: '-150px',
+                                    top: '0',
+                                    transform: `rotate(-45deg) translate(${peelProgress * 3.8 - 10}px, ${peelProgress * 3.8 + 10}px)`,
+                                    transformOrigin: 'center'
+                                }}
+                            />
+                        </div>
+                    )}
+
+                    {/* The Interactive Corner Handle */}
+                    <div className="absolute left-7 top-7 w-20 h-20 origin-top-left z-[15] cursor-grab active:cursor-grabbing"
                         onPointerDown={(e) => {
                             setIsDraggingPeel(true);
                             e.currentTarget.setPointerCapture(e.pointerId);
@@ -1928,14 +2005,13 @@ const Level5 = () => {
                                 o.stop(bgSynth.currentTime + 0.1);
                             } catch (err) { }
                         }}>
-                        <div className="w-full h-full bg-gradient-to-br from-slate-400 to-white"></div>
                     </div>
 
-                    {/* Pulsing arrow hint — points diagonally toward bottom-right */}
+                    {/* Pulsing arrow hint */}
                     {peelProgress < 10 && (
-                        <div className="absolute left-12 top-12 z-20 animate-bounce pointer-events-none">
-                            <div className="bg-cyan-500 text-white text-xs font-black px-3 py-1.5 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.6)] flex items-center gap-1">
-                                ↘ DRAG HERE
+                        <div className="absolute left-10 top-10 z-20 animate-bounce pointer-events-none">
+                            <div className="bg-cyan-500 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-[0_0_20px_rgba(6,182,212,0.6)] flex items-center gap-1">
+                                ↘ DRAG
                             </div>
                         </div>
                     )}
@@ -1943,20 +2019,36 @@ const Level5 = () => {
 
                 {/* Title & Progress — BELOW the board so no overlap */}
                 <div className="mt-8 text-center z-10">
-                    <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-black text-3xl uppercase tracking-[0.2em] mb-2">Peel the Sticker</h2>
-                    <p className="text-white/40 font-serif italic text-base mb-4">Drag from the curled corner to reveal the real QR underneath...</p>
+                    {!canContinueFromPeel ? (
+                        <>
+                            <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-black text-3xl uppercase tracking-[0.2em] mb-2">Peel the Sticker</h2>
+                            <p className="text-white/40 font-serif italic text-base mb-4">Drag from the corner to reveal the authentic QR underneath...</p>
 
-                    {/* Animated progress bar */}
-                    <div className="w-64 mx-auto">
-                        <div className="h-2 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
-                            <div className="h-full rounded-full transition-all duration-200"
-                                style={{
-                                    width: `${peelProgress}%`,
-                                    background: peelProgress > 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #06b6d4, #3b82f6)'
-                                }}></div>
+                            <div className="w-64 mx-auto">
+                                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
+                                    <div className="h-full rounded-full transition-all duration-200"
+                                        style={{
+                                            width: `${peelProgress}%`,
+                                            background: peelProgress > 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #06b6d4, #3b82f6)'
+                                        }}></div>
+                                </div>
+                                <p className="text-white/30 font-mono text-[10px] mt-2 tracking-[0.3em] font-bold">{Math.round(peelProgress)}% PEELED</p>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
+                             <div className="px-6 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full mb-4">
+                                <span className="text-emerald-400 font-black text-xs uppercase tracking-[0.3em] animate-pulse">✓ Authentic QR revealed!</span>
+                            </div>
+                            <button 
+                                onClick={handleProceedFromPeeling}
+                                className="group relative px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-black text-sm uppercase tracking-[0.4em] transition-all transform hover:scale-110 active:scale-95 shadow-[0_15px_40px_rgba(16,185,129,0.4)] overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                Proceed to Payment
+                            </button>
                         </div>
-                        <p className="text-white/30 font-mono text-xs mt-2 tracking-[0.3em]">{Math.round(peelProgress)}% PEELED</p>
-                    </div>
+                    )}
                 </div>
             </div>
         );
@@ -2945,7 +3037,7 @@ const Level5 = () => {
                     </div>
                     <p className="text-slate-500 text-sm mb-6">Your assets will be updated: <strong className="text-slate-800">₹42,00,000 - ₹3,00,000 + ₹1,50,000 = ₹40,50,000</strong></p>
                     <button className="w-full bg-slate-950 hover:bg-black text-white font-black py-6 rounded-[2rem] text-2xl shadow-3xl transition-all hover:scale-105 active:scale-95 uppercase tracking-widest"
-                        onClick={() => { adjustAssets(-300000 + 150000); completeLevel(false, 0, 0); }}>
+                        onClick={() => { adjustAssets(-150000); completeLevel(false, 0, 0); }}>
                         Accept & Continue →
                     </button>
                 </div>
@@ -3094,12 +3186,12 @@ const Level5 = () => {
         const cameraY = Math.max(0, Math.min(livingRoomPlayerPos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT));
 
         return (
-            <div className="w-full h-full flex items-center justify-center bg-zinc-950 px-8 animate-in fade-in duration-1000 font-sans relative">
+            <div className="w-full h-full flex items-center justify-center bg-[#0f172a] px-8 animate-in fade-in duration-1000 font-sans relative">
                 <FeedbackToast />
                 <div className={`fixed inset-0 z-[9999] bg-black transition-opacity duration-500 pointer-events-none ${isTransitioning ? 'opacity-100' : 'opacity-0'}`} />
 
                 <div
-                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-slate-900"
+                    className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-[#0f172a]"
                     style={{ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT }}
                 >
                     <div
@@ -3108,54 +3200,95 @@ const Level5 = () => {
                             width: LIVING_ROOM_WIDTH,
                             height: LIVING_ROOM_HEIGHT,
                             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-                            backgroundColor: '#0f172a',
+                            backgroundColor: '#2c3e50',
                             transition: 'transform 0.1s linear'
                         }}
                     >
-                        {/* Reusing Living Room Background logic manually since it's inline in original */}
+                        {/* Wood Floor */}
                         <div className="absolute inset-0 opacity-80" style={{
                             backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.2) 38px, rgba(0,0,0,0.2) 40px)'
                         }}></div>
+
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/20 pointer-events-none z-10"></div>
 
-                        {/* Top Double Door (Main Exit) */}
-                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 transition-all opacity-100`}>
-                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/20">EXIT</div>
+                        {/* DOORS AND OPENINGS */}
+                        {/* Top Double Door (Entry Point from Garden) */}
+                        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[240px] h-[80px] bg-[#8a5a44] border-4 border-black border-t-0 flex z-10 opacity-100 transition-all`}>
+                            <div className="flex-1 border-r-2 border-black p-2 flex items-center justify-center text-[10px] text-white font-bold uppercase tracking-widest bg-emerald-900/10">ENTRY</div>
                             <div className="flex-1 border-l-2 border-black p-2 flex items-center justify-center">
                                 <div className="w-[80px] h-[50px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
                             </div>
                         </div>
 
-                        {/* Bottom Single Door (Bedroom entry point) */}
+                        {/* Right Single Door (Return to Study) */}
+                        <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[180px] bg-[#8a5a44] border-4 border-black border-r-0 p-3 flex flex-col items-center justify-center z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.5)] ${livingRoomInteractionTarget === 'study_room' ? 'scale-105' : ''} transition-all`}>
+                            <div className="text-[9px] text-white/60 font-black rotate-90 mb-8 tracking-[0.3em]">STUDY</div>
+                            <div className="w-[30px] h-[80px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
+                            <div className="absolute left-2 bottom-6 w-1 h-6 bg-black"></div>
+                        </div>
+
+                        {/* Bottom Single Door (Bedroom) */}
                         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[240px] h-[60px] bg-[#8a5a44] border-4 border-black border-b-0 p-3 flex items-center justify-center z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
                             <div className="text-[9px] text-white/60 font-black tracking-[0.3em] mr-8">BEDROOM</div>
+                            <div className="w-[120px] h-[30px] border-2 border-[#5c3a21] bg-[#754a33]"></div>
                         </div>
 
-                        {/* RIGHT SIDE STUDY ROOM DOOR */}
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[60px] h-[240px] bg-[#8a5a44] border-4 border-black border-r-0 flex flex-col items-center justify-center z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-                            <div className="text-[9px] text-white/60 font-black tracking-[0.3em] rotate-90 whitespace-nowrap">STUDY ROOM</div>
+                        {/* RUGS */}
+                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0">
+                            <div className="flex flex-col justify-between h-full -ml-2 absolute left-0 py-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
+                            </div>
+                            <div className="flex flex-col justify-between h-full -mr-2 absolute right-0 py-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-2 h-1 bg-black"></div>)}
+                            </div>
                         </div>
 
-                        {/* Furniture (simplified or same) */}
-                        {/* Rugs */}
-                        <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0"></div>
+                        <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0">
+                            <div className="flex justify-between w-full -mt-2 absolute top-0 px-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
+                            </div>
+                            <div className="flex justify-between w-full -mb-2 absolute bottom-0 px-2">
+                                {[...Array(18)].map((_, i) => <div key={i} className="w-1 h-2 bg-black"></div>)}
+                            </div>
+                        </div>
+
+                        {/* FURNITURE */}
+                        <div className="absolute right-[480px] top-1/2 -translate-y-1/2 w-[140px] h-[320px] bg-[#445265] border-4 border-black flex flex-row items-center justify-start z-20 shadow-[0_20px_60px_rgba(0,0,0,0.8)]">
+                            <div className="w-[80px] h-full flex flex-col justify-center items-start pl-2 gap-4">
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mt-2 shadow-inner"></div>
+                                <div className="w-[60px] h-[100px] bg-[#364253] border-2 border-black ml-2 mb-2 shadow-inner"></div>
+                            </div>
+                            <div className="absolute right-0 top-0 bottom-0 w-[40px] bg-[#4a586e] border-l-[3px] border-black shadow-inner"></div>
+                            <div className="absolute top-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-b-[3px] border-black shadow-inner"></div>
+                            <div className="absolute bottom-0 left-0 w-[100px] h-[30px] bg-[#4a586e] border-t-[3px] border-black shadow-inner"></div>
+                            <div className="absolute -bottom-8 left-4 right-4 h-8 bg-black/40 blur-xl rounded-full -z-10"></div>
+                        </div>
+
+                        <div className="absolute left-[740px] top-1/2 -translate-y-1/2 w-[100px] h-[180px] bg-[#383a48]/90 backdrop-blur-md border-4 border-[#222938] z-20 shadow-2xl flex items-center justify-center">
+                            <div className="w-[80px] h-[160px] border border-white/10"></div>
+                            <div className="absolute top-full left-2 right-2 h-6 bg-black/40 blur-xl rounded-full -z-10"></div>
+                        </div>
+
+                        {/* TV UNIT */}
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[180px] h-[340px] bg-[#222938] border-4 border-l-0 border-black flex items-center z-20 shadow-[20px_0_40px_rgba(0,0,0,0.6)]">
+                            <div className="w-[120px] h-[260px] bg-[#1e4868] border-4 border-[#122336] ml-4 relative overflow-hidden shadow-inner">
+                                <div className="absolute inset-x-0 bottom-0 h-1/2 bg-blue-500/20 blur-lg animate-pulse"></div>
+                            </div>
+                        </div>
 
                         <Player x={livingRoomPlayerPos.x} y={livingRoomPlayerPos.y} />
+
                     </div>
                 </div>
 
-                {/* Study Room Prompt */}
-                {livingRoomPlayerPos.x > 1400 && (
+                {livingRoomInteractionTarget === 'study_room' && (
                     <InteractionPrompt text="Press E to enter Study Room" />
                 )}
-
-                {livingRoomPlayerPos.x <= 1400 && (
-                    <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
-                        <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
-                            Go to Study Room (Right)
-                        </div>
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none z-50 animate-pulse">
+                    <div className="bg-black/60 px-6 py-2 rounded-full border border-white/20 text-white/90 font-mono text-[11px] uppercase tracking-[0.2em] drop-shadow-md">
+                        {livingRoomPlayerPos.x > 1400 ? "Use the door on the right" : "Go to Study Room (Right)"}
                     </div>
-                )}
+                </div>
             </div>
         );
     }
@@ -3164,5 +3297,25 @@ const Level5 = () => {
 };
 
 export default Level5;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

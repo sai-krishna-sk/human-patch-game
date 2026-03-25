@@ -752,7 +752,6 @@ const Level1 = () => {
         }
         setIsAudioPlaying(false);
         setGameState('game_over');
-        adjustAssets(-100000);
     };
 
     const handleVictory = () => {

@@ -484,7 +484,7 @@ const FileFortress = ({ onBack }) => {
                 </div>
 
                 {/* Right Verdict Sidebar */}
-                <div className="shrink-0 w-72 bg-gradient-to-b from-blue-50 to-indigo-50 border-l border-blue-200/50 flex flex-col items-center justify-center gap-6 p-8 z-40 shadow-[-10px_0_30px_rgba(0,0,0,0.5)]">
+                <div className="shrink-0 w-72 bg-white border-l border-slate-100 flex flex-col items-center justify-center gap-6 p-8 z-40 shadow-[-10px_0_30px_rgba(0,0,0,0.02)]">
                     <div className="text-center mb-4">
                         <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest block mb-2">Verdict Panel</span>
                         <h3 className="text-slate-900 font-bold text-sm tracking-tight px-4 leading-relaxed">Is this attachment safe to execute?</h3>
@@ -493,28 +493,28 @@ const FileFortress = ({ onBack }) => {
                     <button
                         onClick={() => handleAction('scan')}
                         disabled={!!feedback}
-                        className="w-full py-8 bg-amber-600/10 border-2 border-amber-500/30 rounded-3xl group hover:bg-amber-600 hover:border-amber-400 transition-all flex flex-col items-center justify-center gap-3 disabled:opacity-30 disabled:pointer-events-none active:scale-95"
+                        className="w-full py-8 bg-amber-50 border-2 border-amber-100 rounded-3xl group hover:bg-amber-600 hover:border-amber-400 transition-all flex flex-col items-center justify-center gap-3 disabled:opacity-30 disabled:pointer-events-none active:scale-95"
                     >
                         <span className="text-5xl group-hover:scale-110 transition-transform">🔍</span>
                         <div className="text-center">
-                            <span className="font-black text-amber-500 group-hover:text-slate-900 uppercase tracking-[0.2em] text-sm">Scan Security</span>
-                            <p className="text-[9px] text-slate-400 group-hover:text-amber-200 mt-1 uppercase font-black">Identify Threat</p>
+                            <span className="font-black text-amber-600 group-hover:text-white uppercase tracking-[0.2em] text-sm">Scan Security</span>
+                            <p className="text-[9px] text-slate-400 group-hover:text-white mt-1 uppercase font-black">Identify Threat</p>
                         </div>
                     </button>
 
                     <button
                         onClick={() => handleAction('open')}
                         disabled={!!feedback}
-                        className="w-full py-8 bg-emerald-600/10 border-2 border-emerald-500/30 rounded-3xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-3 disabled:opacity-30 disabled:pointer-events-none active:scale-95"
+                        className="w-full py-8 bg-emerald-50 border-2 border-emerald-100 rounded-3xl group hover:bg-emerald-600 hover:border-emerald-400 transition-all flex flex-col items-center justify-center gap-3 disabled:opacity-30 disabled:pointer-events-none active:scale-95"
                     >
                         <span className="text-5xl group-hover:scale-110 transition-transform">✅</span>
                         <div className="text-center">
-                            <span className="font-black text-emerald-500 group-hover:text-slate-900 uppercase tracking-[0.2em] text-sm">Open File</span>
-                            <p className="text-[9px] text-slate-400 group-hover:text-amber-200 mt-1 uppercase font-black">Allow Execution</p>
+                            <span className="font-black text-emerald-600 group-hover:text-white uppercase tracking-[0.2em] text-sm">Open File</span>
+                            <p className="text-[9px] text-slate-400 group-hover:text-white mt-1 uppercase font-black">Allow Execution</p>
                         </div>
                     </button>
 
-                    <div className="mt-8 border-t border-slate-900 pt-8 w-full">
+                    <div className="mt-8 border-t border-slate-100 pt-8 w-full">
                         <p className="text-[10px] text-slate-500 italic text-center px-4 leading-relaxed">Note: Choose Scan if you detect malicious markers. Choose Open if the file is verified.</p>
                     </div>
                 </div>

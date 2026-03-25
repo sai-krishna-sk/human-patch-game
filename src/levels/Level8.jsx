@@ -115,6 +115,57 @@ const Level8 = () => {
   const [activeDialogue, setActiveDialogue] = useState(null);
   const [epilogueStep, setEpilogueStep] = useState(0);
 
+  // Audio Refs
+  const footstepAudioRef = useRef(null);
+  const drivingAudioRef = useRef(null);
+
+  // Initialize Audio
+  useEffect(() => {
+    footstepAudioRef.current = new Audio('/audio/foot.m4a');
+    footstepAudioRef.current.loop = true;
+    footstepAudioRef.current.volume = 0.6;
+
+    drivingAudioRef.current = new Audio('/audio/driving.mp3');
+    drivingAudioRef.current.loop = true;
+    drivingAudioRef.current.volume = 0.8;
+
+    return () => {
+      if (footstepAudioRef.current) footstepAudioRef.current.pause();
+      if (drivingAudioRef.current) drivingAudioRef.current.pause();
+    };
+  }, []);
+
+  // Driving Audio management
+  useEffect(() => {
+    if (gameState === 'garden' && !isCarExited) {
+      if (drivingAudioRef.current && drivingAudioRef.current.paused) {
+        drivingAudioRef.current.play().catch(() => {});
+      }
+    } else {
+      if (drivingAudioRef.current && !drivingAudioRef.current.paused) {
+        drivingAudioRef.current.pause();
+        drivingAudioRef.current.currentTime = 0;
+      }
+    }
+  }, [gameState, isCarExited]);
+
+  // Footstep management
+  useEffect(() => {
+    const isMoving = (keys.current['w'] || keys.current['arrowup'] || keys.current['s'] || keys.current['arrowdown'] || keys.current['a'] || keys.current['arrowleft'] || keys.current['d'] || keys.current['arrowright']);
+    const canWalk = ['garden', 'living-room'].includes(gameState);
+
+    if (isMoving && canWalk && (gameState !== 'garden' || isCarExited)) {
+      if (footstepAudioRef.current && footstepAudioRef.current.paused) {
+        footstepAudioRef.current.play().catch(() => {});
+      }
+    } else {
+      if (footstepAudioRef.current && !footstepAudioRef.current.paused) {
+        footstepAudioRef.current.pause();
+        footstepAudioRef.current.currentTime = 0;
+      }
+    }
+  }, [keys.current, gameState, isCarExited]);
+
   const triggerTransition = (newState, newPos = null) => {
     setIsTransitioning(true);
     setTimeout(() => {
@@ -299,8 +350,10 @@ const Level8 = () => {
 
         if (gameState === 'garden') {
             if (interactionTarget === 'exit_car' && !isCarExited) {
+                new Audio('/audio/car.mp3').play().catch(() => {});
                 setIsCarExited(true);
             } else if (interactionTarget === 'enter_house') {
+                new Audio('/audio/home door.mp3').play().catch(() => {});
                 triggerTransition('living-room', { x: 800, y: 150 });
             }
         } else if (gameState === 'living-room' && interactionTarget === 'sofa') {

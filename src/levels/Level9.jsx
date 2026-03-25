@@ -83,7 +83,7 @@ const Level9 = () => {
     const [guidanceMsg, setGuidanceMsg] = useState(null);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
-    const firstLineSpoken = React.useRef(false);
+
     const walkingAudio = React.useRef(null);
     const doorAudio = React.useRef(null);
 
@@ -134,13 +134,7 @@ const Level9 = () => {
         };
     }, []);
 
-    // Pre-load speech synthesis voices and initialize audio
     useEffect(() => {
-        if (window.speechSynthesis) {
-            window.speechSynthesis.getVoices();
-            window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-        }
-        
         // Initialize walking audio
         walkingAudio.current = new Audio('/audio/foot.m4a');
         walkingAudio.current.loop = true;
@@ -151,7 +145,6 @@ const Level9 = () => {
         doorAudio.current.volume = 0.6;
 
         return () => { 
-            window.speechSynthesis?.cancel(); 
             if (walkingAudio.current) {
                 walkingAudio.current.pause();
                 walkingAudio.current = null;
@@ -287,27 +280,7 @@ const Level9 = () => {
 
     const showFeedback = (msg) => { setFeedbackMsg(msg); setTimeout(() => setFeedbackMsg(null), 2500); };
 
-    const speakLine = (text, isNithya = false) => {
-        if (isMuted || typeof window === 'undefined' || !window.speechSynthesis) return;
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(text);
-        const voices = window.speechSynthesis.getVoices();
-        if (isNithya) {
-            // Girl voice — higher pitch, female voice
-            const femaleVoice = voices.find(v => v.name.includes('Zira') || v.name.includes('Samantha') || v.name.includes('Google UK English Female') || v.name.toLowerCase().includes('female'));
-            if (femaleVoice) utter.voice = femaleVoice;
-            utter.pitch = 1.5;
-            utter.rate = 1.05;
-        } else {
-            // Boy voice — lower pitch, male voice
-            const maleVoice = voices.find(v => v.name.includes('David') || v.name.includes('Google UK English Male') || v.name.toLowerCase().includes('male'));
-            if (maleVoice) utter.voice = maleVoice;
-            utter.pitch = 0.7;
-            utter.rate = 0.9;
-        }
-        utter.volume = 0.9;
-        window.speechSynthesis.speak(utter);
-    };
+
 
     const FeedbackToast = () => feedbackMsg ? (
         <div className="absolute bottom-0 left-0 right-0 pointer-events-none z-[5000] flex flex-col items-center pb-12">
@@ -1476,23 +1449,14 @@ const Level9 = () => {
             { sender: 'you', text: "Yes. A fake account in your name asked me to send ₹8,000 for a hospital emergency in Coimbatore. I didn't send anything — I verified first. But the account has 12 of our mutual friends added. We should warn them." },
             { sender: 'nithya', text: "Oh my god. My account was not hacked — they made a COPY. I'm going to report this right now. Can you help me send a warning to our group?" },
         ];
-
         const showNextLine = () => {
             if (dialogueIndex < dialogueLines.length - 1) {
                 const nextIdx = dialogueIndex + 1;
                 setDialogueIndex(nextIdx);
-                const nextLine = dialogueLines[nextIdx];
-                speakLine(nextLine.text, nextLine.sender === 'nithya');
             }
         };
 
-        // Speak first line when entering this state
-        if (dialogueIndex === 0 && !firstLineSpoken.current) {
-            firstLineSpoken.current = true;
-            setTimeout(() => {
-                speakLine(dialogueLines[0].text, dialogueLines[0].sender === 'nithya');
-            }, 800);
-        }
+
 
         return (
             <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-black">
@@ -1746,7 +1710,6 @@ const Level9 = () => {
                                 <button className="w-full bg-neutral-800 hover:bg-red-600 border border-neutral-700 hover:border-red-600 text-white font-bold py-4 rounded-xl transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2"
                                     onClick={() => {
                                         setCommunityAlerted(true);
-                                        window.speechSynthesis?.cancel();
                                         setGameState('final_sleep');
                                     }}>
                                     <span>Hang Up Call</span>
@@ -1910,7 +1873,6 @@ const Level9 = () => {
                         <div className="mt-12 grid grid-cols-2 gap-8">
                             <button className="bg-white/5 hover:bg-white/10 text-white/40 font-black py-6 rounded-2xl text-xl uppercase tracking-widest transition-all"
                                 onClick={() => {
-                                    adjustAssets(-stolenAmount);
                                     adjustLives(-1);
                                     setGameState('room_intro');
                                 }}>

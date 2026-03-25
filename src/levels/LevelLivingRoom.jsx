@@ -276,7 +276,6 @@ const LevelLivingRoom = () => {
                 setDialogueIndex(prev => prev + 1);
             } else {
                 setPhase('reward');
-                adjustAssets(4200000);
                 setTimeout(() => {
                     enterLevel(1);
                 }, 5000);

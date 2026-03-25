@@ -209,12 +209,12 @@ const CareerGuard = ({ onBack }) => {
         <div className="w-full h-full flex items-center justify-center animate-fade-in relative py-4">
 
             {/* Phone Container */}
-            <div className="w-[380px] h-[780px] bg-zinc-900 border-x-[12px] border-t-[12px] border-b-[24px] border-black rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.6)] relative overflow-hidden flex flex-col pointer-events-auto">
+            <div className="w-[380px] h-[780px] bg-slate-100 border-x-[12px] border-t-[12px] border-b-[24px] border-slate-200 rounded-[3.5rem] shadow-[0_50px_100px_rgba(0,0,0,0.1)] relative overflow-hidden flex flex-col pointer-events-auto">
                 <StatusBar />
 
                 {/* Notch */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-zinc-800 rounded-b-2xl z-[150] flex items-center justify-center">
-                    <div className="w-12 h-1 bg-zinc-900 rounded-full opacity-40"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-200 rounded-b-2xl z-[150] flex items-center justify-center">
+                    <div className="w-12 h-1 bg-slate-300 rounded-full opacity-40"></div>
                 </div>
 
                 <div className="w-full h-full bg-slate-50 overflow-hidden flex flex-col relative pt-12">
@@ -408,7 +408,7 @@ const CareerGuard = ({ onBack }) => {
 
             {/* Sidebar Stats - Clean Professional Theme */}
             <div className="ml-12 w-80 flex flex-col gap-6 font-mono pointer-events-auto">
-                <div className="bg-[#0f172a] border border-[#1e293b] p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
+                <div className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-2xl relative overflow-hidden group">
                     <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none"></div>
                     <span className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] block mb-2 opacity-60">Protocol: JOBSCAN_PRO_v2</span>
                     <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
@@ -418,11 +418,6 @@ const CareerGuard = ({ onBack }) => {
                         <div className="flex justify-between items-end">
                             <div>
                                 <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-2">Integrity_Link</p>
-                                <div className="flex gap-2.5">
-                                    {[...Array(3)].map((_, i) => (
-                                        <div key={i} className={`w-3.5 h-3.5 rounded-sm rotate-45 transition-all duration-700 ${i < lives ? 'bg-indigo-500 shadow-[0_0_12px_rgba(99,102,241,0.6)]' : 'bg-slate-200'}`}></div>
-                                    ))}
-                                </div>
                             </div>
                             <div className="text-right">
                                 <p className="text-[9px] text-slate-500 uppercase font-black tracking-widest mb-1">Queue</p>
@@ -438,7 +433,7 @@ const CareerGuard = ({ onBack }) => {
                     </div>
                 </div>
 
-                <div className="bg-[#0f172a] border border-[#1e293b] p-8 rounded-[2rem] shadow-2xl text-center relative overflow-hidden group">
+                <div className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-2xl text-center relative overflow-hidden group">
                     <div className="absolute -left-10 -top-10 w-32 h-32 bg-indigo-500/5 blur-3xl rounded-full"></div>
                     <span className="text-[10px] text-indigo-400 font-black uppercase tracking-[0.3em] block mb-3 opacity-60">Session_Credits</span>
                     <div className="text-6xl font-black text-slate-900 tracking-tighter group-hover:text-indigo-400 transition-all duration-500 tabular-nums">
@@ -503,7 +498,6 @@ const CareerGuard = ({ onBack }) => {
                         { label: 'Score', value: score.toLocaleString(), color: 'text-indigo-400' },
                         { label: 'Accuracy', value: `${accuracy}%`, color: accuracy >= 70 ? 'text-emerald-400' : 'text-rose-400' },
                         { label: 'Time', value: formatTime(elapsed), color: 'text-amber-400' },
-                        { label: 'Lives', value: lives, color: lives > 0 ? 'text-cyan-400' : 'text-red-400' },
                     ].map((stat, i) => (
                         <div key={i} className="bg-gradient-to-br from-slate-50 to-blue-50 border border-blue-200/50 rounded-xl p-4 text-center shadow-sm">
                             <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest block mb-1">{stat.label}</span>
