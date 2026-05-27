@@ -77,4 +77,76 @@ code,
 .animate-strikeThrough { animation: strikeThrough 1.5s ease-out forwards; }
 .animate-slideUp { animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-cinematic-sequence { animation: cinematic-sequence 4s ease-in-out forwards; }
+
+/* ══════════════════════════════════════════════════
+   ACCESSIBILITY VISUAL PROFILES
+   ══════════════════════════════════════════════════ */
+
+/* 1. MILD LOW VISION PROFILE */
+.profile-low-vision,
+.profile-low-vision * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cpath d='M4.5 4.5l14 36 6-13.5 13.5-6z' fill='%2300ffff' stroke='white' stroke-width='3'/%3E%3C/svg%3E") 4 4, auto !important;
+}
+.profile-low-vision p,
+.profile-low-vision span,
+.profile-low-vision button,
+.profile-low-vision h1,
+.profile-low-vision h2,
+.profile-low-vision h3,
+.profile-low-vision h4,
+.profile-low-vision h5,
+.profile-low-vision h6,
+.profile-low-vision input,
+.profile-low-vision select,
+.profile-low-vision label,
+.profile-low-vision a {
+  font-size: 135% !important;
+}
+.profile-low-vision button, 
+.profile-low-vision a, 
+.profile-low-vision [role="button"],
+.profile-low-vision select,
+.profile-low-vision input {
+  border: 3px solid #00ffff !important;
+  outline: 2px solid white !important;
+}
+
+/* 2. LIGHT SENSITIVITY (PHOTOPHOBIA) PROFILE */
+.profile-photophobia {
+  filter: sepia(0.35) brightness(0.65) contrast(0.9) !important;
+}
+.profile-photophobia * {
+  text-shadow: none !important;
+  box-shadow: none !important;
+  animation-duration: 0.001s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001s !important;
+}
+
+/* 3. REFRACTIVE ERRORS PROFILE */
+.profile-refractive-error p,
+.profile-refractive-error span,
+.profile-refractive-error button,
+.profile-refractive-error h1,
+.profile-refractive-error h2,
+.profile-refractive-error h3,
+.profile-refractive-error h4,
+.profile-refractive-error h5,
+.profile-refractive-error h6,
+.profile-refractive-error input,
+.profile-refractive-error select,
+.profile-refractive-error label,
+.profile-refractive-error a {
+  font-family: 'JetBrains Mono', Courier, monospace !important;
+  font-size: 120% !important;
+  letter-spacing: 0.1em !important;
+  line-height: 1.6 !important;
+}
+.profile-refractive-error button,
+.profile-refractive-error a,
+.profile-refractive-error [role="button"] {
+  border: 2px solid #ffffff !important;
+  padding: 10px 20px !important;
+}
+
 

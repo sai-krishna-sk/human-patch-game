@@ -20,9 +20,10 @@ import Prologue from './levels/Prologue';
 import CyberDefenseLab from './components/CyberDefenseLab';
 import Conclusion from './levels/Conclusion';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
+import ColorBlindFilters from './components/ColorBlindFilters';
 
 function GameRunner() {
-    const { currentLevel, assets, rank, safetyScore, lives, isPaused, setIsPaused } = useGameState();
+    const { currentLevel, assets, rank, safetyScore, lives, isPaused, setIsPaused, colorBlindFilter, visualProfile } = useGameState();
 
     React.useEffect(() => {
         const handleKeyDown = (e) => {
@@ -37,7 +38,11 @@ function GameRunner() {
     }, [currentLevel, setIsPaused]);
 
     return (
-        <div className="w-screen h-screen bg-slate-900 overflow-hidden font-sans relative">
+        <div 
+            className={`w-screen h-screen bg-slate-900 overflow-hidden font-sans relative ${visualProfile && visualProfile !== 'none' ? `profile-${visualProfile}` : ''}`}
+            style={{ filter: colorBlindFilter && colorBlindFilter !== 'normal' ? `url(#${colorBlindFilter})` : 'none' }}
+        >
+            <ColorBlindFilters />
 
 
 

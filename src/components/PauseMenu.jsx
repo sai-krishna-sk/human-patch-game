@@ -2,7 +2,44 @@ import React from 'react';
 import { useGameState } from '../context/GameStateContext';
 
 const PauseMenu = () => {
-    const { setIsPaused, enterLevel, currentLevel, assets, lives, safetyScore, rank } = useGameState();
+    const { 
+        setIsPaused, 
+        enterLevel, 
+        currentLevel, 
+        assets, 
+        lives, 
+        safetyScore, 
+        rank,
+        colorBlindFilter,
+        setColorBlindFilter,
+        visualProfile,
+        setVisualProfile
+    } = useGameState();
+
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = React.useState(false);
+    const [isVisualDropdownOpen, setIsVisualDropdownOpen] = React.useState(false);
+
+    const visualProfileOptions = [
+        { id: 'none', name: 'None' },
+        { id: 'low-vision', name: 'Mild Low Vision' },
+        { id: 'photophobia', name: 'Light Sensitivity (Photophobia)' },
+        { id: 'refractive-error', name: 'Refractive Errors' },
+    ];
+
+    const filterOptions = [
+        { id: 'normal', name: 'Normal Vision' },
+        { id: 'protanopia-daltonize', name: 'Protanopia (Red-Blind Correction)' },
+        { id: 'deuteranopia-daltonize', name: 'Deuteranopia (Green-Blind Correction)' },
+        { id: 'tritanopia-daltonize', name: 'Tritanopia (Blue-Blind Correction)' },
+        { id: 'protanopia-sim', name: 'Protanopia Simulation' },
+        { id: 'protanomaly-sim', name: 'Protanomaly Simulation' },
+        { id: 'deuteranopia-sim', name: 'Deuteranopia Simulation' },
+        { id: 'deuteranomaly-sim', name: 'Deuteranomaly Simulation' },
+        { id: 'tritanopia-sim', name: 'Tritanopia Simulation' },
+        { id: 'tritanomaly-sim', name: 'Tritanomaly Simulation' },
+        { id: 'achromatopsia', name: 'Achromatopsia (Monochrome)' },
+        { id: 'achromatomaly', name: 'Achromatomaly (Partial Monochrome)' },
+    ];
 
     const handleResume = () => {
         setIsPaused(false);
@@ -26,11 +63,11 @@ const PauseMenu = () => {
                 </div>
 
                 {/* HUD Stats Implementation */}
-                <div className="bg-black/20 rounded-3xl p-6 border border-white/5 space-y-4 mb-8">
+                <div className="bg-black/20 rounded-3xl p-6 border border-white/5 space-y-4 mb-6">
                     <div className="flex justify-between items-center border-b border-white/5 pb-3">
                         <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Global Assets</span>
                         <span className="text-xl font-black text-emerald-400 font-mono tracking-tighter italic">
-                            ₹{assets.toLocaleString('en-IN')}
+                             ₹{assets.toLocaleString('en-IN')}
                         </span>
                     </div>
 
@@ -41,13 +78,84 @@ const PauseMenu = () => {
                         </span>
                     </div>
 
-
                     <div className="flex justify-between items-center">
                         <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Active Rank</span>
                         <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20 italic">
                             {rank}
                         </span>
                     </div>
+                </div>
+
+                {/* Accessibility Settings */}
+                <div className="mb-4 relative font-mono text-left">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Color Accessibility</label>
+                    <button
+                        onClick={() => {
+                            setIsFilterDropdownOpen(!isFilterDropdownOpen);
+                            setIsVisualDropdownOpen(false);
+                        }}
+                        className="w-full px-4 py-3 bg-black/40 border border-white/10 hover:border-white/20 text-white text-xs font-semibold rounded-2xl flex items-center justify-between transition-all"
+                    >
+                        <span className="truncate pr-2">
+                            {filterOptions.find(opt => opt.id === colorBlindFilter)?.name || 'Normal Vision'}
+                        </span>
+                        <span className="text-zinc-500 shrink-0">{isFilterDropdownOpen ? '▲' : '▼'}</span>
+                    </button>
+                    
+                    {isFilterDropdownOpen && (
+                        <div className="absolute left-0 right-0 mt-2 max-h-48 overflow-y-auto bg-slate-900 border border-white/25 rounded-2xl shadow-2xl z-50 divide-y divide-white/5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {filterOptions.map((opt) => (
+                                <button
+                                    key={opt.id}
+                                    onClick={() => {
+                                        setColorBlindFilter(opt.id);
+                                        setIsFilterDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-[11px] font-bold transition-colors hover:bg-indigo-600 hover:text-white ${
+                                        colorBlindFilter === opt.id ? 'bg-indigo-500/20 text-indigo-400' : 'text-zinc-300'
+                                    }`}
+                                >
+                                    {opt.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Visual Assistance Profile */}
+                <div className="mb-6 relative font-mono text-left">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Visual Assistance</label>
+                    <button
+                        onClick={() => {
+                            setIsVisualDropdownOpen(!isVisualDropdownOpen);
+                            setIsFilterDropdownOpen(false);
+                        }}
+                        className="w-full px-4 py-3 bg-black/40 border border-white/10 hover:border-white/20 text-white text-xs font-semibold rounded-2xl flex items-center justify-between transition-all"
+                    >
+                        <span className="truncate pr-2">
+                            {visualProfileOptions.find(opt => opt.id === visualProfile)?.name || 'None'}
+                        </span>
+                        <span className="text-zinc-500 shrink-0">{isVisualDropdownOpen ? '▲' : '▼'}</span>
+                    </button>
+                    
+                    {isVisualDropdownOpen && (
+                        <div className="absolute left-0 right-0 mt-2 max-h-48 overflow-y-auto bg-slate-900 border border-white/25 rounded-2xl shadow-2xl z-50 divide-y divide-white/5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {visualProfileOptions.map((opt) => (
+                                <button
+                                    key={opt.id}
+                                    onClick={() => {
+                                        setVisualProfile(opt.id);
+                                        setIsVisualDropdownOpen(false);
+                                    }}
+                                    className={`w-full text-left px-4 py-2.5 text-[11px] font-bold transition-colors hover:bg-indigo-600 hover:text-white ${
+                                        visualProfile === opt.id ? 'bg-indigo-500/20 text-indigo-400' : 'text-zinc-300'
+                                    }`}
+                                >
+                                    {opt.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="space-y-4">

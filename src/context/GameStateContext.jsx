@@ -21,6 +21,13 @@ export const GameStateProvider = ({ children }) => {
         const saved = localStorage.getItem('hpg_lives');
         return saved !== null ? Number(saved) : 3;
     });
+    const [colorBlindFilter, setColorBlindFilter] = useState(() => {
+        return localStorage.getItem('hpg_colorBlindFilter') || 'normal';
+    });
+    const [visualProfile, setVisualProfile] = useState(() => {
+        const saved = localStorage.getItem('hpg_visualProfile');
+        return ['none', 'low-vision', 'photophobia', 'refractive-error'].includes(saved) ? saved : 'none';
+    });
     const [currentLevel, setCurrentLevel] = useState(-2); // -2 = Main Menu
     const [isPaused, setIsPaused] = useState(false);
 
@@ -28,16 +35,22 @@ export const GameStateProvider = ({ children }) => {
     useEffect(() => { localStorage.setItem('hpg_safetyScore', safetyScore); }, [safetyScore]);
     useEffect(() => { localStorage.setItem('hpg_rank', rank); }, [rank]);
     useEffect(() => { localStorage.setItem('hpg_lives', lives); }, [lives]);
+    useEffect(() => { localStorage.setItem('hpg_colorBlindFilter', colorBlindFilter); }, [colorBlindFilter]);
+    useEffect(() => { localStorage.setItem('hpg_visualProfile', visualProfile); }, [visualProfile]);
 
     const resetProgress = () => {
         localStorage.removeItem('hpg_assets');
         localStorage.removeItem('hpg_safetyScore');
         localStorage.removeItem('hpg_rank');
         localStorage.removeItem('hpg_lives');
+        localStorage.removeItem('hpg_colorBlindFilter');
+        localStorage.removeItem('hpg_visualProfile');
         setAssets(4200000);
         setSafetyScore(0);
         setRank('Rookie');
         setLives(3);
+        setColorBlindFilter('normal');
+        setVisualProfile('none');
         setCurrentLevel(-2);
     };
 
@@ -156,7 +169,10 @@ export const GameStateProvider = ({ children }) => {
             playTitleCardSound,
             isPaused,
             setIsPaused,
-            resetProgress
+            colorBlindFilter,
+            setColorBlindFilter,
+            visualProfile,
+            setVisualProfile
         }}>
             {children}
         </GameStateContext.Provider>
