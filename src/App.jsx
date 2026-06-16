@@ -10,6 +10,8 @@ import Level7 from './levels/Level7';
 import Level8 from './levels/Level8';
 import Level9 from './levels/Level9';
 import Level10 from './levels/Level10';
+import Level12 from './levels/Level12';
+import Level13 from './levels/Level13';
 
 import LevelLivingRoom from './levels/LevelLivingRoom';
 import LevelBedroom from './levels/LevelBedroom';
@@ -62,6 +64,8 @@ function GameRunner() {
             {currentLevel === 9 && <Level9 />}
             {currentLevel === 10 && <Level10 />}
             {currentLevel === 11 && <Conclusion />}
+            {currentLevel === 12 && <Level12 />}
+            {currentLevel === 13 && <Level13 />}
             {currentLevel === 'living-room' && <LevelLivingRoom />}
             {currentLevel === 'bedroom' && <LevelBedroom />}
 
