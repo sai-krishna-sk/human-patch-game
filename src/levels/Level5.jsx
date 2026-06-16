@@ -11,7 +11,7 @@ const VIEWPORT_WIDTH = 1200;
 const VIEWPORT_HEIGHT = 800;
 const SPEED = 7;
 const PLAYER_SIZE = 40;
-const SELVI_ZONE = { x: 800, y: 250, w: 300, h: 300 }; // Raised center-left stall area
+const SELVI_ZONE = { x: 600, y: 250, w: 300, h: 300 }; // Raised center-left stall area
 
 // Interactive Area Constants (Relative to Room) - From Level 2
 const DESK_PARTS = [
@@ -64,6 +64,7 @@ const Level5 = () => {
     const [livingRoomInteractionTarget, setLivingRoomInteractionTarget] = useState(null);
     const [hasTriggeredHunger, setHasTriggeredHunger] = useState(false);
     const [canInteract, setCanInteract] = useState(false);
+    const [dialogueNode, setDialogueNode] = useState('start');
     const [feedbackMsg, setFeedbackMsg] = useState(null);
     const [cluesFound, setCluesFound] = useState([]);
     const [pinInput, setPinInput] = useState('');
@@ -1069,9 +1070,9 @@ const Level5 = () => {
         );
     }
 
-    // MARKET WALK STATE
+    // MARKET WALK & DIALOGUE STATE
     // ═══════════════════════════════════════════
-    if (gameState === 'market_walk') {
+    if (gameState === 'market_walk' || gameState === 'dialogue') {
         const currentRoomWidth = Math.max(ROOM_WIDTH, window.innerWidth);
         const cameraX = Math.max(0, Math.min(playerPos.x - window.innerWidth / 2, currentRoomWidth - window.innerWidth));
         return (
@@ -1087,101 +1088,104 @@ const Level5 = () => {
                         <img src="/assets/market_bg.png" alt="Kailash Market" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
                     </div>
 
-                    {/* Talk Bubble floating over the left-center vendor in the image (raised higher) */}
-                    <div className="absolute z-20" style={{ left: 900, bottom: 420 }}>
-                        <div className="absolute -top-12 -right-28 bg-white text-black font-black text-[12px] px-3 py-2 rounded-[20px] border-2 border-slate-700 shadow-md z-50 whitespace-nowrap animate-[bounce_2.5s_infinite]">
-                            "Fresh veggies! Come here!"
-                            <div className="absolute bottom-[-6px] left-6 w-3 h-3 bg-white border-b-2 border-r-2 border-slate-700 transform rotate-45"></div>
-                        </div>
-                    </div>
-
-                    {/* Interactive Overlay Zones on top of image (Optional / if needed for clicks) */}
-                    {/* The Sound Box */}
-                    <div className="absolute z-20 group cursor-pointer" style={{ left: 850, bottom: 350 }}>
-                        <div className="absolute -top-12 -left-20 bg-slate-800 text-white font-black text-[10px] px-3 py-2 rounded-xl border border-slate-600 shadow-md z-[60] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            Selvi's Payment Box. Linked to: Selvi_vegetables@bank
-                            <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-800 transform rotate-45 border-b border-r border-slate-600"></div>
-                        </div>
-                        {/* Sound Box Graphic */}
-                        <div className="w-10 h-14 bg-blue-600 rounded-md border-2 border-slate-800 shadow-xl flex flex-col items-center pt-1 hover:scale-110 transition-transform">
-                            <div className="w-6 h-6 bg-slate-800 rounded-full flex items-center justify-center border border-slate-900 shadow-inner">
-                            </div>
-                            <div className="mt-auto mb-1 w-full flex justify-end px-1">
-                                <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]"></div>
+                    {/* Talk Bubble floating over the left-center vendor in the image (raised higher) - Only shown during free walk */}
+                    {gameState === 'market_walk' && (
+                        <div className="absolute z-20" style={{ left: 640, bottom: 510 }}>
+                            <div className="absolute -top-12 -left-44 bg-white text-black font-black text-[12px] px-3 py-2 rounded-[20px] border-2 border-slate-700 shadow-md z-50 whitespace-nowrap animate-[bounce_2.5s_infinite]">
+                                "Fresh veggies! Come here!"
+                                <div className="absolute bottom-[-6px] right-8 w-3 h-3 bg-white border-b-2 border-r-2 border-slate-700 transform rotate-45"></div>
                             </div>
                         </div>
-                    </div>
-
-                    {/* (Seafood stall area based on image) */}
-                    <div className="absolute w-[400px] h-[300px] right-[100px] bottom-[100px] z-10 group cursor-pointer">
-                        <div className="absolute -top-12 left-12 bg-white text-black font-black text-[12px] px-3 py-2 rounded-[20px] border-2 border-slate-700 shadow-md z-50 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-                            "Fresh catch! Scan QR here!"
-                            <div className="absolute bottom-[-6px] left-6 w-3 h-3 bg-white border-b-2 border-r-2 border-slate-700 transform rotate-45"></div>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Player in Market - Direct Control for Animation */}
                     <Player x={playerPos.x} y={playerPos.y} />
 
-                    {/* Premium Interaction UI - Triggered when near Selvi */}
-                    {canInteract && (
+                    {/* Premium Interaction UI - Triggered when near Selvi and walking */}
+                    {canInteract && gameState === 'market_walk' && (
                         <InteractionPrompt text="Press E to talk to Selvi" />
                     )}
                 </div>
 
-                {/* Clean HUD Overlay */}
-                <div className="absolute top-8 left-8 z-50 bg-white/95 p-4 rounded-3xl border-2 border-slate-800 shadow-[0_4px_0_#1e293b] flex items-center gap-4">
-                    <div className="w-10 h-10 bg-sky-100 rounded-lg border-2 border-slate-800 flex items-center justify-center text-xl shadow-inner">🏪</div>
-                    <div>
-                        <h3 className="text-slate-900 font-black text-lg uppercase tracking-wide">Level 5: QR Scams</h3>
-                        <p className="text-slate-500 text-[10px] font-bold tracking-widest uppercase opacity-60">KAILASH ROAD MARKET</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ═══════════════════════════════════════════
-    // DIALOGUE WITH SELVI
-    // ═══════════════════════════════════════════
-    if (gameState === 'dialogue') {
-        return (
-            <div className="w-full h-full flex items-center justify-center p-12 relative overflow-hidden">
-                {/* Background Blur */}
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-md z-0"></div>
-
-                <div className="z-10 w-full max-w-6xl flex gap-12 items-end animate-in slide-in-from-bottom-20 duration-500">
-                    {/* Portrait Character */}
-                    <div className="w-[500px] h-[700px] flex-shrink-0 relative flex items-center justify-center">
-                        <img src="/assets/selvi_portrait.png" alt="Selvi" className="w-[80%] h-auto object-contain drop-shadow-2xl" />
-                        {/* Name Tag */}
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-amber-500 text-black px-4 py-2 rounded-full font-black text-sm border-2 border-black">
-                            SELVI AKKA
+                {/* Conversational dialogue overlay */}
+                {gameState === 'dialogue' && (
+                    <div className="absolute inset-0 bg-black/45 z-40 flex flex-col justify-end p-8 pb-12 font-mono">
+                        {/* Portrait Character slide in */}
+                        <div className="absolute bottom-0 right-16 z-50 pointer-events-none animate-in slide-in-from-bottom duration-500">
+                            <img src="/assets/selvi_portrait.png" alt="Selvi" className="h-[480px] object-contain drop-shadow-[0_20px_50px_rgba(245,158,11,0.4)]" />
                         </div>
-                    </div>
 
-                    {/* Dialogue Box */}
-                    <div className="flex-1 bg-white/5 backdrop-blur-2xl border-4 border-white/10 rounded-[3rem] p-12 shadow-3xl mb-12 flex flex-col justify-between">
-                        <div>
-                            <div className="flex items-center gap-4 mb-6">
-                                <h2 className="text-amber-500 font-black text-4xl uppercase italic tracking-tighter">Selvi</h2>
-                                <span className="bg-amber-500/10 text-amber-500 px-4 py-1 rounded-full text-sm font-black uppercase tracking-widest border border-amber-500/20">Market Vendor</span>
+                        {/* Dialogue panel */}
+                        <div className="relative z-50 w-full max-w-4xl mr-64 self-center">
+                            <div className="bg-slate-900/95 backdrop-blur-xl border-4 border-slate-700/50 p-8 rounded-3xl shadow-2xl relative min-h-[200px] flex flex-col justify-between">
+                                <div className="absolute -top-6 left-8 px-6 py-2 rounded-t-xl text-xs font-black tracking-[0.2em] uppercase border-x-4 border-t-4 bg-amber-500 border-slate-700/50 text-black">
+                                    Selvi Akka
+                                </div>
+
+                                <div className="text-slate-100 text-lg font-bold leading-relaxed mb-6 font-mono">
+                                    <span className="opacity-40 mr-2">"</span>
+                                    {dialogueNode === 'start' && (
+                                        <span>Vanakkam sir! Rajan sir's grandson, right? How can I help you today?</span>
+                                    )}
+                                    {dialogueNode === 'grandpa_talk' && (
+                                        <span>Ah, Rajan sir is a very good man, always very honest and pays on time. What vegetables did he ask you to get?</span>
+                                    )}
+                                    {dialogueNode === 'veggies_list' && (
+                                        <span>Everything is fresh! Tomatoes, carrots, potatoes, and spinach. What would you like?</span>
+                                    )}
+                                    {dialogueNode === 'intro_direct' && (
+                                        <span>Yes, this is my stall! Everything you see is fresh from the market this morning. What can I pack for you?</span>
+                                    )}
+                                    {dialogueNode === 'veggies_selected' && (
+                                        <span>Sure, packing them now! That will be ₹150 for the fresh veggies. My son Muthu set up a new UPI scanner code last week so I don't have to carry cash. Can you scan the QR code to pay?</span>
+                                    )}
+                                    <span className="opacity-40 ml-2">"</span>
+                                </div>
+
+                                {/* Choice Buttons */}
+                                <div className="flex flex-col gap-2 relative z-50">
+                                    {dialogueNode === 'start' && (
+                                        <>
+                                            <button onClick={() => setDialogueNode('grandpa_talk')} className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-indigo-950/80 border border-slate-800 hover:border-indigo-500/50 text-cyan-400 text-xs font-bold rounded-xl transition-all">
+                                                ➜ "Vanakkam Akka! Yes, Grandpa sent me to buy vegetables."
+                                            </button>
+                                            <button onClick={() => setDialogueNode('veggies_list')} className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-indigo-950/80 border border-slate-800 hover:border-indigo-500/50 text-cyan-400 text-xs font-bold rounded-xl transition-all">
+                                                ➜ "Hello! What fresh vegetables do you have today?"
+                                            </button>
+                                            <button onClick={() => setDialogueNode('intro_direct')} className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-indigo-950/80 border border-slate-800 hover:border-indigo-500/50 text-cyan-400 text-xs font-bold rounded-xl transition-all">
+                                                ➜ "Hey, is this Selvi Akka's stall? I need some veggies."
+                                            </button>
+                                        </>
+                                    )}
+                                    {(dialogueNode === 'grandpa_talk' || dialogueNode === 'veggies_list' || dialogueNode === 'intro_direct') && (
+                                        <>
+                                            <button onClick={() => setDialogueNode('veggies_selected')} className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-indigo-950/80 border border-slate-800 hover:border-indigo-500/50 text-cyan-400 text-xs font-bold rounded-xl transition-all">
+                                                ➜ "Please pack tomatoes, carrots, and potatoes for ₹150."
+                                            </button>
+                                            <button onClick={() => setDialogueNode('veggies_selected')} className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-indigo-950/80 border border-slate-800 hover:border-indigo-500/50 text-cyan-400 text-xs font-bold rounded-xl transition-all">
+                                                ➜ "I'll take some fresh spinach and carrots."
+                                            </button>
+                                        </>
+                                    )}
+                                    {dialogueNode === 'veggies_selected' && (
+                                        <div className="flex gap-4">
+                                            <button onClick={() => { setDialogueNode('start'); setGameState('market_walk'); }} className="px-6 py-3 bg-slate-950/80 hover:bg-slate-800/80 border border-slate-800 text-slate-400 text-xs font-black rounded-xl transition-all uppercase tracking-wider">
+                                                Maybe Later
+                                            </button>
+                                            <button onClick={() => setGameState('phone_home')} className="px-8 py-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-black rounded-xl transition-all uppercase tracking-wider shadow-[0_15px_30px_rgba(245,158,11,0.3)]">
+                                                OK, Scan QR 📱
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                            <p className="text-white text-3xl leading-snug font-serif italic text-slate-100">
-                                "Rajan sir's grandson ah? Good boy you are. He always paid on time, very honest man. That will be ₹150 for the vegetables. Please scan here sir — new UPI payment. My son Muthu set it up last week. Very easy, no cash needed!"
-                            </p>
-                        </div>
-                        <div className="flex justify-end gap-6 mt-12">
-                            <button className="bg-white/10 hover:bg-white/20 text-white/60 px-10 py-5 rounded-2xl font-black text-xl transition-all" onClick={() => setGameState('market_walk')}>MAYBE LATER</button>
-                            <button className="bg-amber-500 hover:bg-amber-400 text-black px-16 py-5 rounded-2xl font-black text-2xl shadow-[0_15px_40px_rgba(245,158,11,0.4)] transition-transform hover:scale-105 active:scale-95" onClick={() => setGameState('phone_home')}>
-                                OK, SCAN QR 📱
-                            </button>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         );
     }
+
 
     // ═══════════════════════════════════════════
     // PHONE HOME SCREEN (App selection)
@@ -1202,16 +1206,12 @@ const Level5 = () => {
             { name: 'QR Scanner', icon: '📱', color: 'bg-gradient-to-br from-cyan-400 to-cyan-600', action: 'qr_scan', highlight: true },
         ];
         return (
-            <div className="w-full h-full bg-[#0d0d0d] flex items-center justify-center p-4">
+            <div className="w-full h-full flex items-center justify-center p-4 relative overflow-hidden bg-cover bg-center" style={{ backgroundImage: 'url("/assets/market_bg.png")' }}>
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-md z-0"></div>
                 <FeedbackToast />
-                {/* Ambient background glow */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                    <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
-                    <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl"></div>
-                </div>
 
                 {/* Phone Container — Premium Design */}
-                <div className="w-[380px] h-[760px] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[3.5rem] p-[3px] relative shadow-[0_50px_100px_rgba(0,0,0,0.9),0_0_40px_rgba(0,0,0,0.5)]">
+                <div className="w-[380px] h-[760px] bg-gradient-to-b from-zinc-800 to-zinc-900 rounded-[3.5rem] p-[3px] relative z-10 shadow-[0_50px_100px_rgba(0,0,0,0.9),0_0_40px_rgba(0,0,0,0.5)]">
                     {/* Inner bezel */}
                     <div className="w-full h-full bg-black rounded-[3.3rem] p-3 relative">
                         {/* Dynamic Island */}
@@ -1297,13 +1297,12 @@ const Level5 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'qr_scan') {
         return (
-            <div className="w-full h-full bg-[#1a1c1e] flex items-center justify-center p-8">
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-cover bg-center" style={{ backgroundImage: 'url("/assets/market_bg.png")' }}>
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-md z-0"></div>
                 <FeedbackToast />
-                {/* Background market elements */}
-                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
 
                 {/* iPhone Shape Container — sized to fit viewport */}
-                <div className="w-[360px] h-[700px] bg-black rounded-[3rem] p-3 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[6px] border-zinc-800">
+                <div className="w-[360px] h-[700px] bg-black rounded-[3rem] p-3 relative z-10 shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[6px] border-zinc-800">
                     {/* Notch */}
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-7 bg-black rounded-b-2xl z-50"></div>
 
@@ -1391,11 +1390,9 @@ const Level5 = () => {
         const allCluesCollected = foundDeviceClues.length >= 4;
 
         return (
-            <div className="w-full h-full bg-[#1a1c1e] flex items-center justify-center p-8 gap-12 overflow-hidden relative font-sans">
+            <div className="w-full h-full flex items-center justify-center p-8 gap-12 overflow-hidden relative font-sans bg-cover bg-center" style={{ backgroundImage: 'url("/assets/market_bg.png")' }}>
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-md z-0"></div>
                 <FeedbackToast />
-
-                {/* Background market elements */}
-                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
 
                 {/* 
                  * ==========================================
@@ -1579,8 +1576,9 @@ const Level5 = () => {
             }
         };
         return (
-            <div className="w-full h-full bg-[#1a1c1e] flex items-center justify-center p-8">
-                <div className="w-[336px] h-[688px] relative flex-shrink-0">
+            <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden bg-cover bg-center" style={{ backgroundImage: 'url("/assets/market_bg.png")' }}>
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-md z-0"></div>
+                <div className="w-[336px] h-[688px] relative z-10 flex-shrink-0">
                     <div className="w-[420px] h-[860px] bg-black rounded-[4rem] p-4 relative shadow-[0_50px_100px_rgba(0,0,0,0.8)] border-[8px] border-zinc-800 origin-top-left scale-[0.8]">
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-8 bg-black rounded-b-3xl z-50"></div>
                         <div className="w-full h-full bg-slate-900 rounded-[3rem] overflow-hidden flex flex-col relative">
@@ -1623,7 +1621,8 @@ const Level5 = () => {
     // ═══════════════════════════════════════════
     if (gameState === 'scam_dialogue') {
         return (
-            <div className="w-full h-full flex items-center justify-center p-12 relative overflow-hidden bg-black/90">
+            <div className="w-full h-full flex items-center justify-center p-12 relative overflow-hidden bg-cover bg-center" style={{ backgroundImage: 'url("/assets/market_bg.png")' }}>
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-md z-0"></div>
                 <div className="z-10 w-full max-w-6xl flex gap-12 items-start animate-in slide-in-from-bottom-20 duration-500">
                     <div className="w-[400px] h-[500px] flex-shrink-0 relative flex flex-col items-center justify-start">
                         <img src="/assets/selvi_portrait.png" alt="Selvi" className="w-[80%] h-auto object-contain object-top drop-shadow-2xl" />
@@ -1678,150 +1677,84 @@ const Level5 = () => {
         const hasVerifiedBoard = inspectedZones.includes(20);
 
         return (
-            <div className="w-full h-full bg-[#0a0c10] flex items-center justify-center p-10 overflow-hidden relative">
+            <div className="w-full h-full flex flex-col bg-[#7fc2ed] overflow-hidden relative font-sans">
                 <FeedbackToast />
                 <EvidenceBinder />
-                {/* Background market elements */}
-                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: `url("${MARKET_BKG}")`, backgroundSize: 'cover' }}></div>
 
-                <div className="w-full max-w-6xl bg-white/5 backdrop-blur-3xl rounded-[3rem] border-4 border-emerald-500/30 shadow-3xl overflow-hidden flex flex-col p-12 pb-8 animate-in zoom-in-95 duration-500 h-[720px]">
-                    <div className="flex items-center gap-6 mb-8 flex-shrink-0">
-                        <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-4xl shadow-[0_0_50px_rgba(16,185,129,0.4)] border-4 border-black/20">🛡️</div>
-                        <div>
-                            <h2 className="text-emerald-400 font-black text-5xl uppercase italic tracking-tighter drop-shadow-lg">Fraud Prevented</h2>
-                            <p className="text-slate-400 font-black text-lg uppercase tracking-widest mt-1">
-                                {hasVerifiedBoard ? "STOLEN IDENTITY EXPOSED" : "YOU CANCELLED THE COLLECT REQUEST!"}
-                            </p>
-                        </div>
+                {/* Kailash Market Background */}
+                <div className="relative flex-1">
+                    <div className="absolute top-0 left-0 w-full h-full z-0">
+                        <img src="/assets/market_bg.png" alt="Kailash Market" className="w-full h-full object-[100%_100%]" style={{ objectFit: 'fill' }} />
                     </div>
 
-                    <div className="flex-1 grid grid-cols-2 gap-12 min-h-0">
-                        {/* Action Steps - scrollable */}
-                        <div className="space-y-5 overflow-y-auto pr-2 custom-scrollbar">
-                            {/* Step 1: Cancel */}
-                            <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-900/40 to-emerald-950/30 border border-emerald-500/40 shadow-[0_4px_20px_rgba(16,185,129,0.1)] backdrop-blur-sm">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-sm font-black text-black shadow-md">✓</div>
-                                    <h4 className="font-black text-lg uppercase tracking-tight text-emerald-400">Step 1: Cancel & Question</h4>
-                                </div>
-                                <p className="text-slate-300 leading-relaxed text-sm pl-11">
-                                    You tapped CANCEL on the collect request. You asked Selvi for her registered UPI ID: 'selvi.vegetables@oksbi'. The scanned ID was a random number.
-                                </p>
+                    {/* Render Player at current pos in level */}
+                    <Player x={playerPos.x} y={playerPos.y} />
+                </div>
+
+                {/* Conversational dialogue overlay matching the game flow */}
+                <div className="absolute inset-0 bg-black/45 z-40 flex flex-col justify-end p-8 pb-12 font-mono">
+                    {/* Portrait Character slide in */}
+                    <div className="absolute bottom-0 right-16 z-50 pointer-events-none animate-in slide-in-from-bottom duration-500">
+                        <img src="/assets/selvi_portrait.png" alt="Selvi" className="h-[480px] object-contain drop-shadow-[0_20px_50px_rgba(245,158,11,0.4)]" />
+                    </div>
+
+                    {/* Dialogue panel */}
+                    <div className="relative z-50 w-full max-w-4xl mr-64 self-center">
+                        <div className="bg-slate-900/95 backdrop-blur-xl border-4 border-slate-700/50 p-8 rounded-3xl shadow-2xl relative min-h-[200px] flex flex-col justify-between">
+                            <div className="absolute -top-6 left-8 px-6 py-2 rounded-t-xl text-xs font-black tracking-[0.2em] uppercase border-x-4 border-t-4 bg-amber-500 border-slate-700/50 text-black">
+                                {!stickerPeeled ? "Selvi Akka & Detective" : "Selvi Akka"}
                             </div>
 
-                            {/* Step 2: Physical Inspection */}
-                            <div className={`p-5 rounded-2xl transition-all backdrop-blur-sm ${hasVerifiedBoard ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-black shadow-[0_8px_30px_rgba(16,185,129,0.35)]' : 'bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10'}`}>
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shadow-md ${hasVerifiedBoard ? 'bg-black/20 text-white' : 'bg-white/10 text-white/40'}`}>{hasVerifiedBoard ? '✓' : '2'}</div>
-                                    <h4 className="font-black text-lg uppercase tracking-tight">
-                                        {hasVerifiedBoard ? 'Step 2: Sticker Removed' : 'Step 2: Inspect Physical QR'}
-                                    </h4>
-                                </div>
-                                <p className={`text-sm leading-relaxed pl-11 ${hasVerifiedBoard ? 'text-black/70' : 'text-slate-400'}`}>
-                                    Look for tampered stickers on Selvi's payment board to prove the scam to her.
-                                </p>
-                                {!hasVerifiedBoard && (
-                                    <button className="w-full bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 text-black font-black py-4 rounded-xl mt-4 text-sm shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition-all active:scale-95 hover:shadow-[0_12px_32px_rgba(16,185,129,0.4)]"
-                                        onClick={() => {
-                                            setGameState('peeling_minigame');
-                                        }}>
-                                        PHYSICALLY EXAMINE SELVI'S BOARD 🔍
-                                    </button>
+                            <div className="text-slate-100 text-lg font-bold leading-relaxed mb-6 font-mono">
+                                <span className="opacity-40 mr-2">"</span>
+                                {!hasVerifiedBoard ? (
+                                    <span>Vanakkam thambi! Muthu said my UPI ID is selvi.vegetables@oksbi... why is your phone warning you about a collect request? Is something wrong?</span>
+                                ) : !stickerPeeled ? (
+                                    <span>Aiyo! Someone pasted a fake QR sticker over my board? Redirecting payments to 9944XXXXX@paytm? How can they do this to a poor vendor... what should we do now, thambi?</span>
+                                ) : (
+                                    <span>Thank goodness! The speaker announced 'Received one hundred and fifty rupees!' The transfer is safe! I will warn all other vendors in the market immediately. Thank you, thambi!</span>
                                 )}
+                                <span className="opacity-40 ml-2">"</span>
                             </div>
 
-                            {/* Step 3: Correct Payment */}
-                            <div className={`p-5 rounded-2xl transition-all backdrop-blur-sm ${hasVerifiedBoard && stickerPeeled ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_8px_30px_rgba(59,130,246,0.35)]' : 'bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 opacity-50'}`}>
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shadow-md ${stickerPeeled ? 'bg-white/20 text-white' : 'bg-white/10 text-white/40'}`}>{stickerPeeled ? '✓' : '3'}</div>
-                                    <h4 className="font-black text-lg uppercase tracking-tight">
-                                        {stickerPeeled ? 'Step 3: Payment Sent' : 'Step 3: Pay Correctly'}
-                                    </h4>
-                                </div>
-                                <p className={`text-sm leading-relaxed pl-11 ${stickerPeeled ? 'text-white/80' : 'text-slate-400'}`}>
-                                    Open GPay, scan Selvi's real QR code, enter ₹150, and confirm with your UPI PIN.
-                                </p>
-                                {hasVerifiedBoard && !stickerPeeled && (
-                                    <button className="w-full bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-400 hover:to-blue-300 text-white font-black py-4 rounded-xl mt-4 text-sm shadow-[0_8px_24px_rgba(59,130,246,0.3)] transition-all active:scale-95 hover:shadow-[0_12px_32px_rgba(59,130,246,0.4)]"
+                            {/* Choices block */}
+                            <div className="flex flex-col gap-2 relative z-50">
+                                {!hasVerifiedBoard ? (
+                                    <button 
+                                        className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-amber-950/80 border border-slate-800 hover:border-amber-500/50 text-amber-400 text-xs font-bold rounded-xl transition-all"
+                                        onClick={() => setGameState('peeling_minigame')}
+                                    >
+                                        ➜ "Let me inspect the physical QR board closely, Akka. It might be tampered."
+                                    </button>
+                                ) : !stickerPeeled ? (
+                                    <button 
+                                        className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-emerald-950/80 border border-slate-800 hover:border-emerald-500/50 text-emerald-400 text-xs font-bold rounded-xl transition-all"
                                         onClick={() => {
                                             setGpayStep('scan');
                                             setGpayAmount('');
                                             setGpayPin('');
                                             setGameState('gpay_payment');
-                                        }}>
-                                        OPEN GPAY & PAY ₹150 💳
+                                        }}
+                                    >
+                                        ➜ "The sticker is removed. Let's open GPay and transfer the ₹150 correctly now."
+                                    </button>
+                                ) : (
+                                    <button 
+                                        className="w-full text-left px-4 py-2.5 bg-slate-950/80 hover:bg-indigo-950/80 border border-slate-800 hover:border-indigo-500/50 text-cyan-400 text-xs font-bold rounded-xl transition-all"
+                                        onClick={() => { setPlayerPos({ x: 800, y: 600 }); setGameState('market_return'); }}
+                                    >
+                                        ➜ "You're welcome, Akka! I will return to the investigation room to report this scam."
                                     </button>
                                 )}
                             </div>
                         </div>
-
-                        {/* Dialogue/Scene Overlay - scrollable */}
-                        <div className="bg-black/40 border-4 border-white/5 rounded-[2.5rem] p-8 relative flex flex-col overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl"></div>
-                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar relative z-10 w-full">
-                                <p className="text-white/30 font-black text-[10px] uppercase tracking-[0.4em] mb-4 border-b border-white/10 pb-2 sticky top-0 bg-black/40 backdrop-blur-sm">Dialogue Log</p>
-                                <div className="space-y-4">
-                                    <div className="flex gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0"></div>
-                                        <p className="text-slate-300 text-lg font-serif italic">"Selvi akka, your QR code is asking me to COLLECT money. This is a scam! What is the UPI ID your son gave you?"</p>
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="w-10 h-10 border-2 border-amber-500/50 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 bg-amber-900/30">
-                                            <img src="/assets/selvi_portrait.png" className="w-full h-full object-cover opacity-80" alt="Selvi" />
-                                        </div>
-                                        <p className="text-amber-500 text-lg font-serif italic font-bold">"He said it is 'selvi.vegetables@oksbi'. Why? What happened sir?"</p>
-                                    </div>
-
-                                    {hasVerifiedBoard && (
-                                        <div className="flex gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-slate-800 flex-shrink-0"></div>
-                                            <p className="text-emerald-400/90 text-lg font-serif italic">"Look, someone pasted a fake sticker over yours. The scanner was reading '9944XXXXX@paytm'."</p>
-                                        </div>
-                                    )}
-
-                                    {stickerPeeled && (
-                                        <div className="flex flex-col gap-4">
-                                            <div className="flex items-center gap-4 bg-emerald-950/40 p-3 rounded-2xl border border-emerald-500/20 w-max">
-                                                {/* Happy Sound Box */}
-                                                <div className="w-8 h-10 bg-blue-600 rounded flex flex-col items-center pt-1 border border-slate-800 drop-shadow-lg">
-                                                    <div className="w-4 h-4 bg-slate-800 rounded-full border border-slate-900 flex justify-center items-center">
-                                                        <div className="w-2 h-2 bg-emerald-500/30 rounded-full animate-ping"></div>
-                                                    </div>
-                                                    <div className="mt-auto mb-0.5 w-full flex justify-end px-1">
-                                                        <div className="w-1 h-1 rounded-full bg-emerald-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]"></div>
-                                                    </div>
-                                                </div>
-                                                <div>
-                                                    <p className="text-emerald-400 font-mono text-[10px] uppercase tracking-widest mb-1">Sound Box Verification</p>
-                                                    <p className="text-emerald-300 font-black text-xs italic">"Received one hundred and fifty rupees!"</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-4 mt-2">
-                                                <div className="w-10 h-10 border-2 border-amber-500/50 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 bg-amber-900/30">
-                                                    <img src="/assets/selvi_portrait.png" className="w-full h-full object-cover opacity-80" alt="Selvi" />
-                                                </div>
-                                                <p className="text-amber-500 text-lg font-serif italic font-bold">"Aiyo! Thank you, grandson! I heard the box. The sticker is fake! I will share a photo on the WhatsApp group to warn others!"</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
                     </div>
-
-                    {/* BACK button - resized and centered */}
-                    {stickerPeeled && (
-                        <div className="mt-4 flex-shrink-0 flex justify-center animate-in fade-in slide-in-from-bottom duration-500">
-                            <button className="px-8 bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-600 hover:from-emerald-500 hover:via-emerald-400 hover:to-emerald-500 text-white font-black py-3 rounded-xl text-base shadow-[0_8px_30px_rgba(16,185,129,0.3)] flex items-center justify-center gap-3 transition-all active:scale-[0.97] hover:shadow-[0_12px_40px_rgba(16,185,129,0.4)] border border-emerald-400/20"
-                                onClick={() => { setPlayerPos({ x: 800, y: 600 }); setGameState('market_return'); }}>
-                                ⬅ BACK — Go to Room & Report Scam
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
         );
     }
+
+
 
     // ═══════════════════════════════════════════
     // PEELING EDGE MINI GAME (Peel from LEFT)
@@ -1838,6 +1771,16 @@ const Level5 = () => {
             const dist = Math.sqrt(Math.pow(y, 2) + Math.pow(x, 2));
             const progress = Math.min(100, Math.max(0, (dist / maxDist) * 100));
             setPeelProgress(progress);
+
+            // Auto-complete drag when pulling all the way to prevent getting stuck
+            if (progress >= 95) {
+                setIsDraggingPeel(false);
+                setIsStickerFalling(true);
+                setPeelProgress(100);
+                setTimeout(() => {
+                    setCanContinueFromPeel(true);
+                }, 1000);
+            }
         };
 
         const handlePointerUp = () => {
@@ -1894,13 +1837,14 @@ const Level5 = () => {
         };
 
         return (
-            <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden"
-                style={{ touchAction: 'none', background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0f 100%)' }}>
+            <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden bg-cover bg-center"
+                style={{ touchAction: 'none', backgroundImage: 'url("/assets/market_bg.png")' }}>
+                <div className="absolute inset-0 bg-black/65 backdrop-blur-md z-0"></div>
                 <FeedbackToast />
                 <EvidenceBinder />
 
                 {/* Ambient particles */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
                     {[...Array(6)].map((_, i) => (
                         <div key={i} className="absolute w-1 h-1 bg-cyan-400/30 rounded-full animate-ping"
                             style={{ left: `${15 + i * 15}%`, top: `${20 + i * 10}%`, animationDelay: `${i * 0.5}s`, animationDuration: '3s' }}></div>
@@ -1908,7 +1852,7 @@ const Level5 = () => {
                 </div>
 
                 {/* QR Board Container — White Plastic Materiality */}
-                <div className="w-[420px] h-[480px] bg-[#f8fafc] p-6 rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-4px_10px_rgba(0,0,0,0.05)] relative select-none border border-slate-200/50"
+                <div className="w-[420px] h-[480px] bg-[#f8fafc] p-6 rounded-[2.5rem] shadow-[0_40px_100px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.8),inset_0_-4px_10px_rgba(0,0,0,0.05)] relative z-10 select-none border border-slate-200/50"
                     onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp}>
 
                     {/* Board clip at top — more mechanical look */}
@@ -1937,13 +1881,13 @@ const Level5 = () => {
                         )}
                     </div>
 
-                    {/* The Fake Peeling Sticker — Weathered and Matte Layer with Fall Animation */}
-                    <div className={`absolute inset-7 bg-[#f1f5f9] rounded-2xl overflow-hidden shadow-[0_15px_45px_rgba(0,0,0,0.5)] flex items-center justify-center pointer-events-none grayscale-[0.3] sepia-[0.1]
-                        ${isStickerFalling ? 'transition-all duration-[1000ms] ease-in' : ''}`}
+                    {/* The Fake Peeling Sticker — Weathered and Matte Layer with Realistic Fall Animation */}
+                    <div className="absolute inset-7 bg-[#f1f5f9] rounded-2xl overflow-hidden shadow-[0_15px_45px_rgba(0,0,0,0.5)] flex items-center justify-center pointer-events-none grayscale-[0.3] sepia-[0.1]"
                         style={{
                             clipPath: isStickerFalling ? 'none' : `polygon(${peelProgress}% 0, 100% 0, 100% 100%, 0 100%, 0 ${peelProgress}%)`,
-                            transform: isStickerFalling ? 'translate(50px, 1200px) rotate(45deg) scale(0.9)' : 'none',
+                            animation: isStickerFalling ? 'flutter-fall 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards' : 'none',
                             opacity: isStickerFalling ? 0 : 0.95,
+                            transform: isStickerFalling ? 'none' : 'none',
                             transition: isDraggingPeel ? 'none' : 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                             zIndex: 10
                         }}>
@@ -1961,30 +1905,31 @@ const Level5 = () => {
                         </div>
                     </div>
 
-                    {/* Dynamic Edge Highlight & Depth Shadow — Disabled during fall */}
-                    {!isStickerFalling && peelProgress > 0 && peelProgress < 100 && (
-                        <div className="absolute inset-7 pointer-events-none z-[11]" style={{ clipPath: `polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0)` }}>
-                            {/* The shadow cast by the lifting edge */}
+                    {/* Realistic Folded Flap Underside (Mirrored Curling Triangle) */}
+                    {!isStickerFalling && peelProgress > 0 && peelProgress <= 100 && (
+                        <>
+                            {/* Crease shadow cast on the underneath QR */}
                             <div 
-                                className="absolute w-[600px] h-[60px] bg-gradient-to-b from-black/40 via-black/5 to-transparent blur-xl"
+                                className="absolute bg-gradient-to-b from-black/45 to-transparent blur-sm pointer-events-none"
                                 style={{
-                                    left: '-150px',
-                                    top: '0',
-                                    transform: `rotate(-45deg) translate(${peelProgress * 3.8 - 40}px, ${peelProgress * 3.8}px)`,
-                                    transformOrigin: 'center'
+                                    left: '-50px',
+                                    top: '-50px',
+                                    width: '200%',
+                                    height: '35px',
+                                    // Translate shadow based on drag progress
+                                    transform: `rotate(-45deg) translate(0, ${peelProgress * 3.4}px)`,
+                                    transformOrigin: 'top left',
+                                    zIndex: 9
                                 }}
                             />
-                            {/* The bright edge highlight */}
+                            {/* The folded back part of the paper (perfectly mirrored triangle) */}
                             <div 
-                                className="absolute w-[600px] h-[10px] bg-white/50 blur-[2px]"
+                                className="absolute inset-7 rounded-2xl bg-gradient-to-br from-[#cbd5e1] via-[#f1f5f9] to-[#ffffff] pointer-events-none z-[12] border-r border-b border-white/20 shadow-md"
                                 style={{
-                                    left: '-150px',
-                                    top: '0',
-                                    transform: `rotate(-45deg) translate(${peelProgress * 3.8 - 10}px, ${peelProgress * 3.8 + 10}px)`,
-                                    transformOrigin: 'center'
+                                    clipPath: `polygon(${peelProgress}% 0, 0 ${peelProgress}%, ${peelProgress * 1.08}% ${peelProgress * 1.08}%)`
                                 }}
                             />
-                        </div>
+                        </>
                     )}
 
                     {/* The Interactive Corner Handle */}
@@ -2021,7 +1966,7 @@ const Level5 = () => {
                 <div className="mt-8 text-center z-10">
                     {!canContinueFromPeel ? (
                         <>
-                            <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-black text-3xl uppercase tracking-[0.2em] mb-2">Peel the Sticker</h2>
+                            <h2 className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 font-black text-3xl uppercase tracking-[0.2em] mb-2 font-mono">Peel the Sticker</h2>
                             <p className="text-white/40 font-serif italic text-base mb-4">Drag from the corner to reveal the authentic QR underneath...</p>
 
                             <div className="w-64 mx-auto">
@@ -2038,11 +1983,11 @@ const Level5 = () => {
                     ) : (
                         <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in duration-500">
                              <div className="px-6 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-full mb-4">
-                                <span className="text-emerald-400 font-black text-xs uppercase tracking-[0.3em] animate-pulse">✓ Authentic QR revealed!</span>
+                                <span className="text-emerald-400 font-black text-xs uppercase tracking-[0.3em] animate-pulse font-mono">✓ Authentic QR revealed!</span>
                             </div>
                             <button 
                                 onClick={handleProceedFromPeeling}
-                                className="group relative px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-black text-sm uppercase tracking-[0.4em] transition-all transform hover:scale-110 active:scale-95 shadow-[0_15px_40px_rgba(16,185,129,0.4)] overflow-hidden"
+                                className="group relative px-12 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-full font-black text-sm uppercase tracking-[0.4em] transition-all transform hover:scale-110 active:scale-95 shadow-[0_15px_40px_rgba(16,185,129,0.4)] overflow-hidden font-mono"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                                 Proceed to Payment
@@ -2050,6 +1995,17 @@ const Level5 = () => {
                         </div>
                     )}
                 </div>
+
+                <style dangerouslySetInnerHTML={{__html: `
+                    @keyframes flutter-fall {
+                        0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 0.95; }
+                        20% { transform: translate(45px, 150px) rotate(18deg) scale(0.97); }
+                        40% { transform: translate(-35px, 320px) rotate(-14deg) scale(0.94); }
+                        60% { transform: translate(55px, 500px) rotate(24deg) scale(0.91); }
+                        80% { transform: translate(-25px, 740px) rotate(-9deg) scale(0.88); opacity: 0.7; }
+                        100% { transform: translate(65px, 980px) rotate(38deg) scale(0.85); opacity: 0; }
+                    }
+                `}} />
             </div>
         );
     }

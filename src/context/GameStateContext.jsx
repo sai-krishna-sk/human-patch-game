@@ -172,7 +172,8 @@ export const GameStateProvider = ({ children }) => {
             colorBlindFilter,
             setColorBlindFilter,
             visualProfile,
-            setVisualProfile
+            setVisualProfile,
+            resetProgress
         }}>
             {children}
         </GameStateContext.Provider>
