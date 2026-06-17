@@ -498,7 +498,10 @@ const DIALOGUE_TREE = {
         next: 'time_skip_trigger'
     },
     end_level_plead: {
-        agent: ["The court will decide your fate. Stay online."],
+        agent: [
+            "The police are on their way to your location to arrest you.",
+            "Do not move. Stay online."
+        ],
         next: 'time_skip_trigger'
     },
     time_skip_trigger: {
@@ -581,7 +584,14 @@ const Level12 = () => {
     const [livingRoomPlayerPos, setLivingRoomPlayerPos] = useState({ x: 1450, y: 550 }); // Living Room
     const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 600, y: 700 }); // Bedroom
     const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 600, y: 600 }); // Garden
+    const [hasTorch, setHasTorch] = useState(false);
     
+    const [neighborKnock, setNeighborKnock] = useState(false);
+    const [showMobileBank, setShowMobileBank] = useState(false);
+    const [finalOutcome, setFinalOutcome] = useState(null);
+    const [neighborDialogStep, setNeighborDialogStep] = useState(0);
+    const audioRef = useRef(null);
+
     const [keys, setKeys] = useState({});
     const [interactionTarget, setInteractionTarget] = useState(null);
     const [canInteract, setCanInteract] = useState(false);
@@ -617,16 +627,59 @@ const Level12 = () => {
                     setPhase('washroom_inside');
                 } else if (phase === 'bedroom_return_walk' && interactionTarget === 'exit') {
                     setPhase('living_room_return_walk');
-                } else if (phase === 'living_room_return_walk' && interactionTarget === 'exit') {
-                    setPhase('garden_walk');
-                } else if (phase === 'garden_walk' && interactionTarget === 'escape') {
-                    enterLevel(14);
+                } else if (phase === 'living_room_return_walk' && interactionTarget === 'study') {
+                    setPhase('study_return_walk');
+                } else if (phase === 'living_room_return_walk' && interactionTarget === 'exit' && hasTorch) {
+                    // removed: neighborKnock was moved to finding the torch
+                } else if (phase === 'study_return_walk') {
+                    if (interactionTarget === 'drawer' && !hasTorch) {
+                        setHasTorch(true);
+                        setNeighborKnock(true);
+                    } else if (interactionTarget === 'exit') {
+                        setPhase('living_room_return_walk');
+                    }
+                }
+                
+                if (neighborKnock) {
+                    setNeighborKnock(false);
+                    setPhase('garden_walk_night');
+                } else if (phase === 'garden_walk_night' && interactionTarget === 'neighbor') {
+                    setPhase('neighbor_conversation');
+                } else if (phase === 'neighbor_conversation') {
+                    if (neighborDialogStep < 5) {
+                        setNeighborDialogStep(prev => prev + 1);
+                    } else {
+                        setFinalOutcome('escaped');
+                    }
+                }
+            } else if (e.key.toLowerCase() === 'm') {
+                if (neighborKnock && !finalOutcome) {
+                    setShowMobileBank(true);
                 }
             }
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [phase, interactionTarget, enterLevel]);
+    }, [phase, interactionTarget, neighborKnock, finalOutcome, hasTorch]);
+
+    // Play Knock Sound
+    useEffect(() => {
+        if (neighborKnock) {
+            audioRef.current = new Audio('/audio/doorknock.mp3');
+            audioRef.current.loop = true;
+            audioRef.current.play().catch(e => console.log("Audio play blocked by browser interaction policy"));
+        } else {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+        }
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+        };
+    }, [neighborKnock]);
 
     // Washroom Inside Timer
     useEffect(() => {
@@ -642,7 +695,7 @@ const Level12 = () => {
 
     // Movement Loop
     useEffect(() => {
-        if (!['study_walk', 'living_room_walk', 'washroom_walk', 'bedroom_return_walk', 'living_room_return_walk', 'garden_walk'].includes(phase)) return;
+        if (!['study_walk', 'living_room_walk', 'washroom_walk', 'bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase)) return;
 
         let frameId;
         const loop = () => {
@@ -665,7 +718,7 @@ const Level12 = () => {
                     setInteractionTarget(target);
                     return { x: nx, y: ny };
                 });
-            } else if (phase === 'living_room_walk') {
+            } else if (phase === 'living_room_walk' || phase === 'living_room_return_walk') {
                 setLivingRoomPlayerPos(p => {
                     let nx = p.x, ny = p.y;
                     if (keys['w'] || keys['arrowup']) ny -= SPEED;
@@ -677,7 +730,12 @@ const Level12 = () => {
                     ny = Math.max(120, Math.min(ny, LIVING_ROOM_HEIGHT - 120));
 
                     let target = null;
-                    if (Math.abs(nx - 800) < 150 && ny > LIVING_ROOM_HEIGHT - 150) target = 'bedroom'; // bottom exit
+                    if (phase === 'living_room_walk') {
+                        if (Math.abs(nx - 800) < 150 && ny > LIVING_ROOM_HEIGHT - 150) target = 'bedroom'; // bottom exit
+                    } else if (phase === 'living_room_return_walk') {
+                        if (Math.abs(nx - 800) < 150 && ny < 200) target = 'exit'; // top door
+                        if (Math.abs(nx - 1450) < 150 && Math.abs(ny - 550) < 150) target = 'study'; // right door
+                    }
                     setInteractionTarget(target);
 
                     return { x: nx, y: ny };
@@ -702,24 +760,30 @@ const Level12 = () => {
 
                     return { x: nx, y: ny };
                 });
-            } else if (phase === 'living_room_return_walk') {
-                setLivingRoomPlayerPos(p => {
+            } else if (phase === 'study_return_walk') {
+                setPlayerPos(p => {
                     let nx = p.x, ny = p.y;
                     if (keys['w'] || keys['arrowup']) ny -= SPEED;
                     if (keys['s'] || keys['arrowdown']) ny += SPEED;
                     if (keys['a'] || keys['arrowleft']) nx -= SPEED;
                     if (keys['d'] || keys['arrowright']) nx += SPEED;
-
-                    nx = Math.max(120, Math.min(nx, LIVING_ROOM_WIDTH - 120));
-                    ny = Math.max(120, Math.min(ny, LIVING_ROOM_HEIGHT - 120));
+                    nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
+                    ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
+                    
+                    if (checkCollision(nx, ny, DESK_ZONE)) {
+                        if (p.x + PLAYER_SIZE <= DESK_ZONE.x || p.x >= DESK_ZONE.x + DESK_ZONE.w) nx = p.x;
+                        if (p.y + PLAYER_SIZE <= DESK_ZONE.y || p.y >= DESK_ZONE.y + DESK_ZONE.h) ny = p.y;
+                    }
 
                     let target = null;
-                    if (Math.abs(nx - 800) < 150 && ny < 200) target = 'exit'; // Top door (Main Exit)
+                    if (Math.abs(nx - 600) < 150 && ny > ROOM_HEIGHT - 100) target = 'exit';
+                    else if (Math.abs(nx - 200) < 150 && ny < 200) target = 'cupboard';
+                    else if (checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 })) target = 'drawer';
+                    
                     setInteractionTarget(target);
-
                     return { x: nx, y: ny };
                 });
-            } else if (phase === 'garden_walk') {
+            } else if (phase === 'garden_walk_night') {
                 setGardenPlayerPos(p => {
                     let nx = p.x, ny = p.y;
                     if (keys['w'] || keys['arrowup']) ny -= SPEED;
@@ -730,7 +794,7 @@ const Level12 = () => {
                     ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
 
                     let target = null;
-                    if (Math.abs(nx - 600) < 200 && ny > ROOM_HEIGHT - 150) target = 'escape'; // Bottom edge escape
+                    if (Math.abs(nx - 600) < 200 && ny > ROOM_HEIGHT - 200) target = 'neighbor'; 
                     setInteractionTarget(target);
 
                     return { x: nx, y: ny };
@@ -950,24 +1014,69 @@ const Level12 = () => {
 
             {/* Washroom Inside Transition Phase */}
             {phase === 'washroom_inside' && (
-                <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black animate-pulse-slow">
+                <div className="absolute inset-0 z-[120] flex flex-col items-center justify-center bg-black animate-pulse-slow">
                     <h1 className="text-white text-xl font-serif tracking-[0.2em] opacity-0 text-center px-12" style={{ animation: 'fade-in-out 3s ease-in-out forwards' }}>
-                        The washroom window has bars...<br/><br/>
-                        <span className="text-red-500 font-bold">I need to make a run for the front door.</span>
+                        *CLICK* ... The power just went out.<br/><br/>
+                        <span className="text-red-500 font-bold">I need to find a torch in Thatha's Study.</span>
                     </h1>
+                    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-red-600/80 border-[2px] border-black text-white px-6 py-2 z-50 font-bold tracking-widest text-sm uppercase shadow-2xl animate-pulse">
+                        "Arjun?! Why did your camera go dark?! Do not try to run!"
+                    </div>
                 </div>
             )}
 
             {/* Walking Phases: All Rooms */}
-            {['study_walk', 'living_room_walk', 'washroom_walk', 'bedroom_return_walk', 'living_room_return_walk', 'garden_walk'].includes(phase) && (
+            {['study_walk', 'living_room_walk', 'washroom_walk', 'bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase) && (
                 <div className="absolute inset-0 z-[110] bg-zinc-950 flex items-center justify-center overflow-hidden font-mono">
                     
                     {/* STUDY WALK */}
-                    {phase === 'study_walk' && (
+                    {/* DARKNESS OVERLAY FOR RETURN PHASES */}
+                    {['bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase) && !hasTorch && (
+                        <div className="absolute inset-0 bg-black/95 z-[105] pointer-events-none" />
+                    )}
+                    {['bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase) && hasTorch && (() => {
+                        let activePos = playerPos;
+                        if (phase === 'living_room_return_walk') activePos = livingRoomPlayerPos;
+                        if (phase === 'bedroom_return_walk') activePos = bedroomPlayerPos;
+                        if (phase === 'garden_walk_night') activePos = gardenPlayerPos;
+                        
+                        // For living room, the viewport translates, so we keep the spotlight centered on the screen 
+                        // because the player is mostly centered, but let's approximate it. For simplicity, just follow playerPos locally.
+                        let px = activePos.x + (PLAYER_SIZE / 2);
+                        let py = activePos.y + (PLAYER_SIZE / 2);
+                        
+                        // In living room, we need to adjust for the camera pan
+                        if (phase === 'living_room_return_walk') {
+                            const VIEWPORT_WIDTH = 1200;
+                            const VIEWPORT_HEIGHT = 800;
+                            const offsetX = Math.max(0, Math.min(activePos.x - VIEWPORT_WIDTH / 2, LIVING_ROOM_WIDTH - VIEWPORT_WIDTH));
+                            const offsetY = Math.max(0, Math.min(activePos.y - VIEWPORT_HEIGHT / 2, LIVING_ROOM_HEIGHT - VIEWPORT_HEIGHT));
+                            px -= offsetX;
+                            py -= offsetY;
+                        }
+
+                        return (
+                            <div className="absolute inset-0 z-[105] pointer-events-none" style={{
+                                background: `radial-gradient(circle 250px at ${px}px ${py}px, transparent 0%, rgba(0,0,0,0.95) 100%)`
+                            }} />
+                        );
+                    })()}
+
+                    {/* STUDY WALK / STUDY RETURN WALK */}
+                    {(phase === 'study_walk' || phase === 'study_return_walk') && (
                         <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                             <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/study.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                            {!interactionTarget && <InteractionPrompt showKey={false} text="Go to the living room" />}
-                            {interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit the room" />}
+                            
+                            {phase === 'study_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Go to the living room" />}
+                            {phase === 'study_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit the room" />}
+
+                            {phase === 'study_return_walk' && !interactionTarget && !hasTorch && <InteractionPrompt showKey={false} text="Find a torch in the dark" />}
+                            {phase === 'study_return_walk' && !interactionTarget && hasTorch && <InteractionPrompt showKey={false} text="Go back to the living room" />}
+                            {phase === 'study_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit the room" />}
+                            {phase === 'study_return_walk' && interactionTarget === 'cupboard' && <InteractionPrompt text="Press E to search cupboard" />}
+                            {phase === 'study_return_walk' && interactionTarget === 'drawer' && !hasTorch && <InteractionPrompt text="Press E to check desk drawer" />}
+                            {phase === 'study_return_walk' && interactionTarget === 'drawer' && hasTorch && <InteractionPrompt showKey={false} text="Torch acquired!" />}
+
                             <Player x={playerPos.x} y={playerPos.y} />
                         </div>
                     )}
@@ -1014,8 +1123,9 @@ const Level12 = () => {
                                 {phase === 'living_room_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Go to the bedroom" />}
                                 {phase === 'living_room_walk' && interactionTarget === 'bedroom' && <InteractionPrompt text="Press E to enter bedroom" />}
 
-                                {phase === 'living_room_return_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Escape through the front door" />}
-                                {phase === 'living_room_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to open front door" />}
+                                {phase === 'living_room_return_walk' && !interactionTarget && <InteractionPrompt showKey={false} text={hasTorch ? "Escape through the front door" : "Go to the study"} />}
+                                {phase === 'living_room_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text={hasTorch ? "Press E to escape!" : "I need to find a torch first."} />}
+                                {phase === 'living_room_return_walk' && interactionTarget === 'study' && <InteractionPrompt text="Press E to enter study" />}
                             </div>
                         );
                     })()}
@@ -1036,45 +1146,186 @@ const Level12 = () => {
                         </div>
                     )}
 
-                    {/* GARDEN ESCAPE WALK */}
-                    {phase === 'garden_walk' && (
+                    {/* GARDEN NIGHT WALK */}
+                    {phase === 'garden_walk_night' && (
                         <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900 animate-in fade-in duration-1000" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                            <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/garden_day.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                            <div className="absolute inset-0 bg-blue-900/20 pointer-events-none mix-blend-multiply z-10"></div>
+                            <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/garrrdennight.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
                             
-                            {!interactionTarget && <InteractionPrompt showKey={false} text="Run to the gate!" />}
-                            {interactionTarget === 'escape' && <InteractionPrompt text="Press E to escape!" />}
+                            {!interactionTarget && <InteractionPrompt showKey={false} text="Find the neighbor" />}
+                            {interactionTarget === 'neighbor' && <InteractionPrompt text="Press E to speak to neighbor" />}
                             
                             <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />
-                            
-                            {/* Officer Threat Alert */}
-                            <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600 border-[3px] border-black text-white px-8 py-3 z-50 font-bold tracking-widest text-lg uppercase shadow-2xl animate-pulse">
-                                "ARJUN! DO NOT GO OUTSIDE! I AM WARNING YOU!"
+                        </div>
+                    )}
+
+                    {/* NEIGHBOR CONVERSATION PHASE */}
+                    {phase === 'neighbor_conversation' && (
+                        <div className="absolute inset-0 z-[160] flex flex-col justify-end bg-black/60 backdrop-blur-sm p-12">
+                            <div className="w-full max-w-4xl mx-auto bg-slate-900 border-4 border-slate-700 rounded-2xl p-8 shadow-2xl relative animate-slide-up">
+                                {(() => {
+                                    const conv = [
+                                        { speaker: 'Arjun', text: 'Uncle! The police... are they outside?!' },
+                                        { speaker: 'Neighbor', text: 'Police? What police? The street is completely empty. Current poyiduchu, do you have a spare candle?' },
+                                        { speaker: 'Arjun', text: 'But the officer on the phone... the arrest team...' },
+                                        { speaker: 'Neighbor', text: 'Arjun, are you okay? There is no one here.' },
+                                        { speaker: 'System', text: '*You look at your phone. The Zoom call has abruptly ended. The number is blocked.*' },
+                                        { speaker: 'Arjun', text: 'It was a scam... I almost lost everything.' }
+                                    ];
+                                    const currentLine = conv[neighborDialogStep];
+                                    return (
+                                        <>
+                                            <div className={`text-xl font-bold mb-4 uppercase tracking-widest ${currentLine.speaker === 'Arjun' ? 'text-blue-400' : currentLine.speaker === 'System' ? 'text-slate-400' : 'text-green-400'}`}>
+                                                {currentLine.speaker}
+                                            </div>
+                                            <div className={`text-2xl ${currentLine.speaker === 'System' ? 'italic text-slate-300' : 'text-white'}`}>
+                                                {currentLine.text}
+                                            </div>
+                                            <div className="absolute bottom-4 right-6 text-slate-500 font-bold animate-pulse">
+                                                Press [E] to continue
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
 
                     {/* Miniature Zoom Call (Picture in Picture) - Consistent across all walking phases */}
-                    <div className="absolute bottom-8 right-8 w-[200px] h-[300px] bg-slate-900 rounded-2xl border-4 border-slate-700 shadow-2xl overflow-hidden z-40 flex flex-col animate-slide-up">
-                        <div className="bg-black/50 py-1 px-2 flex justify-between items-center z-10 absolute top-0 left-0 right-0 backdrop-blur-md">
-                            <span className="text-white text-[8px] font-bold">Zoom - Active</span>
-                            <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
-                        </div>
-                        <div className="flex-1 bg-black relative">
-                            <div className="absolute inset-0 bg-slate-800">
-                                <img 
-                                    src="/assets/indian_police_zoom.png" 
-                                    alt="Rajesh Sharma Video Feed" 
-                                    className="w-full h-full object-cover pointer-events-none opacity-80"
-                                />
+                    {!finalOutcome && (
+                        <div className="absolute bottom-8 right-8 w-[200px] h-[300px] bg-slate-900 rounded-2xl border-4 border-slate-700 shadow-2xl overflow-hidden z-40 flex flex-col animate-slide-up">
+                            <div className="bg-black/50 py-1 px-2 flex justify-between items-center z-10 absolute top-0 left-0 right-0 backdrop-blur-md">
+                                <span className="text-white text-[8px] font-bold">Zoom - Active</span>
+                                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
                             </div>
-                            <div className="absolute bottom-1 right-1 px-1 bg-black/60 rounded text-white text-[6px]">Sr. Officer Rajesh Sharma</div>
+                            <div className="flex-1 bg-black relative">
+                                <div className="absolute inset-0 bg-slate-800">
+                                    <img 
+                                        src="/assets/indian_police_zoom.png" 
+                                        alt="Rajesh Sharma Video Feed" 
+                                        className="w-full h-full object-cover pointer-events-none opacity-80"
+                                    />
+                                </div>
+                                <div className="absolute bottom-1 right-1 px-1 bg-black/60 rounded text-white text-[6px]">Sr. Officer Rajesh Sharma</div>
+                            </div>
+                            <div className="h-8 bg-[#1a1a1a] flex items-center justify-around border-t border-slate-700/50">
+                                <div className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center"><svg className="w-2.5 h-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg></div>
+                                <div className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center"><svg className="w-2.5 h-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></div>
+                            </div>
                         </div>
-                        <div className="h-8 bg-[#1a1a1a] flex items-center justify-around border-t border-slate-700/50">
-                            <div className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center"><svg className="w-2.5 h-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg></div>
-                            <div className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center"><svg className="w-2.5 h-2.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></div>
+                    )}
+
+                    {/* Officer Money Demand Overlay */}
+                    {hasTorch && !neighborKnock && !finalOutcome && phase !== 'washroom_inside' && (
+                        <div className="absolute top-10 left-1/2 -translate-x-1/2 bg-red-600/80 border-[3px] border-black text-white px-8 py-3 z-50 font-bold tracking-widest text-lg uppercase shadow-2xl animate-pulse text-center w-[80%] max-w-[800px]">
+                            "I AM LOSING PATIENCE! PAY THE 50 LAKHS PENALTY FINE AND VERIFY YOUR BANK DETAILS NOW TO AVOID IMMEDIATE ARREST!"
                         </div>
-                    </div>
+                    )}
+
+                    {/* NEIGHBOR KNOCK OVERLAY */}
+                    {neighborKnock && !finalOutcome && !showMobileBank && (
+                        <div className="absolute inset-0 z-[150] flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="text-white text-3xl font-bold tracking-widest animate-pulse mb-12">
+                                *LOUD KNOCKING AT THE DOOR*
+                            </div>
+                            
+                            <div className="flex gap-12 w-[900px] max-w-[90vw]">
+                                {/* Officer Threat */}
+                                <div className="flex-1 bg-red-900/80 border-4 border-red-500 p-6 rounded-xl animate-bounce-slight shadow-[0_0_50px_rgba(255,0,0,0.5)]">
+                                    <div className="text-red-300 font-bold text-sm mb-2 uppercase tracking-widest">Phone Audio</div>
+                                    <div className="text-white text-xl font-black">"THAT'S MY ARREST TEAM! DO NOT OPEN THE DOOR! TRANSFER THE 50 LAKHS NOW!"</div>
+                                </div>
+
+                                {/* Neighbor Request */}
+                                <div className="flex-1 bg-blue-900/80 border-4 border-blue-500 p-6 rounded-xl">
+                                    <div className="text-blue-300 font-bold text-sm mb-2 uppercase tracking-widest">Muffled Voice Outside</div>
+                                    <div className="text-white text-xl font-bold">"Hello? Arjun uncle? Current poyiduchu... do you have a spare candle?"</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-16 flex gap-8">
+                                <div className="bg-white text-black font-black px-8 py-4 rounded-xl text-xl animate-pulse border-4 border-black">
+                                    Press [E] to open door
+                                </div>
+                                <div className="bg-black text-white font-black px-8 py-4 rounded-xl text-xl border-4 border-red-600">
+                                    Press [M] to open Mobile Banking
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MOBILE BANKING APP OVERLAY */}
+                    {showMobileBank && !finalOutcome && (
+                        <div className="absolute inset-0 z-[160] flex items-center justify-center bg-black/80 backdrop-blur-md">
+                            <div className="w-[350px] h-[700px] bg-slate-100 rounded-[40px] border-[10px] border-slate-900 shadow-2xl flex flex-col overflow-hidden relative animate-in zoom-in duration-500">
+                                <div className="bg-blue-600 text-white p-6 pt-12 pb-8 flex flex-col items-center">
+                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4">
+                                        <div className="text-blue-600 font-black text-3xl">$</div>
+                                    </div>
+                                    <h2 className="text-2xl font-bold">SecureBank</h2>
+                                </div>
+                                
+                                <div className="flex-1 p-6 flex flex-col gap-6">
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Transfer To</div>
+                                        <div className="text-lg font-bold text-slate-800">Supreme Court Security A/C</div>
+                                        <div className="text-sm font-medium text-slate-500">A/C: 994827103855</div>
+                                    </div>
+
+                                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Amount</div>
+                                        <div className="text-3xl font-black text-slate-800">₹50,00,000</div>
+                                    </div>
+
+                                    <div className="flex-1 flex flex-col justify-end">
+                                        <button 
+                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition-all active:scale-95"
+                                            onClick={() => setFinalOutcome('scammed')}
+                                        >
+                                            Confirm Transfer
+                                        </button>
+                                        <button 
+                                            className="w-full text-slate-500 font-bold py-4 mt-2 text-sm hover:text-slate-700"
+                                            onClick={() => setShowMobileBank(false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FINAL OUTCOME: SCAMMED */}
+                    {finalOutcome === 'scammed' && (
+                        <div className="absolute inset-0 z-[200] bg-black flex flex-col items-center justify-center">
+                            <div className="w-16 h-16 rounded-full border-4 border-green-500 border-t-transparent animate-spin mb-8"></div>
+                            <div className="text-green-500 text-2xl font-mono font-bold mb-12">Processing Transfer...</div>
+                            <div className="text-red-600 text-4xl font-black tracking-widest animate-in slide-in-from-bottom duration-1000 delay-1000 fill-mode-both">
+                                TRANSFER SUCCESSFUL
+                            </div>
+                            <div className="text-white text-xl font-serif mt-12 text-center max-w-2xl opacity-0 animate-in fade-in duration-2000 delay-2000 fill-mode-both">
+                                The Zoom call abruptly disconnected.<br/><br/>
+                                The banging on the door stopped.<br/><br/>
+                                You sit alone in the dark house... realizing you were just robbed of everything.
+                                <br/><br/>
+                                <button className="mt-12 px-8 py-3 border-2 border-white text-white hover:bg-white hover:text-black transition-colors" onClick={() => window.location.reload()}>RESTART GAME</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* FINAL OUTCOME: ESCAPED */}
+                    {finalOutcome === 'escaped' && (
+                        <div className="absolute inset-0 z-[200] bg-zinc-900 flex flex-col items-center justify-center p-12 text-center">
+                            <div className="text-green-400 text-6xl font-black tracking-widest animate-in zoom-in duration-1000 fill-mode-both">
+                                YOU BROKE THE SCAM.
+                            </div>
+                            <div className="opacity-0 animate-in fade-in duration-1000 delay-1000 fill-mode-both mt-16">
+                                <button className="px-12 py-4 bg-green-600 text-white font-bold hover:bg-green-700 transition-colors rounded-xl text-2xl shadow-xl hover:scale-105" onClick={() => enterLevel(14)}>
+                                    CONTINUE
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                 </div>
             )}
