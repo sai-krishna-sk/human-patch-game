@@ -215,7 +215,7 @@ const DIALOGUE_TREE = {
         ],
         isTransfer: true
     },
-    
+
     // ================= ZOOM SCENE 2 ================= //
     zoom_intro: {
         agent: [
@@ -561,13 +561,13 @@ const DIALOGUE_TREE = {
 const Level12 = () => {
     const { enterLevel } = useGameState();
     const [phase, setPhase] = useState('working'); // 'working' -> 'ringing' -> 'call_ui' -> 'dialogue' -> 'whatsapp_noti' -> 'whatsapp_ui' -> 'zoom_ui' -> 'zoom_dialogue' -> 'files_received'
-    
+
     // Dialogue State
     const [currentNode, setCurrentNode] = useState('opening');
     const [lineIndex, setLineIndex] = useState(0);
     const [displayedText, setDisplayedText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
-    
+
     // Tracking State
     const [clues, setClues] = useState([]);
     const [statPopup, setStatPopup] = useState(null);
@@ -585,16 +585,26 @@ const Level12 = () => {
     const [bedroomPlayerPos, setBedroomPlayerPos] = useState({ x: 600, y: 700 }); // Bedroom
     const [gardenPlayerPos, setGardenPlayerPos] = useState({ x: 600, y: 600 }); // Garden
     const [hasTorch, setHasTorch] = useState(false);
-    
+
     const [neighborKnock, setNeighborKnock] = useState(false);
     const [showMobileBank, setShowMobileBank] = useState(false);
     const [finalOutcome, setFinalOutcome] = useState(null);
     const [neighborDialogStep, setNeighborDialogStep] = useState(0);
     const audioRef = useRef(null);
+    const typingTimerRef = useRef(null);
+    const handleDialogueInteractionRef = useRef(null);
+    const lastFacingRef = useRef('right');
+    const [facingDir, setFacingDir] = useState('right');
+
+    useEffect(() => {
+        handleDialogueInteractionRef.current = handleDialogueInteraction;
+    });
 
     const [keys, setKeys] = useState({});
     const [interactionTarget, setInteractionTarget] = useState(null);
     const [canInteract, setCanInteract] = useState(false);
+
+    const isDesktopVisible = phase === 'zoom_dialogue' && (currentNode === 'secret_wait' || showBrowser);
 
     // Handle Keyboard
     useEffect(() => {
@@ -639,7 +649,7 @@ const Level12 = () => {
                         setPhase('living_room_return_walk');
                     }
                 }
-                
+
                 if (neighborKnock) {
                     setNeighborKnock(false);
                     setPhase('garden_walk_night');
@@ -661,6 +671,29 @@ const Level12 = () => {
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
     }, [phase, interactionTarget, neighborKnock, finalOutcome, hasTorch]);
+
+    // Space key interaction for dialogue
+    useEffect(() => {
+        const handleSpaceKey = (e) => {
+            if (e.key === ' ' || e.code === 'Space') {
+                if ((phase === 'dialogue' || phase === 'zoom_dialogue' || phase === 'whatsapp_noti_received') && !showBrowser) {
+                    e.preventDefault();
+                    if (handleDialogueInteractionRef.current) {
+                        handleDialogueInteractionRef.current();
+                    }
+                } else if (phase === 'neighbor_conversation') {
+                    e.preventDefault();
+                    if (neighborDialogStep < 5) {
+                        setNeighborDialogStep(prev => prev + 1);
+                    } else {
+                        setFinalOutcome('escaped');
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleSpaceKey);
+        return () => window.removeEventListener('keydown', handleSpaceKey);
+    }, [phase, neighborDialogStep, showBrowser]);
 
     // Play Knock Sound
     useEffect(() => {
@@ -687,7 +720,7 @@ const Level12 = () => {
             const timer = setTimeout(() => {
                 setPhase('bedroom_return_walk');
                 // Set the position back near the washroom door
-                setBedroomPlayerPos({ x: 600, y: 300 }); 
+                setBedroomPlayerPos({ x: 260, y: 500 });
             }, 3000);
             return () => clearTimeout(timer);
         }
@@ -699,6 +732,17 @@ const Level12 = () => {
 
         let frameId;
         const loop = () => {
+            let newDir = null;
+            if (keys['a'] || keys['arrowleft']) newDir = 'left';
+            else if (keys['d'] || keys['arrowright']) newDir = 'right';
+            else if (keys['w'] || keys['arrowup']) newDir = 'up';
+            else if (keys['s'] || keys['arrowdown']) newDir = 'down';
+
+            if (newDir && newDir !== lastFacingRef.current) {
+                lastFacingRef.current = newDir;
+                setFacingDir(newDir);
+            }
+
             if (phase === 'study_walk') {
                 setPlayerPos(p => {
                     let nx = p.x, ny = p.y;
@@ -752,7 +796,7 @@ const Level12 = () => {
 
                     let target = null;
                     if (phase === 'washroom_walk') {
-                        if (Math.abs(nx - 600) < 150 && ny < 400) target = 'sleep';
+                        if (nx < 260 && ny > 350 && ny < 650) target = 'sleep';
                     } else if (phase === 'bedroom_return_walk') {
                         if (Math.abs(nx - 600) < 150 && ny > ROOM_HEIGHT - 100) target = 'exit';
                     }
@@ -769,7 +813,7 @@ const Level12 = () => {
                     if (keys['d'] || keys['arrowright']) nx += SPEED;
                     nx = Math.max(0, Math.min(nx, ROOM_WIDTH - PLAYER_SIZE));
                     ny = Math.max(120, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
-                    
+
                     if (checkCollision(nx, ny, DESK_ZONE)) {
                         if (p.x + PLAYER_SIZE <= DESK_ZONE.x || p.x >= DESK_ZONE.x + DESK_ZONE.w) nx = p.x;
                         if (p.y + PLAYER_SIZE <= DESK_ZONE.y || p.y >= DESK_ZONE.y + DESK_ZONE.h) ny = p.y;
@@ -779,7 +823,7 @@ const Level12 = () => {
                     if (Math.abs(nx - 600) < 150 && ny > ROOM_HEIGHT - 100) target = 'exit';
                     else if (Math.abs(nx - 200) < 150 && ny < 200) target = 'cupboard';
                     else if (checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 })) target = 'drawer';
-                    
+
                     setInteractionTarget(target);
                     return { x: nx, y: ny };
                 });
@@ -794,7 +838,7 @@ const Level12 = () => {
                     ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
 
                     let target = null;
-                    if (Math.abs(nx - 600) < 200 && ny > ROOM_HEIGHT - 200) target = 'neighbor'; 
+                    if (Math.abs(nx - 600) < 200 && ny > ROOM_HEIGHT - 200) target = 'neighbor';
                     setInteractionTarget(target);
 
                     return { x: nx, y: ny };
@@ -857,7 +901,7 @@ const Level12 = () => {
             let isMounted = true;
             setIsTyping(true);
             setDisplayedText('');
-            
+
             const currentText = node.agent[lineIndex];
             let i = 0;
 
@@ -866,14 +910,17 @@ const Level12 = () => {
                 if (i < currentText.length) {
                     setDisplayedText(currentText.substring(0, i + 1));
                     i++;
-                    setTimeout(typeChar, 30);
+                    typingTimerRef.current = setTimeout(typeChar, 10);
                 } else {
                     setIsTyping(false);
                 }
             };
 
-            const timer = setTimeout(typeChar, 30);
-            return () => { isMounted = false; clearTimeout(timer); };
+            typingTimerRef.current = setTimeout(typeChar, 10);
+            return () => {
+                isMounted = false;
+                if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+            };
         } else {
             // Node has no agent text or we've finished all lines, move to next node automatically if no choices
             if ((!node.agent || node.agent.length === 0) && node.next) {
@@ -956,9 +1003,12 @@ const Level12 = () => {
         handleNextNode(nextId);
     };
 
-    const handleDialogueInteraction = () => {
+    function handleDialogueInteraction() {
         const node = DIALOGUE_TREE[currentNode];
         if (isTyping) {
+            if (typingTimerRef.current) {
+                clearTimeout(typingTimerRef.current);
+            }
             setDisplayedText(node.agent[lineIndex]);
             setIsTyping(false);
             return;
@@ -971,7 +1021,7 @@ const Level12 = () => {
         } else if (node.isTransfer && phase === 'dialogue') {
             setTimeout(() => setPhase('whatsapp_noti'), 3000);
         }
-    };
+    }
 
     const handleChromeClick = () => {
         if (phase === 'zoom_dialogue' && currentNode === 'secret_wait' && !showBrowser) {
@@ -995,15 +1045,15 @@ const Level12 = () => {
     return (
         <div className="w-screen h-screen bg-slate-950 flex items-center justify-center relative overflow-hidden">
             {/* Blurred background image */}
-            <div 
-                className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm" 
-                style={{ backgroundImage: 'url("/assets/phone_noti.png")' }} 
+            <div
+                className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm"
+                style={{ backgroundImage: 'url("/assets/phone_noti.png")' }}
             />
 
             {/* Time Skip Transition Phase */}
             {phase === 'time_skip' && (
                 <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black animate-pulse-slow">
-                    <h1 
+                    <h1
                         className="text-white text-5xl font-serif tracking-[0.5em] uppercase opacity-0"
                         style={{ animation: 'fade-in-out 4s ease-in-out forwards' }}
                     >
@@ -1016,7 +1066,7 @@ const Level12 = () => {
             {phase === 'washroom_inside' && (
                 <div className="absolute inset-0 z-[120] flex flex-col items-center justify-center bg-black animate-pulse-slow">
                     <h1 className="text-white text-xl font-serif tracking-[0.2em] opacity-0 text-center px-12" style={{ animation: 'fade-in-out 3s ease-in-out forwards' }}>
-                        *CLICK* ... The power just went out.<br/><br/>
+                        *CLICK* ... The power just went out.<br /><br />
                         <span className="text-red-500 font-bold">I need to find a torch in Thatha's Study.</span>
                     </h1>
                     <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-red-600/80 border-[2px] border-black text-white px-6 py-2 z-50 font-bold tracking-widest text-sm uppercase shadow-2xl animate-pulse">
@@ -1028,23 +1078,23 @@ const Level12 = () => {
             {/* Walking Phases: All Rooms */}
             {['study_walk', 'living_room_walk', 'washroom_walk', 'bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase) && (
                 <div className="absolute inset-0 z-[110] bg-zinc-950 flex items-center justify-center overflow-hidden font-mono">
-                    
+
                     {/* STUDY WALK */}
                     {/* DARKNESS OVERLAY FOR RETURN PHASES */}
                     {['bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase) && !hasTorch && (
-                        <div className="absolute inset-0 bg-black/95 z-[105] pointer-events-none" />
+                        <div className="absolute inset-0 bg-black/80 z-[105] pointer-events-none" />
                     )}
                     {['bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phase) && hasTorch && (() => {
                         let activePos = playerPos;
                         if (phase === 'living_room_return_walk') activePos = livingRoomPlayerPos;
                         if (phase === 'bedroom_return_walk') activePos = bedroomPlayerPos;
                         if (phase === 'garden_walk_night') activePos = gardenPlayerPos;
-                        
+
                         // For living room, the viewport translates, so we keep the spotlight centered on the screen 
                         // because the player is mostly centered, but let's approximate it. For simplicity, just follow playerPos locally.
                         let px = activePos.x + (PLAYER_SIZE / 2);
                         let py = activePos.y + (PLAYER_SIZE / 2);
-                        
+
                         // In living room, we need to adjust for the camera pan
                         if (phase === 'living_room_return_walk') {
                             const VIEWPORT_WIDTH = 1200;
@@ -1055,9 +1105,18 @@ const Level12 = () => {
                             py -= offsetY;
                         }
 
+                        // Project flashlight beam forward based on facing direction
+                        let lightX = px;
+                        let lightY = py;
+                        const offset = 90; // offset amount to project flashlight forward
+                        if (facingDir === 'left') lightX -= offset;
+                        else if (facingDir === 'right') lightX += offset;
+                        else if (facingDir === 'up') lightY -= offset;
+                        else if (facingDir === 'down') lightY += offset;
+
                         return (
                             <div className="absolute inset-0 z-[105] pointer-events-none" style={{
-                                background: `radial-gradient(circle 250px at ${px}px ${py}px, transparent 0%, rgba(0,0,0,0.95) 100%)`
+                                background: `radial-gradient(circle 280px at ${lightX}px ${lightY}px, transparent 0%, rgba(0,0,0,0.95) 100%)`
                             }} />
                         );
                     })()}
@@ -1066,7 +1125,7 @@ const Level12 = () => {
                     {(phase === 'study_walk' || phase === 'study_return_walk') && (
                         <div className="relative bg-zinc-800 border-8 border-zinc-900 shadow-2xl overflow-hidden" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                             <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/study.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                            
+
                             {phase === 'study_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Go to the living room" />}
                             {phase === 'study_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit the room" />}
 
@@ -1114,7 +1173,7 @@ const Level12 = () => {
 
                                     {/* HORIZONTAL RED RUG */}
                                     <div className="absolute left-[180px] right-[120px] top-1/2 -translate-y-1/2 h-[260px] bg-[#cb3234] border-y-2 border-black z-0"></div>
-                                    
+
                                     {/* VERTICAL RED RUG */}
                                     <div className="absolute top-[80px] bottom-[80px] left-1/2 -translate-x-1/2 w-[260px] bg-[#cb3234] border-x-2 border-black z-0"></div>
 
@@ -1133,15 +1192,15 @@ const Level12 = () => {
                     {/* WASHROOM WALK / BEDROOM RETURN WALK */}
                     {(phase === 'washroom_walk' || phase === 'bedroom_return_walk') && (
                         <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900 animate-in fade-in duration-1000" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                            <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/morning_bed.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                            <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/morning_bedplain.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
                             <div className="absolute inset-0 bg-blue-900/10 pointer-events-none mix-blend-multiply z-10"></div>
-                            
+
                             {phase === 'washroom_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Walk to the Washroom" />}
                             {phase === 'washroom_walk' && interactionTarget === 'sleep' && <InteractionPrompt text="Press E to enter Washroom" />}
 
                             {phase === 'bedroom_return_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Run back to the living room!" />}
                             {phase === 'bedroom_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit to living room" />}
-                            
+
                             <Player x={bedroomPlayerPos.x} y={bedroomPlayerPos.y} />
                         </div>
                     )}
@@ -1150,10 +1209,10 @@ const Level12 = () => {
                     {phase === 'garden_walk_night' && (
                         <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900 animate-in fade-in duration-1000" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
                             <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/garrrdennight.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                            
+
                             {!interactionTarget && <InteractionPrompt showKey={false} text="Find the neighbor" />}
                             {interactionTarget === 'neighbor' && <InteractionPrompt text="Press E to speak to neighbor" />}
-                            
+
                             <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />
                         </div>
                     )}
@@ -1181,7 +1240,7 @@ const Level12 = () => {
                                                 {currentLine.text}
                                             </div>
                                             <div className="absolute bottom-4 right-6 text-slate-500 font-bold animate-pulse">
-                                                Press [E] to continue
+                                                Press [E] or [Space] to continue
                                             </div>
                                         </>
                                     );
@@ -1199,9 +1258,9 @@ const Level12 = () => {
                             </div>
                             <div className="flex-1 bg-black relative">
                                 <div className="absolute inset-0 bg-slate-800">
-                                    <img 
-                                        src="/assets/indian_police_zoom.png" 
-                                        alt="Rajesh Sharma Video Feed" 
+                                    <img
+                                        src="/assets/indian_police_zoom.png"
+                                        alt="Rajesh Sharma Video Feed"
                                         className="w-full h-full object-cover pointer-events-none opacity-80"
                                     />
                                 </div>
@@ -1227,7 +1286,7 @@ const Level12 = () => {
                             <div className="text-white text-3xl font-bold tracking-widest animate-pulse mb-12">
                                 *LOUD KNOCKING AT THE DOOR*
                             </div>
-                            
+
                             <div className="flex gap-12 w-[900px] max-w-[90vw]">
                                 {/* Officer Threat */}
                                 <div className="flex-1 bg-red-900/80 border-4 border-red-500 p-6 rounded-xl animate-bounce-slight shadow-[0_0_50px_rgba(255,0,0,0.5)]">
@@ -1263,7 +1322,7 @@ const Level12 = () => {
                                     </div>
                                     <h2 className="text-2xl font-bold">SecureBank</h2>
                                 </div>
-                                
+
                                 <div className="flex-1 p-6 flex flex-col gap-6">
                                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
                                         <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Transfer To</div>
@@ -1277,13 +1336,13 @@ const Level12 = () => {
                                     </div>
 
                                     <div className="flex-1 flex flex-col justify-end">
-                                        <button 
+                                        <button
                                             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-lg shadow-lg transition-all active:scale-95"
                                             onClick={() => setFinalOutcome('scammed')}
                                         >
                                             Confirm Transfer
                                         </button>
-                                        <button 
+                                        <button
                                             className="w-full text-slate-500 font-bold py-4 mt-2 text-sm hover:text-slate-700"
                                             onClick={() => setShowMobileBank(false)}
                                         >
@@ -1304,10 +1363,10 @@ const Level12 = () => {
                                 TRANSFER SUCCESSFUL
                             </div>
                             <div className="text-white text-xl font-serif mt-12 text-center max-w-2xl opacity-0 animate-in fade-in duration-2000 delay-2000 fill-mode-both">
-                                The Zoom call abruptly disconnected.<br/><br/>
-                                The banging on the door stopped.<br/><br/>
+                                The Zoom call abruptly disconnected.<br /><br />
+                                The banging on the door stopped.<br /><br />
                                 You sit alone in the dark house... realizing you were just robbed of everything.
-                                <br/><br/>
+                                <br /><br />
                                 <button className="mt-12 px-8 py-3 border-2 border-white text-white hover:bg-white hover:text-black transition-colors" onClick={() => window.location.reload()}>RESTART GAME</button>
                             </div>
                         </div>
@@ -1331,15 +1390,20 @@ const Level12 = () => {
             )}
 
             {/* Desktop OS (always in background) */}
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[900px] h-[550px] bg-slate-900 border ${phase === 'zoom_dialogue' ? 'border-slate-600 opacity-100 shadow-[0_0_120px_rgba(0,0,0,0.5)]' : 'border-slate-700/50 opacity-60 shadow-[0_0_80px_rgba(0,0,0,0.2)]'} rounded-xl flex flex-col transition-all duration-500 overflow-hidden`}>
-                
+            <div
+                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[900px] h-[550px] bg-slate-900 border border-slate-600 rounded-xl flex flex-col transition-all duration-500 overflow-hidden ${isDesktopVisible
+                        ? 'opacity-100 scale-100 pointer-events-auto shadow-[0_0_120px_rgba(0,0,0,0.5)]'
+                        : 'opacity-0 scale-95 pointer-events-none'
+                    }`}
+            >
+
                 {/* Desktop Wallpaper */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 via-slate-900 to-indigo-900/40 z-0 bg-cover bg-center" style={{ backgroundImage: 'linear-gradient(to bottom right, #0f172a, #1e3a8a)' }}></div>
 
                 {/* Desktop Icons Grid */}
                 <div className="relative z-10 flex-1 p-8 grid grid-cols-8 grid-rows-6 gap-6 content-start items-start">
                     {/* Google Chrome Icon */}
-                    <div 
+                    <div
                         className="flex flex-col items-center gap-2 cursor-pointer p-3 rounded-xl relative group transition-all duration-200 hover:bg-white/10 hover:-translate-y-1"
                         onDoubleClick={handleChromeClick}
                         onClick={handleChromeClick} // single click for ease of play
@@ -1387,7 +1451,7 @@ const Level12 = () => {
                         {desktopAlert}
                     </div>
                 )}
-                    
+
                 {/* Fake Browser Overlay for Secret Investigation on DASHBOARD */}
                 {showBrowser && (
                     <div className="absolute inset-y-10 inset-x-20 bg-white rounded-lg shadow-2xl z-50 flex flex-col overflow-hidden pointer-events-auto border border-slate-400 animate-slide-up" onClick={e => e.stopPropagation()}>
@@ -1413,8 +1477,8 @@ const Level12 = () => {
                                 <span className="text-[#EA4335]">e</span>
                             </h1>
                             <div className="w-3/4 max-w-2xl bg-white border border-slate-300 hover:shadow-md rounded-full h-12 px-6 flex items-center shadow-sm text-lg transition-shadow">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     className="w-full bg-transparent border-none outline-none text-slate-800"
@@ -1429,7 +1493,7 @@ const Level12 = () => {
                                 />
                             </div>
                             {searchStatus === 'idle' && (
-                                <button 
+                                <button
                                     className="mt-8 bg-[#f8f9fa] border border-[#f8f9fa] hover:border-[#dadce0] hover:shadow text-slate-700 px-6 py-2.5 rounded transition-all text-sm font-medium"
                                     onClick={triggerSearch}
                                 >
@@ -1509,78 +1573,145 @@ const Level12 = () => {
 
             {/* Phone Device UI (Includes Calls, WhatsApp, Home Screen) */}
             {(phase === 'call_ui' || phase === 'dialogue' || phase === 'whatsapp_noti' || phase === 'whatsapp_ui' || phase === 'zoom_dialogue' || phase === 'whatsapp_file_delivery' || phase === 'whatsapp_noti_received') && (
-                <div className={`absolute inset-0 z-50 flex animate-fade-in pointer-events-none transition-all duration-700 ${(phase === 'zoom_dialogue' || phase === 'whatsapp_noti_received' || phase === 'whatsapp_file_delivery') ? 'justify-end items-end p-8' : 'bg-black/80 backdrop-blur-md items-center justify-center'}`}>
-                    <div className={`w-[320px] h-[650px] bg-slate-900 rounded-[50px] p-2 relative flex flex-col transform transition-all duration-700 border-[4px] border-slate-800 pointer-events-auto ${(phase === 'zoom_dialogue' || phase === 'whatsapp_noti_received') ? 'scale-[0.8] origin-bottom-right shadow-[0_20px_50px_rgba(0,0,0,0.5)] translate-y-4' : phase === 'whatsapp_file_delivery' ? 'scale-100 shadow-[0_20px_50px_rgba(0,0,0,0.5)]' : 'shadow-2xl scale-100 animate-slide-up'}`}>
+                <div className={`absolute inset-0 z-50 flex animate-fade-in pointer-events-none transition-all duration-700 ${isDesktopVisible
+                        ? 'justify-end items-end p-8'
+                        : 'bg-black/80 backdrop-blur-md items-center justify-center'
+                    }`}>
+                    <div className={`w-[320px] h-[650px] bg-slate-900 rounded-[50px] p-2 relative flex flex-col transform transition-all duration-700 border-[4px] border-slate-800 pointer-events-auto ${isDesktopVisible
+                            ? 'scale-[0.8] origin-bottom-right shadow-[0_20px_50px_rgba(0,0,0,0.5)] translate-y-4'
+                            : 'shadow-2xl scale-100 animate-slide-up'
+                        }`}>
                         {/* Hardware Buttons */}
                         <div className="absolute top-[120px] -left-2.5 w-1.5 h-12 bg-slate-700 rounded-l-md"></div>
                         <div className="absolute top-[180px] -left-2.5 w-1.5 h-12 bg-slate-700 rounded-l-md"></div>
                         <div className="absolute top-[140px] -right-2.5 w-1.5 h-16 bg-slate-700 rounded-r-md"></div>
 
                         {/* Phone Screen */}
-                        <div 
-                            className="flex-1 bg-slate-900 rounded-[40px] overflow-hidden relative flex flex-col items-center pt-12 pb-6 border-4 border-black"
+                        <div
+                            className="flex-1 bg-slate-950 rounded-[40px] overflow-hidden relative flex flex-col items-center border-4 border-black"
                             onClick={(phase === 'dialogue' || phase === 'zoom_dialogue' || phase === 'whatsapp_noti_received') ? handleDialogueInteraction : undefined}
                         >
-                            <div className="absolute inset-0 bg-slate-900 z-0 pointer-events-none"></div>
+                            <div className="absolute inset-0 bg-slate-950 z-0 pointer-events-none"></div>
+
                             {/* Phone Background Wallpaper for Home Screen / WhatsApp */}
-                            {(phase === 'whatsapp_noti' || phase === 'whatsapp_ui' || phase === 'whatsapp_file_delivery') && (
+                            {(phase === 'whatsapp_ui' || phase === 'whatsapp_file_delivery') && (
                                 <div className="absolute inset-0 bg-[#efeae2] z-0">
-                                    <div className="absolute inset-0 opacity-40 mix-blend-multiply" style={{ backgroundImage: 'url("https://w0.peakpx.com/wallpaper/508/606/HD-wallpaper-whatsapp-background-texture-seamless-pattern.jpg")', backgroundSize: 'cover' }}></div>
+                                    <div className="absolute inset-0 opacity-35 mix-blend-multiply" style={{ backgroundImage: 'url("https://w0.peakpx.com/wallpaper/508/606/HD-wallpaper-whatsapp-background-texture-seamless-pattern.jpg")', backgroundSize: 'cover' }}></div>
+                                </div>
+                            )}
+                            {phase === 'whatsapp_noti' && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0f172a] z-0 select-none pointer-events-none">
+                                    <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/20 via-transparent to-transparent"></div>
+                                    <div className="absolute inset-0 opacity-15 bg-[radial-gradient(circle_at_bottom_left,_var(--tw-gradient-stops))] from-purple-500/30 via-transparent to-transparent"></div>
                                 </div>
                             )}
 
+                            {/* Phone Status Bar */}
+                            <div className="absolute top-2.5 left-0 right-0 h-5 px-6 z-40 flex justify-between items-center text-white text-[10px] font-semibold select-none pointer-events-none tracking-wider font-mono">
+                                <span>{phase === 'whatsapp_file_delivery' ? '09:35' : '09:28'}</span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[8px] font-sans font-bold opacity-80">5G</span>
+                                    <div className="flex items-end gap-[1px] h-2 opacity-80">
+                                        <div className="w-[1.5px] h-[3px] bg-white rounded-2xs"></div>
+                                        <div className="w-[1.5px] h-[5px] bg-white rounded-2xs"></div>
+                                        <div className="w-[1.5px] h-[7px] bg-white rounded-2xs"></div>
+                                        <div className="w-[1.5px] h-[9px] bg-white rounded-2xs"></div>
+                                    </div>
+                                    <svg className="w-3 h-3 text-white opacity-80" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 21l-12-18c0 0 4.5-3 12-3s12 3 12 3l-12 18z" />
+                                    </svg>
+                                    <div className="flex items-center gap-[1px] border border-white/80 rounded-[3px] p-[1.5px] w-5 h-2.5 opacity-80">
+                                        <div className="bg-white h-full w-[80%] rounded-[1px]"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Phone Home Indicator Bar */}
+                            <div className={`absolute bottom-1.5 left-1/2 -translate-x-1/2 w-28 h-1 rounded-full z-40 pointer-events-none transition-colors duration-300 ${(phase === 'whatsapp_ui' || phase === 'whatsapp_file_delivery') ? 'bg-black/25' : 'bg-white/35'
+                                }`}></div>
+
                             {/* Notch */}
-                            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-3xl z-30 flex justify-center items-center gap-3 pointer-events-none">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-3xl z-30 flex justify-center items-center gap-3 pointer-events-none">
                                 <div className="w-12 h-1.5 bg-slate-800 rounded-full"></div>
                                 <div className="w-2 h-2 bg-indigo-900/50 rounded-full border border-slate-800"></div>
                             </div>
-                            
-                            <div className="relative z-10 flex flex-col items-center w-full h-full px-4">
+
+                            <div className="relative z-10 flex flex-col items-center w-full h-full">
                                 {phase === 'call_ui' ? (
-                                    <>
-                                        <div className="mt-8 text-slate-300 text-lg mb-2">Incoming Call</div>
-                                        <h2 className="text-4xl font-normal text-white tracking-wide mb-2">FedEx</h2>
-                                        <div className="text-slate-400 font-mono text-sm">+1 (800) 463-3339</div>
-                                        <div className="flex-1"></div>
-                                        <div className="flex w-full justify-between px-6 mb-8 pointer-events-auto">
-                                            <div 
-                                                className="flex flex-col items-center gap-3 cursor-pointer group"
+                                    <div className="w-full h-full flex flex-col pt-12 pb-6 px-4 relative z-10">
+                                        {/* Caller Avatar */}
+                                        <div className="mt-12 flex flex-col items-center flex-1 w-full text-center">
+                                            <div className="w-20 h-20 rounded-full bg-slate-850 flex items-center justify-center text-3xl text-white font-semibold mb-4 border border-slate-750 shadow-inner">
+                                                FE
+                                            </div>
+                                            <div className="flex items-center gap-1.5 justify-center mb-1">
+                                                <h2 className="text-3xl font-semibold text-white tracking-wide">FedEx</h2>
+                                                <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <div className="text-emerald-400 text-[10px] font-bold tracking-wider uppercase mb-1">Verified Business Call</div>
+                                            <div className="text-slate-400 font-mono text-xs">+1 (800) 463-3339</div>
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <div className="flex w-full justify-between px-8 mb-12 pointer-events-auto mt-auto">
+                                            <div
+                                                className="flex flex-col items-center gap-2 cursor-pointer group"
                                                 onClick={() => setPhase('working')}
                                             >
-                                                <button className="w-[64px] h-[64px] bg-red-500 rounded-full flex items-center justify-center group-hover:bg-red-400 shadow-[0_0_20px_rgba(239,68,68,0.4)] pointer-events-none">
-                                                    <svg className="w-8 h-8 text-white transform rotate-[135deg]" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                                                <button className="w-[60px] h-[60px] bg-red-650 rounded-full flex items-center justify-center group-hover:bg-red-500 shadow-[0_0_20px_rgba(220,38,38,0.4)] pointer-events-none transition-all duration-200">
+                                                    <svg className="w-7 h-7 text-white transform rotate-[135deg]" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
                                                 </button>
-                                                <span className="text-slate-300 text-sm font-medium">Decline</span>
+                                                <span className="text-slate-400 text-[11px] font-medium tracking-wide">Decline</span>
                                             </div>
-                                            <div 
-                                                className="flex flex-col items-center gap-3 cursor-pointer group"
+                                            <div
+                                                className="flex flex-col items-center gap-2 cursor-pointer group"
                                                 onClick={() => setPhase('dialogue')}
                                             >
-                                                <button className="w-[64px] h-[64px] bg-green-500 rounded-full flex items-center justify-center group-hover:bg-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-pulse pointer-events-none">
-                                                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                                                <button className="w-[60px] h-[60px] bg-green-600 rounded-full flex items-center justify-center group-hover:bg-green-500 shadow-[0_0_20px_rgba(22,163,74,0.4)] animate-pulse pointer-events-none transition-all duration-200">
+                                                    <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
                                                 </button>
-                                                <span className="text-slate-300 text-sm font-medium">Accept</span>
+                                                <span className="text-slate-400 text-[11px] font-medium tracking-wide">Accept</span>
                                             </div>
                                         </div>
-                                    </>
-                                ) : phase === 'dialogue' ? (
-                                    <>
+                                    </div>                                ) : phase === 'dialogue' ? (
+                                    <div className="w-full h-full flex flex-col pt-12 pb-6 px-4 relative z-10">
                                         {/* Active Call Header */}
-                                        <div className="w-full flex items-center gap-3 mt-6 mb-4 border-b border-slate-700/50 pb-4 pointer-events-none">
-                                            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center font-bold text-white text-sm">VS</div>
-                                            <div>
-                                                <div className="text-white text-sm font-bold">Vikram Sharma</div>
-                                                <div className="text-indigo-400 text-xs flex items-center gap-1">
+                                        <div className="w-full flex items-center gap-3 mt-6 mb-4 border-b border-slate-800/80 pb-4 pointer-events-none">
+                                            <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-md">VS</div>
+                                            <div className="text-left">
+                                                <div className="text-white text-sm font-semibold flex items-center gap-1">
+                                                    <span>Vikram Sharma</span>
+                                                    <svg className="w-3.5 h-3.5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                                </div>
+                                                <div className="text-indigo-400 text-xs flex items-center gap-1 font-mono">
                                                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
                                                     00:14
                                                 </div>
                                             </div>
                                         </div>
 
+                                        {/* Call Controls Grid */}
+                                        <div className="grid grid-cols-3 gap-6 w-full px-4 mt-6 mb-6 select-none opacity-60 pointer-events-none">
+                                            <div className="flex flex-col items-center gap-1.5 text-slate-400">
+                                                <div className="w-11 h-11 rounded-full bg-slate-900 flex items-center justify-center"><svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg></div>
+                                                <span className="text-[9px] uppercase tracking-wider font-semibold">mute</span>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1.5 text-slate-400">
+                                                <div className="w-11 h-11 rounded-full bg-slate-900 flex items-center justify-center"><svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-9-7.5h12" /></svg></div>
+                                                <span className="text-[9px] uppercase tracking-wider font-semibold">keypad</span>
+                                            </div>
+                                            <div className="flex flex-col items-center gap-1.5 text-slate-400">
+                                                <div className="w-11 h-11 rounded-full bg-slate-900 flex items-center justify-center"><svg className="w-5 h-5 text-slate-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg></div>
+                                                <span className="text-[9px] uppercase tracking-wider font-semibold">speaker</span>
+                                            </div>
+                                        </div>
+
                                         {/* Agent Text */}
                                         {DIALOGUE_TREE[currentNode]?.agent && DIALOGUE_TREE[currentNode].agent.length > 0 && (
-                                            <div className="w-full bg-slate-800/80 rounded-xl p-4 mb-auto border border-slate-700 shadow-lg relative pointer-events-none">
-                                                <div className="text-slate-200 text-sm leading-relaxed font-mono min-h-[80px]">
+                                            <div className="w-full bg-slate-900/60 backdrop-blur-sm rounded-2xl p-4 mb-auto border border-slate-700/80 shadow-lg relative pointer-events-none text-left">
+                                                <div className="text-slate-200 text-sm leading-relaxed min-h-[80px]">
                                                     {displayedText}
                                                     {!isTyping && (!DIALOGUE_TREE[currentNode].choices || lineIndex < DIALOGUE_TREE[currentNode].agent.length - 1) && (
                                                         <span className="animate-pulse ml-1 text-indigo-400">▼</span>
@@ -1591,14 +1722,14 @@ const Level12 = () => {
 
                                         {/* Choices */}
                                         {!isTyping && DIALOGUE_TREE[currentNode]?.choices && lineIndex >= (DIALOGUE_TREE[currentNode].agent ? DIALOGUE_TREE[currentNode].agent.length - 1 : 0) && (
-                                            <div className="w-full flex flex-col gap-2 mt-4 animate-slide-up mb-2 pointer-events-auto max-h-[220px] overflow-y-auto overflow-x-hidden p-1 custom-scrollbar">
+                                            <div className="w-full flex flex-col gap-2 mt-4 animate-slide-up mb-2 pointer-events-auto max-h-[180px] overflow-y-auto overflow-x-hidden p-1 custom-scrollbar">
                                                 {DIALOGUE_TREE[currentNode].choices.map((choice, i) => (
                                                     <button
                                                         key={i}
                                                         onClick={(e) => { e.stopPropagation(); handleChoiceSelect(choice.next); }}
-                                                        className="bg-slate-800 border border-slate-600 hover:border-cyan-400 hover:bg-slate-700 text-left px-4 py-3 rounded-xl text-slate-200 text-sm font-medium transition-all w-full"
+                                                        className="bg-slate-900 border border-slate-650 hover:border-cyan-500 hover:bg-slate-800 text-left px-4 py-2.5 rounded-xl text-slate-200 text-xs font-semibold transition-all w-full shadow-sm"
                                                     >
-                                                        <span className="text-cyan-400 font-bold mr-2">{String.fromCharCode(65 + i)}.</span>
+                                                        <span className="text-cyan-400 font-bold mr-1.5">{String.fromCharCode(65 + i)}.</span>
                                                         {choice.text}
                                                     </button>
                                                 ))}
@@ -1606,50 +1737,150 @@ const Level12 = () => {
                                         )}
                                         
                                         {/* Hang Up button (visual only) */}
-                                        <div className="mt-4 mb-2 flex justify-center w-full pointer-events-none">
-                                            <button className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center opacity-80">
+                                        <div className="mt-auto mb-2 flex justify-center w-full pointer-events-none">
+                                            <button className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center opacity-90 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
                                                 <svg className="w-6 h-6 text-white transform rotate-[135deg]" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
                                             </button>
                                         </div>
-                                    </>
+                                    </div>
                                 ) : phase === 'whatsapp_noti' ? (
-                                    <>
-                                        {/* Phone Home Screen with Apps */}
-                                        <div className="w-full flex-1 pt-8">
-                                            <div className="grid grid-cols-4 gap-4 px-2 mt-4">
-                                                <div className="w-12 h-12 bg-blue-500 rounded-xl"></div>
-                                                <div className="w-12 h-12 bg-green-400 rounded-xl flex items-center justify-center cursor-pointer hover:scale-105 transition-transform" onClick={() => setPhase('whatsapp_ui')}>
-                                                    <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                                    <div className="w-full h-full flex flex-col p-4 pt-12">
+                                        {/* Time and Date Widget */}
+                                        <div className="mt-8 text-center text-white select-none z-10">
+                                            <div className="text-4xl font-extralight tracking-tight">09:28</div>
+                                            <div className="text-[10px] font-light tracking-wider text-slate-400 mt-1 uppercase">Tuesday, June 16</div>
+                                        </div>
+
+                                        {/* App Grid */}
+                                        <div className="grid grid-cols-4 gap-y-5 gap-x-3 w-full px-3 mt-6 z-10">
+                                            {/* Phone App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-green-500 rounded-[11px] flex items-center justify-center shadow-md">
+                                                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
                                                 </div>
-                                                <div className="w-12 h-12 bg-red-400 rounded-xl"></div>
-                                                <div className="w-12 h-12 bg-yellow-400 rounded-xl"></div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">Phone</span>
+                                            </div>
+
+                                            {/* WhatsApp App */}
+                                            <div
+                                                className="flex flex-col items-center gap-1 cursor-pointer group"
+                                                onClick={() => setPhase('whatsapp_ui')}
+                                            >
+                                                <div className="w-10 h-10 bg-emerald-500 rounded-[11px] flex items-center justify-center shadow-md relative group-hover:scale-105 transition-transform">
+                                                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" /></svg>
+                                                    <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold border border-slate-950">1</div>
+                                                </div>
+                                                <span className="text-[9px] text-slate-300 font-bold truncate w-full text-center">WhatsApp</span>
+                                            </div>
+
+                                            {/* Chrome App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-white rounded-[11px] flex items-center justify-center shadow-md">
+                                                    <div className="w-8 h-8 rounded-full border-[2px] border-red-500 flex items-center justify-center relative overflow-hidden bg-yellow-400">
+                                                        <div className="absolute top-0 right-0 w-1/2 h-full bg-green-500"></div>
+                                                        <div className="absolute top-0 left-0 w-full h-1/2 bg-red-500 rounded-b-full"></div>
+                                                        <div className="w-3 h-3 bg-blue-500 rounded-full border border-white z-10"></div>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">Chrome</span>
+                                            </div>
+
+                                            {/* Settings App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-slate-600 rounded-[11px] flex items-center justify-center shadow-md">
+                                                    <svg className="w-5 h-5 text-slate-200" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">Settings</span>
+                                            </div>
+
+                                            {/* Photos App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-white rounded-[11px] flex items-center justify-center shadow-md relative overflow-hidden">
+                                                    <div className="grid grid-cols-2 gap-[1px] w-6 h-6">
+                                                        <div className="bg-red-400 rounded-full opacity-80"></div>
+                                                        <div className="bg-yellow-400 rounded-full opacity-80"></div>
+                                                        <div className="bg-green-400 rounded-full opacity-80"></div>
+                                                        <div className="bg-blue-400 rounded-full opacity-80"></div>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">Photos</span>
+                                            </div>
+
+                                            {/* SecureBank App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-blue-600 rounded-[11px] flex items-center justify-center shadow-md">
+                                                    <span className="text-white font-black text-base">$</span>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">SecureBank</span>
+                                            </div>
+
+                                            {/* App Store App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-blue-500 rounded-[11px] flex items-center justify-center shadow-md">
+                                                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">App Store</span>
+                                            </div>
+
+                                            {/* Notes App */}
+                                            <div className="flex flex-col items-center gap-1">
+                                                <div className="w-10 h-10 bg-amber-50 rounded-[11px] flex flex-col justify-between p-2.5 shadow-md border-t-4 border-amber-400">
+                                                    <div className="w-full h-[1.5px] bg-slate-400 rounded-full"></div>
+                                                    <div className="w-4/5 h-[1.5px] bg-slate-400 rounded-full"></div>
+                                                    <div className="w-full h-[1.5px] bg-slate-400 rounded-full"></div>
+                                                </div>
+                                                <span className="text-[9px] text-slate-400 font-medium truncate w-full text-center">Notes</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Bottom Dock */}
+                                        <div className="mt-auto w-[92%] bg-white/10 backdrop-blur-md rounded-[22px] p-2 flex justify-around items-center border border-white/10 shadow-lg z-10 mb-4 select-none pointer-events-auto">
+                                            <div className="w-10 h-10 bg-green-500 rounded-[11px] flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition-transform">
+                                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                                            </div>
+                                            <div
+                                                className="w-10 h-10 bg-emerald-500 rounded-[11px] flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition-transform relative"
+                                                onClick={() => setPhase('whatsapp_ui')}
+                                            >
+                                                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" /></svg>
+                                                <div className="absolute -top-0.5 -right-0.5 bg-red-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[7.5px] font-bold border border-emerald-500">1</div>
+                                            </div>
+                                            <div className="w-10 h-10 bg-white rounded-[11px] flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition-transform">
+                                                <div className="w-8 h-8 rounded-full border-[2px] border-red-500 flex items-center justify-center relative overflow-hidden bg-yellow-400">
+                                                    <div className="absolute top-0 right-0 w-1/2 h-full bg-green-500"></div>
+                                                    <div className="absolute top-0 left-0 w-full h-1/2 bg-red-500 rounded-b-full"></div>
+                                                    <div className="w-3 h-3 bg-blue-500 rounded-full border border-white z-10"></div>
+                                                </div>
+                                            </div>
+                                            <div className="w-10 h-10 bg-blue-600 rounded-[11px] flex items-center justify-center cursor-pointer shadow-md hover:scale-105 transition-transform">
+                                                <span className="text-white font-black text-base">$</span>
                                             </div>
                                         </div>
 
                                         {/* WhatsApp Banner Notification */}
-                                        <div 
-                                            className="absolute top-8 left-2 right-2 bg-slate-800/90 backdrop-blur-md border border-slate-700 p-3 rounded-2xl shadow-2xl flex gap-3 cursor-pointer hover:bg-slate-700/90 transition-colors animate-slide-up z-50 pointer-events-auto"
+                                        <div
+                                            className="absolute top-10 left-2 right-2 bg-slate-900/85 backdrop-blur-md border border-white/10 p-3 rounded-2xl shadow-2xl flex gap-3 cursor-pointer hover:bg-slate-800/85 transition-all duration-300 animate-slide-up z-50 pointer-events-auto"
                                             onClick={() => setPhase('whatsapp_ui')}
                                         >
-                                            <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shrink-0">
-                                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                                            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shrink-0 shadow-md">
+                                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" /></svg>
                                             </div>
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="text-white font-bold text-sm">+91 98452 71092</span>
-                                                    <span className="text-slate-400 text-xs">now</span>
+                                            <div className="flex-1 min-w-0 text-left">
+                                                <div className="flex justify-between items-center mb-0.5">
+                                                    <span className="text-white font-bold text-xs">+91 98452 71092</span>
+                                                    <span className="text-slate-400 text-[10px]">now</span>
                                                 </div>
-                                                <p className="text-slate-300 text-xs line-clamp-2">Official Summons: Cyber Crime Division. Join the secure video link below...</p>
+                                                <p className="text-slate-300 text-[11px] leading-snug line-clamp-2">Official Summons: Cyber Crime Division. Join the secure video link below...</p>
                                             </div>
                                         </div>
-                                    </>
+                                    </div>
                                 ) : (phase === 'whatsapp_ui' || phase === 'whatsapp_file_delivery') ? (
-                                    <>
+                                    <div className="w-full h-full relative z-10">
                                         {/* WA Header */}
-                                        <div className="absolute top-0 left-0 right-0 bg-[#008069] h-[88px] flex flex-col z-20 pt-8 px-2 shadow-md">
+                                        <div className="absolute top-0 left-0 right-0 bg-[#008069] h-[96px] flex flex-col z-20 pt-9 px-3 pb-1 shadow-md">
                                             <div className="flex items-center gap-2 flex-1">
                                                 <svg 
-                                                    className="w-5 h-5 text-white cursor-pointer hover:opacity-80 transition-opacity" 
+                                                    className="w-5 h-5 text-white cursor-pointer hover:opacity-85 transition-opacity" 
                                                     fill="none" 
                                                     viewBox="0 0 24 24" 
                                                     stroke="currentColor"
@@ -1671,111 +1902,178 @@ const Level12 = () => {
                                                 >
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                                                 </svg>
-                                                <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center overflow-hidden shrink-0">
-                                                    {phase === 'whatsapp_file_delivery' ? (
-                                                        <svg className="w-5 h-5 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                                    ) : (
-                                                        <svg className="w-5 h-5 text-slate-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                                    )}
+                                                <div className="w-8 h-8 rounded-full bg-slate-200/20 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                                                    <svg className="w-5 h-5 text-white/90" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                                    </svg>
                                                 </div>
                                                 <div className="flex flex-col flex-1 truncate">
-                                                    <span className="text-white font-semibold text-[13px] truncate">
-                                                        {phase === 'whatsapp_file_delivery' ? 'Sr. Officer Rajesh Sharma' : '+91 98765 43210'}
-                                                    </span>
-                                                    <span className="text-white/80 text-[10px]">online</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-white font-semibold text-[13px] truncate">
+                                                            {phase === 'whatsapp_file_delivery' ? 'Sr. Officer Rajesh Sharma' : '+91 98765 43210'}
+                                                        </span>
+                                                        <svg className="w-3.5 h-3.5 text-white fill-current bg-[#25d366] rounded-full p-[1px] shrink-0 shadow-sm" viewBox="0 0 24 24">
+                                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" stroke="white" strokeWidth="2" />
+                                                        </svg>
+                                                    </div>
+                                                    <span className="text-white/80 text-[10px] text-left">online</span>
                                                 </div>
                                                 <div className="flex items-center gap-3 text-white">
-                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
-                                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clipRule="evenodd" /></svg>
-                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg>
+                                                    <svg className="w-4 h-4 cursor-pointer hover:opacity-85" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" /></svg>
+                                                    <svg className="w-4 h-4 cursor-pointer hover:opacity-85" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clipRule="evenodd" /></svg>
+                                                    <svg className="w-4 h-4 cursor-pointer hover:opacity-85" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" /></svg>
                                                 </div>
                                             </div>
                                         </div>
                                         
                                         {/* WA Chat Body */}
-                                        <div className="absolute inset-0 top-[88px] pb-14 z-10 flex flex-col p-2 overflow-y-auto">
+                                        <div className="absolute inset-0 top-[96px] pb-[76px] z-10 flex flex-col p-3 overflow-y-auto custom-scrollbar">
                                             {/* Date Header */}
                                             <div className="flex justify-center mb-3 mt-1">
-                                                <div className="bg-[#e1f3fb] text-[#54656f] text-[10px] px-2 py-0.5 rounded-lg shadow-sm">
+                                                <div className="bg-[#e1f3fb] text-[#54656f] text-[10px] px-2.5 py-0.5 rounded-lg shadow-sm font-medium tracking-wide">
                                                     TODAY
                                                 </div>
                                             </div>
                                             
                                             {/* Security Message */}
                                             <div className="flex justify-center mb-4">
-                                                <div className="bg-[#feeecc] text-[#54656f] text-[10px] px-3 py-1.5 rounded-lg text-center leading-tight shadow-sm max-w-[90%]">
-                                                    <span className="font-semibold text-slate-700">Cyber Crime Division</span>
-                                                    <br/>This is an official communication channel.
+                                                <div className="bg-[#feeecc] text-[#54656f] text-[10.5px] px-3.5 py-2 rounded-xl text-center leading-tight shadow-[0_1px_0.5px_rgba(0,0,0,0.08)] max-w-[90%] border border-[#fceecc]">
+                                                    <span className="font-bold text-slate-700">Cyber Crime Division</span>
+                                                    <br/><span className="text-[10px] opacity-90">This is an official communication channel.</span>
                                                 </div>
                                             </div>
 
                                             {phase === 'whatsapp_ui' ? (
                                                 <div className="flex flex-col gap-1.5 animate-slide-up w-full">
-                                                    <div className="bg-white p-2 rounded-lg rounded-tl-none self-start max-w-[85%] relative shadow-sm border border-slate-100 pb-5 mt-2">
-                                                        <p className="text-[#111b21] text-[12px] leading-snug font-bold">Official Summons: Cyber Crime Division.</p>
-                                                        <p className="text-[#111b21] text-[12px] leading-snug mt-2">Join the secure video link below to record your statement with Senior Officer Rajesh Sharma.</p>
+                                                    <div className="bg-white p-3 rounded-2xl rounded-tl-none self-start w-[85%] max-w-[260px] relative shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] pb-6 mt-1 text-left">
+                                                        <p className="text-[#111b21] text-[12.5px] leading-snug font-bold">Official Summons: Cyber Crime Division.</p>
+                                                        <p className="text-[#111b21] text-[12px] leading-snug mt-2 text-slate-750">Join the secure video link below to record your statement with Senior Officer Rajesh Sharma.</p>
                                                         
                                                         {/* Zoom Link Bubble */}
                                                         <div 
-                                                            className="bg-[#f0f2f5] rounded p-2 mt-2 mb-2 cursor-pointer hover:bg-[#e9edef] transition-colors border-l-4 border-blue-500 group"
+                                                            className="bg-[#f0f2f5] rounded-xl p-2.5 mt-3 mb-1 cursor-pointer hover:bg-[#e9edef] transition-all border-l-4 border-[#0b5cff] group flex flex-col gap-1.5 text-left shadow-inner"
                                                             onClick={startZoomCall}
                                                         >
-                                                            <div className="text-blue-600 text-xs font-bold flex items-start gap-1 mb-1 group-hover:underline break-all">
-                                                                <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                                                <span>https://zoom.us/j/9128394812</span>
+                                                            <div className="text-[#8696a0] text-[9px] font-semibold tracking-wider uppercase">zoom.us</div>
+                                                            <div className="text-[#0b5cff] text-[11.5px] font-bold group-hover:underline leading-snug">
+                                                                Join our Cloud Video Meeting
                                                             </div>
-                                                            <div className="text-[#8696a0] text-[10px] mt-1">Meeting ID: 912 839 4812</div>
+                                                            <p className="text-[#54656f] text-[10px] line-clamp-2 leading-tight">
+                                                                Zoom is the leader in modern enterprise video communications, with an easy, reliable cloud platform...
+                                                            </p>
+                                                            <div className="text-[#0b5cff] text-[10px] font-semibold flex items-center gap-1 mt-1 break-all bg-[#0b5cff]/5 p-1 rounded-lg">
+                                                                <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                                                <span className="truncate">https://zoom.us/j/9128394812</span>
+                                                            </div>
+                                                            <div className="text-[#54656f] text-[9.5px] font-bold mt-0.5">Meeting ID: 912 839 4812</div>
                                                         </div>
-                                                        <span className="text-[#8696a0] text-[9px] absolute bottom-1.5 right-2">09:19 AM</span>
+                                                        <span className="text-[#8696a0] text-[9px] absolute bottom-1.5 right-3 font-medium">09:19 AM</span>
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="flex flex-col gap-2 animate-slide-up">
-                                                    <div className="bg-white p-2 rounded-lg rounded-tl-none self-start max-w-[85%] relative shadow-sm border border-slate-100">
-                                                        <p className="text-[#111b21] text-[12px] leading-snug">Mr. Mehta, I am sending the official documents now. Review them carefully.</p>
-                                                        <span className="text-[#8696a0] text-[9px] float-right mt-1 ml-2">09:35 AM</span>
+                                                <div className="flex flex-col gap-2.5 animate-slide-up w-full text-left">
+                                                    <div className="bg-white p-3 rounded-2xl rounded-tl-none self-start w-[85%] max-w-[260px] relative shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]">
+                                                        <p className="text-[#111b21] text-[12.5px] leading-snug">Mr. Mehta, I am sending the official documents now. Review them carefully.</p>
+                                                        <span className="text-[#8696a0] text-[9px] float-right mt-1 ml-2 font-medium">09:35 AM</span>
                                                     </div>
                                                     
                                                     {/* FIR Document */}
-                                                    <div onClick={() => handleViewDocument('FIR')} className="bg-white p-2 rounded-lg self-start max-w-[85%] relative shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
-                                                        <div className="flex items-center gap-3 bg-slate-100 p-2 rounded mb-1">
-                                                            <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center shrink-0">
-                                                                <span className="text-red-500 text-xs font-bold">PDF</span>
+                                                    <div 
+                                                        onClick={() => handleViewDocument('FIR')} 
+                                                        className="bg-white p-2 rounded-2xl self-start w-[85%] max-w-[260px] relative shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] cursor-pointer hover:bg-slate-50 transition-all mt-1"
+                                                    >
+                                                        <div className="flex items-center gap-3 bg-[#f0f2f5] p-2.5 rounded-xl border-l-[3px] border-red-500">
+                                                            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center shrink-0">
+                                                                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                                                                </svg>
                                                             </div>
-                                                            <div className="flex flex-col flex-1 truncate">
-                                                                <span className="text-[#111b21] text-[12px] font-medium truncate">FIR_Copy_Mumbai_Police.pdf</span>
-                                                                <span className="text-[#8696a0] text-[10px]">2.4 MB • {viewedDocuments.includes('FIR') ? 'Viewed' : 'Unread'}</span>
+                                                            <div className="flex flex-col flex-1 min-w-0">
+                                                                <span className="text-[#111b21] text-[12px] font-bold truncate">FIR_Mumbai_Police.pdf</span>
+                                                                <span className="text-[#8696a0] text-[9.5px] font-medium">2.4 MB • {viewedDocuments.includes('FIR') ? 'Opened' : 'Tap to View'}</span>
+                                                            </div>
+                                                            <div className="shrink-0 ml-1">
+                                                                {viewedDocuments.includes('FIR') ? (
+                                                                    <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg className="w-4.5 h-4.5 text-[#8696a0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                    </svg>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        <span className="text-[#8696a0] text-[9px] float-right mt-0.5">09:35 AM</span>
+                                                        <div className="flex justify-between items-center px-1 mt-1 text-[8.5px] text-[#8696a0] font-medium">
+                                                            <span>1 page</span>
+                                                            <span>09:35 AM</span>
+                                                        </div>
                                                     </div>
 
                                                     {/* Court Notice Document */}
-                                                    <div onClick={() => handleViewDocument('CourtNotice')} className="bg-white p-2 rounded-lg self-start max-w-[85%] relative shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
-                                                        <div className="flex items-center gap-3 bg-slate-100 p-2 rounded mb-1">
-                                                            <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center shrink-0">
-                                                                <span className="text-red-500 text-xs font-bold">PDF</span>
+                                                    <div 
+                                                        onClick={() => handleViewDocument('CourtNotice')} 
+                                                        className="bg-white p-2 rounded-2xl self-start w-[85%] max-w-[260px] relative shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] cursor-pointer hover:bg-slate-50 transition-all mt-1"
+                                                    >
+                                                        <div className="flex items-center gap-3 bg-[#f0f2f5] p-2.5 rounded-xl border-l-[3px] border-red-500">
+                                                            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center shrink-0">
+                                                                <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                                                                </svg>
                                                             </div>
-                                                            <div className="flex flex-col flex-1 truncate">
-                                                                <span className="text-[#111b21] text-[12px] font-medium truncate">Supreme_Court_Notice.pdf</span>
-                                                                <span className="text-[#8696a0] text-[10px]">1.8 MB • {viewedDocuments.includes('CourtNotice') ? 'Viewed' : 'Unread'}</span>
+                                                            <div className="flex flex-col flex-1 min-w-0">
+                                                                <span className="text-[#111b21] text-[12px] font-bold truncate">Supreme_Court_Notice.pdf</span>
+                                                                <span className="text-[#8696a0] text-[9.5px] font-medium">1.8 MB • {viewedDocuments.includes('CourtNotice') ? 'Opened' : 'Tap to View'}</span>
+                                                            </div>
+                                                            <div className="shrink-0 ml-1">
+                                                                {viewedDocuments.includes('CourtNotice') ? (
+                                                                    <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg className="w-4.5 h-4.5 text-[#8696a0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                    </svg>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        <span className="text-[#8696a0] text-[9px] float-right mt-0.5">09:35 AM</span>
+                                                        <div className="flex justify-between items-center px-1 mt-1 text-[8.5px] text-[#8696a0] font-medium">
+                                                            <span>1 page</span>
+                                                            <span>09:35 AM</span>
+                                                        </div>
                                                     </div>
 
                                                     {/* Photos Document */}
-                                                    <div onClick={() => handleViewDocument('Photos')} className="bg-white p-2 rounded-lg self-start max-w-[85%] relative shadow-sm border border-slate-100 cursor-pointer hover:bg-slate-50 transition-colors">
-                                                        <div className="flex items-center gap-3 bg-slate-100 p-2 rounded mb-1">
-                                                            <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center shrink-0">
-                                                                <span className="text-blue-500 text-xs font-bold">JPG</span>
+                                                    <div 
+                                                        onClick={() => handleViewDocument('Photos')} 
+                                                        className="bg-white p-2 rounded-2xl self-start w-[85%] max-w-[260px] relative shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] cursor-pointer hover:bg-slate-50 transition-all mt-1"
+                                                    >
+                                                        <div className="flex items-center gap-3 bg-[#f0f2f5] p-2.5 rounded-xl border-l-[3px] border-blue-500">
+                                                            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                                                                <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                                                </svg>
                                                             </div>
-                                                            <div className="flex flex-col flex-1 truncate">
-                                                                <span className="text-[#111b21] text-[12px] font-medium truncate">Parcel_Contents_Evidence.jpg</span>
-                                                                <span className="text-[#8696a0] text-[10px]">4.1 MB • {viewedDocuments.includes('Photos') ? 'Viewed' : 'Unread'}</span>
+                                                            <div className="flex flex-col flex-1 min-w-0">
+                                                                <span className="text-[#111b21] text-[12px] font-bold truncate">Parcel_Evidence.jpg</span>
+                                                                <span className="text-[#8696a0] text-[9.5px] font-medium">4.1 MB • {viewedDocuments.includes('Photos') ? 'Opened' : 'Tap to View'}</span>
+                                                            </div>
+                                                            <div className="shrink-0 ml-1">
+                                                                {viewedDocuments.includes('Photos') ? (
+                                                                    <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                ) : (
+                                                                    <svg className="w-4.5 h-4.5 text-[#8696a0]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                                    </svg>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        <span className="text-[#8696a0] text-[9px] float-right mt-0.5">09:36 AM</span>
+                                                        <div className="flex justify-between items-center px-1 mt-1 text-[8.5px] text-[#8696a0] font-medium">
+                                                            <span>1 file</span>
+                                                            <span>09:36 AM</span>
+                                                        </div>
                                                     </div>
                                                     
                                                     {/* Proceed Button */}
@@ -1800,22 +2098,36 @@ const Level12 = () => {
                                         </div>
                                         
                                         {/* WA Input Footer */}
-                                        <div className="absolute bottom-0 left-0 right-0 bg-[#f0f2f5] p-2 flex items-center gap-2 z-20">
-                                            <div className="bg-white rounded-full flex-1 h-10 px-4 flex items-center text-[#8696a0] text-[13px] border border-transparent">
-                                                Type a message
+                                        <div className="absolute bottom-0 left-0 right-0 p-2 pb-6 flex items-center gap-2 z-20 bg-transparent">
+                                            <div className="bg-white rounded-full flex-1 h-9 px-3 flex items-center justify-between text-[#8696a0] text-[13px] border border-slate-200/50 shadow-sm">
+                                                <div className="flex items-center flex-1">
+                                                    <svg className="w-5 h-5 text-[#8696a0] cursor-pointer hover:text-[#54656f] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <span className="ml-2 text-slate-400 text-[12px] text-left">Message</span>
+                                                </div>
+                                                <div className="flex items-center gap-2.5 shrink-0">
+                                                    <svg className="w-5 h-5 text-[#8696a0] cursor-pointer hover:text-[#54656f] transform rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                                    </svg>
+                                                    <svg className="w-5 h-5 text-[#8696a0] cursor-pointer hover:text-[#54656f]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                </div>
                                             </div>
-                                            <div className="w-10 h-10 bg-[#00a884] rounded-full flex items-center justify-center shrink-0 text-white shadow-sm">
+                                            <div className="w-9 h-9 bg-[#00a884] rounded-full flex items-center justify-center shrink-0 text-white shadow-sm hover:scale-105 active:scale-95 transition-transform cursor-pointer">
                                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" /></svg>
                                             </div>
                                         </div>
-                                    </>
+                                    </div>
                                 ) : (phase === 'zoom_dialogue' || phase === 'whatsapp_noti_received') ? (
-                                    <>
+                                    <div className="w-full h-full relative z-10">
                                         {/* Zoom Video Background */}
                                         <div className="absolute inset-0 bg-black z-0 overflow-hidden rounded-[36px]">
-                                            <img 
-                                                src="/assets/indian_police_zoom.png" 
-                                                alt="Rajesh Sharma Video Feed" 
+                                            <img
+                                                src="/assets/indian_police_zoom.png"
+                                                alt="Rajesh Sharma Video Feed"
                                                 className="w-full h-full object-cover pointer-events-none"
                                             />
                                             {/* Video Overlay Name */}
@@ -1900,12 +2212,12 @@ const Level12 = () => {
 
                                         {/* WhatsApp Push Notification over Zoom */}
                                         {phase === 'whatsapp_noti_received' && (
-                                            <div 
+                                            <div
                                                 className="absolute top-12 left-4 right-4 bg-[#202c33] p-3 rounded-2xl shadow-2xl z-50 flex items-center gap-3 cursor-pointer animate-slide-up border border-[#00a884] pointer-events-auto group"
                                                 onClick={() => setPhase('whatsapp_file_delivery')}
                                             >
                                                 <div className="w-10 h-10 bg-[#00a884] rounded-full flex items-center justify-center shrink-0">
-                                                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                                    <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" /></svg>
                                                 </div>
                                                 <div className="flex flex-col flex-1 overflow-hidden">
                                                     <span className="text-white text-sm font-bold truncate">Sr. Officer Rajesh Sharma</span>
@@ -1914,7 +2226,7 @@ const Level12 = () => {
                                                 <span className="text-[#00a884] text-xs font-bold group-hover:scale-110 transition-transform shrink-0 ml-1">OPEN</span>
                                             </div>
                                         )}
-                                    </>
+                                    </div>
                                 ) : null}
                             </div>
                         </div>
@@ -1925,7 +2237,7 @@ const Level12 = () => {
 
 
             {/* End of Scene 2 / File Received - REMOVED */}
-            
+
             {/* Document Viewer Modal */}
             {viewingDocument && (
                 <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex flex-col animate-fade-in">
@@ -1935,14 +2247,14 @@ const Level12 = () => {
                             {viewingDocument === 'CourtNotice' && 'Supreme_Court_Notice.pdf'}
                             {viewingDocument === 'Photos' && 'Parcel_Contents_Evidence.jpg'}
                         </div>
-                        <button 
+                        <button
                             onClick={() => setViewingDocument(null)}
                             className="bg-red-500 hover:bg-red-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold"
                         >
                             X
                         </button>
                     </div>
-                    
+
                     <div className="flex-1 overflow-y-auto flex flex-col items-center p-4 sm:p-8 w-full">
                         {viewingDocument === 'FIR' && (
                             <div className="bg-white w-full max-w-2xl my-8 p-8 text-black font-serif shadow-2xl relative shrink-0 overflow-hidden">
@@ -1963,12 +2275,12 @@ const Level12 = () => {
                                 <div className="mb-6 space-y-4">
                                     <p className="font-bold underline">Details of Offence:</p>
                                     <p className="text-justify leading-relaxed">
-                                        An international parcel bearing tracking ID FedEx-883921 intercepted at Customs Checkpoint Alpha. 
-                                        The sender's address was marked as Taiwan, Republic of China. The receiver's AADHAAR card 
-                                        details match the suspect ARJUN MEHTA. 
+                                        An international parcel bearing tracking ID FedEx-883921 intercepted at Customs Checkpoint Alpha.
+                                        The sender's address was marked as Taiwan, Republic of China. The receiver's AADHAAR card
+                                        details match the suspect ARJUN MEHTA.
                                     </p>
                                     <p className="text-justify leading-relaxed">
-                                        Contents discovered during X-Ray scanning: 5 Passports (Illegal Forgeries), 4 Credit Cards (Cloned), 
+                                        Contents discovered during X-Ray scanning: 5 Passports (Illegal Forgeries), 4 Credit Cards (Cloned),
                                         and 150 grams of MDMA (Narcotics).
                                     </p>
                                     <p className="text-justify leading-relaxed bg-red-50 p-2 font-bold text-red-800 border-l-4 border-red-500">
@@ -2005,7 +2317,7 @@ const Level12 = () => {
                                         <strong>WHEREAS</strong> an FIR No. MH/CY/2026/09482 has been registered against your Aadhar ID regarding money laundering and narcotics smuggling.
                                     </p>
                                     <p>
-                                        <strong>IT IS HEREBY ORDERED</strong> that the suspect is placed under strict <span className="font-bold bg-yellow-200 px-1">DIGITAL ARREST</span>. The suspect must not terminate the video link with the investigating officer. 
+                                        <strong>IT IS HEREBY ORDERED</strong> that the suspect is placed under strict <span className="font-bold bg-yellow-200 px-1">DIGITAL ARREST</span>. The suspect must not terminate the video link with the investigating officer.
                                     </p>
                                     <p>
                                         Any attempt to contact third parties, use a secondary device, or leave the premises will be considered a direct violation of this court order, resulting in immediate physical apprehension by local law enforcement.
