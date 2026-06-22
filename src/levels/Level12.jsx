@@ -604,6 +604,24 @@ const Level12 = () => {
         lockSpeedRef.current = 2.2 + currentPins * 0.8;
     };
 
+    const footAudioRef = useRef(null);
+    const footPlayingRef = useRef(false);
+    useEffect(() => {
+        if (footAudioRef.current) {
+            footAudioRef.current.volume = 0.5;
+        }
+    }, []);
+
+    const playDoorSound = () => {
+        const audio = new Audio('/audio/home door.mp3');
+        audio.play().catch(e => {});
+    };
+
+    const playDrawSound = () => {
+        const audio = new Audio('/audio/draw.mp3');
+        audio.play().catch(e => {});
+    };
+
     const getLocalAudioContext = () => {
         if (!localAudioCtxRef.current) {
             localAudioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -870,12 +888,17 @@ const Level12 = () => {
     };
 
     const formatSystemTime = () => {
-        const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
-        const timeStr = systemTime.toLocaleTimeString([], timeOptions);
+        let displayTime = new Date(systemTime);
+        if (['bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night', 'neighbor_conversation'].includes(phase) || finalOutcome) {
+            displayTime.setHours(displayTime.getHours() + 3);
+        }
         
-        const day = String(systemTime.getDate()).padStart(2, '0');
-        const month = String(systemTime.getMonth() + 1).padStart(2, '0');
-        const year = systemTime.getFullYear();
+        const timeOptions = { hour: '2-digit', minute: '2-digit', hour12: true };
+        const timeStr = displayTime.toLocaleTimeString([], timeOptions);
+        
+        const day = String(displayTime.getDate()).padStart(2, '0');
+        const month = String(displayTime.getMonth() + 1).padStart(2, '0');
+        const year = displayTime.getFullYear();
         const dateStr = `${day}-${month}-${year}`;
 
         return { timeStr, dateStr };
@@ -1052,15 +1075,35 @@ const Level12 = () => {
 
     const isDesktopVisible = phase === 'zoom_dialogue' && (currentNode === 'secret_wait' || showBrowser);
 
+    const phaseRef = useRef(phase);
+    useEffect(() => { phaseRef.current = phase; }, [phase]);
+
     // Handle Keyboard
     useEffect(() => {
         const handleKeyDown = (e) => {
             const key = e.key.toLowerCase();
             setKeys(prev => ({ ...prev, [key]: true }));
+            
+            if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key)) {
+                if (['study_walk', 'living_room_walk', 'washroom_walk', 'bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night'].includes(phaseRef.current)) {
+                    if (footAudioRef.current && !footPlayingRef.current) {
+                        footPlayingRef.current = true;
+                        footAudioRef.current.play().catch(err => console.log(err));
+                    }
+                }
+            }
         };
         const handleKeyUp = (e) => {
             const key = e.key.toLowerCase();
-            setKeys(prev => ({ ...prev, [key]: false }));
+            setKeys(prev => {
+                const newKeys = { ...prev, [key]: false };
+                const isMoving = newKeys['w'] || newKeys['s'] || newKeys['a'] || newKeys['d'] || newKeys['arrowup'] || newKeys['arrowdown'] || newKeys['arrowleft'] || newKeys['arrowright'];
+                if (!isMoving && footAudioRef.current && footPlayingRef.current) {
+                    footPlayingRef.current = false;
+                    footAudioRef.current.pause();
+                }
+                return newKeys;
+            });
         };
 
         window.addEventListener('keydown', handleKeyDown);
@@ -1068,6 +1111,7 @@ const Level12 = () => {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            if (footAudioRef.current) footAudioRef.current.pause();
         };
     }, []);
 
@@ -1076,22 +1120,30 @@ const Level12 = () => {
         const handleKey = (e) => {
             if (e.key.toLowerCase() === 'e') {
                 if (phase === 'study_walk' && interactionTarget === 'exit') {
+                    playDoorSound();
                     setPhase('living_room_walk');
                 } else if (phase === 'living_room_walk' && interactionTarget === 'bedroom') {
+                    playDoorSound();
                     setPhase('washroom_walk');
                 } else if (phase === 'washroom_walk' && interactionTarget === 'sleep') {
+                    playDoorSound();
                     setPhase('washroom_inside');
                 } else if (phase === 'bedroom_return_walk' && interactionTarget === 'exit') {
+                    playDoorSound();
                     setPhase('living_room_return_walk');
                 } else if (phase === 'living_room_return_walk' && interactionTarget === 'study') {
+                    playDoorSound();
                     setPhase('study_return_walk');
                 } else if (phase === 'living_room_return_walk' && interactionTarget === 'exit' && hasTorch) {
+                    playDoorSound();
                     setNeighborKnock(false);
+                    setGardenPlayerPos({ x: 600, y: 100 });
                     setPhase('garden_walk_night');
                 } else if (phase === 'study_return_walk') {
                     if (interactionTarget === 'drawer' && !hasTorch) {
                         setShowLockGame(true);
                         if (isDrawerUnlocked) {
+                            playDrawSound();
                             setDrawerStage('search');
                         } else {
                             setDrawerStage('lock');
@@ -1100,6 +1152,7 @@ const Level12 = () => {
                             generateNewTargetZone(0);
                         }
                     } else if (interactionTarget === 'exit') {
+                        playDoorSound();
                         setPhase('living_room_return_walk');
                     }
                 }
@@ -1166,10 +1219,17 @@ const Level12 = () => {
 
     // Play Knock Sound
     useEffect(() => {
+        let knockInterval = null;
         if (neighborKnock) {
             audioRef.current = new Audio('/audio/doorknock.mp3');
-            audioRef.current.loop = true;
             audioRef.current.play().catch(e => console.log("Audio play blocked by browser interaction policy"));
+            
+            knockInterval = setInterval(() => {
+                if (audioRef.current) {
+                    audioRef.current.currentTime = 0;
+                    audioRef.current.play().catch(e => {});
+                }
+            }, 5000);
         } else {
             if (audioRef.current) {
                 audioRef.current.pause();
@@ -1177,6 +1237,7 @@ const Level12 = () => {
             }
         }
         return () => {
+            if (knockInterval) clearInterval(knockInterval);
             if (audioRef.current) {
                 audioRef.current.pause();
             }
@@ -1358,7 +1419,6 @@ const Level12 = () => {
 
                     let target = null;
                     if (Math.abs(nx - 600) < 150 && ny > ROOM_HEIGHT - 100) target = 'exit';
-                    else if (Math.abs(nx - 200) < 150 && ny < 200) target = 'cupboard';
                     else if (checkCollision(nx, ny, { x: DESK_ZONE.x - 30, y: DESK_ZONE.y - 30, w: DESK_ZONE.w + 60, h: DESK_ZONE.h + 60 })) target = 'drawer';
 
                     setInteractionTarget(target);
@@ -1375,7 +1435,7 @@ const Level12 = () => {
                     ny = Math.max(0, Math.min(ny, ROOM_HEIGHT - PLAYER_SIZE));
 
                     let target = null;
-                    if (Math.abs(nx - 600) < 200 && ny > ROOM_HEIGHT - 200) target = 'neighbor';
+                    if (Math.abs(nx - 600) < 200 && ny > 300 && ny < 600) target = 'neighbor';
                     setInteractionTarget(target);
 
                     return { x: nx, y: ny };
@@ -1569,6 +1629,7 @@ const Level12 = () => {
             showStatPopup('clue', `Pin ${nextPins} Unlocked!`);
             if (nextPins >= 3) {
                 setIsDrawerUnlocked(true);
+                playDrawSound();
                 setDrawerStage('search');
                 showStatPopup('success', "Lock Unlocked! Search the drawer.");
             } else {
@@ -1873,14 +1934,9 @@ const Level12 = () => {
                             {phase === 'study_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Go to the living room" />}
                             {phase === 'study_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit the room" />}
 
-                            {phase === 'study_return_walk' && !interactionTarget && !hasTorch && (() => {
-                                 if (!inventoryHasTorch) return <InteractionPrompt showKey={false} text="Find a torch in the dark (Search the desk drawer)" />;
-                                 if (!inventoryHasBatteries) return <InteractionPrompt showKey={false} text="The torch has no power. Walk to the drawer to search for batteries." />;
-                                 return <InteractionPrompt showKey={false} text="I have both items. Click 'Assemble Torch' in the top-right log panel." />;
-                             })()}
+                            {phase === 'study_return_walk' && !interactionTarget && !hasTorch && <InteractionPrompt showKey={false} text="Find a torch in the dark" />}
                              {phase === 'study_return_walk' && !interactionTarget && hasTorch && <InteractionPrompt showKey={false} text="Go back to the living room" />}
                              {phase === 'study_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text="Press E to exit the room" />}
-                             {phase === 'study_return_walk' && interactionTarget === 'cupboard' && <InteractionPrompt text="Press E to search cupboard" />}
                              {phase === 'study_return_walk' && interactionTarget === 'drawer' && !hasTorch && (() => {
                                  if (!inventoryHasTorch) return <InteractionPrompt text="Press E to inspect desk drawer for torch" />;
                                  if (!inventoryHasBatteries) return <InteractionPrompt text="Press E to inspect desk drawer for batteries" />;
@@ -1935,8 +1991,8 @@ const Level12 = () => {
                                 {phase === 'living_room_walk' && !interactionTarget && <InteractionPrompt showKey={false} text="Go to the bedroom" />}
                                 {phase === 'living_room_walk' && interactionTarget === 'bedroom' && <InteractionPrompt text="Press E to enter bedroom" />}
 
-                                {phase === 'living_room_return_walk' && !interactionTarget && <InteractionPrompt showKey={false} text={hasTorch ? "Escape through the front door" : "Go to the study"} />}
-                                {phase === 'living_room_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text={hasTorch ? "Press E to escape!" : "I need to find a torch first."} />}
+                                {phase === 'living_room_return_walk' && !interactionTarget && !hasTorch && <InteractionPrompt showKey={false} text="Go to the study" />}
+                                {phase === 'living_room_return_walk' && interactionTarget === 'exit' && <InteractionPrompt text={hasTorch ? "Press E to open door" : "I need to find a torch first."} />}
                                 {phase === 'living_room_return_walk' && interactionTarget === 'study' && <InteractionPrompt text="Press E to enter study" />}
                             </div>
                         );
@@ -1962,10 +2018,17 @@ const Level12 = () => {
                     {/* GARDEN NIGHT WALK */}
                     {(phase === 'garden_walk_night' || phase === 'neighbor_conversation') && (
                         <div className="relative border-8 border-slate-900 shadow-2xl overflow-hidden bg-zinc-900 animate-in fade-in duration-1000" style={{ width: ROOM_WIDTH, height: ROOM_HEIGHT }}>
-                            <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/garrrdennight.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                            <div className="absolute inset-0 z-0" style={{ backgroundImage: "url('/assets/gardennightneigh.png')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
 
                             {!interactionTarget && <InteractionPrompt showKey={false} text="Find the neighbor" />}
-                            {interactionTarget === 'neighbor' && phase !== 'neighbor_conversation' && <InteractionPrompt text="Press E to speak to neighbor" />}
+                            {interactionTarget === 'neighbor' && phase !== 'neighbor_conversation' && (
+                                <div className="absolute top-10 left-0 right-0 z-[5000] flex flex-col items-center pointer-events-none animate-pulse">
+                                    <div className="flex items-center gap-3 whitespace-nowrap bg-black/60 px-6 py-3 rounded-full border border-white/20 backdrop-blur-sm">
+                                        <span className="w-7 h-7 flex items-center justify-center bg-white text-black font-black text-xs rounded-md shadow-[0_0_15px_rgba(255,255,255,0.4)]">E</span>
+                                        <span className="text-white font-bold text-sm uppercase tracking-[0.25em]">SPEAK TO NEIGHBOR</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {phase === 'garden_walk_night' && renderFlashlightMask(gardenPlayerPos)}
                             <Player x={gardenPlayerPos.x} y={gardenPlayerPos.y} />
@@ -2083,13 +2146,6 @@ const Level12 = () => {
                         </div>
                     )}
 
-                    {/* Muffled Neighbor Voice Banner */}
-                    {hasTorch && neighborKnock && !finalOutcome && phase === 'living_room_return_walk' && (
-                        <div className="absolute top-36 left-1/2 -translate-x-1/2 bg-blue-900/90 border-2 border-blue-500 text-white px-8 py-3.5 z-50 font-medium text-center w-[85%] max-w-[900px] rounded-xl shadow-2xl animate-pulse">
-                            <span className="text-blue-300 font-bold text-xs uppercase tracking-widest block mb-1">Muffled Voice from outside the front door</span>
-                            "Hello? Arjun? Are you home? The power is out. Do you have a spare candle?"
-                        </div>
-                    )}
 
                     {/* Active Choice Banner */}
                     {hasTorch && neighborKnock && !finalOutcome && (
@@ -2223,7 +2279,7 @@ const Level12 = () => {
                                         
                                         {/* Status bar */}
                                         <div className="h-6 px-6 pt-1.5 flex justify-between items-center text-white/70 text-[9px] font-mono select-none">
-                                            <span>09:45 AM</span>
+                                            <span>1:00</span>
                                             <div className="flex items-center gap-1">
                                                 <span>5G</span>
                                                 <div className="w-3.5 h-2 border border-white/50 rounded-2xs p-0.5"><div className="bg-white h-full w-[80%]"></div></div>
@@ -3782,7 +3838,7 @@ const Level12 = () => {
 
                             {/* Phone Status Bar */}
                             <div className="absolute top-2.5 left-0 right-0 h-5 px-6 z-40 flex justify-between items-center text-white text-[10px] font-semibold select-none pointer-events-none tracking-wider font-mono">
-                                <span>{phase === 'whatsapp_file_delivery' ? '09:35' : '09:28'}</span>
+                                <span>{['bedroom_return_walk', 'living_room_return_walk', 'study_return_walk', 'garden_walk_night', 'neighbor_conversation'].includes(phase) || finalOutcome ? '12:45' : ['whatsapp_file_delivery', 'whatsapp_noti_received', 'zoom_ui', 'zoom_dialogue'].includes(phase) ? (['washroom_opening', 'washroom_request_1', 'washroom_pushback_1', 'camera_demand'].includes(currentNode) ? '12:45' : '09:36') : '09:28'}</span>
                                 <div className="flex items-center gap-1.5">
                                     <span className="text-[8px] font-sans font-bold opacity-80">5G</span>
                                     <div className="flex items-end gap-[1px] h-2 opacity-80">
@@ -4712,6 +4768,9 @@ const Level12 = () => {
                     )}
                 </div>
             )}
+
+            {/* Audio Elements */}
+            <audio ref={footAudioRef} src="/audio/foot.m4a" loop preload="auto" />
 
             <style dangerouslySetInnerHTML={{
                 __html: `
