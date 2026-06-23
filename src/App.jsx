@@ -10,6 +10,7 @@ import Level7 from './levels/Level7';
 import Level8 from './levels/Level8';
 import Level9 from './levels/Level9';
 import Level10 from './levels/Level10';
+import Level11 from './levels/Level11';
 import Level12 from './levels/Level12';
 import Level13 from './levels/Level13';
 
@@ -20,7 +21,6 @@ import MainMenu from './components/MainMenu';
 import PauseMenu from './components/PauseMenu';
 import Prologue from './levels/Prologue';
 import CyberDefenseLab from './components/CyberDefenseLab';
-import Conclusion from './levels/Conclusion';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 import ColorBlindFilters from './components/ColorBlindFilters';
 import MobileViewportScaler from './components/MobileViewportScaler';
@@ -56,7 +56,7 @@ function GameRunner() {
             case 8: return <Level8 />;
             case 9: return <Level9 />;
             case 10: return <Level10 />;
-            case 11: return <Conclusion />;
+            case 11: return <Level11 />;
             case 12: return <Level12 />;
             case 13: return <Level13 />;
             case 'living-room': return <LevelLivingRoom />;

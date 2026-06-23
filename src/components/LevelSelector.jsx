@@ -12,8 +12,8 @@ const levelNames = {
     8: 'The Ghost Store',
     9: 'Ghost Profile',
     10: 'I am so lonely',
-    11: 'Conclusion',
-    12: 'The Arrest'
+    11: 'The Arrest',
+    12: 'Conclusion'
 };
 
 const levelDifficulty = {
@@ -21,7 +21,7 @@ const levelDifficulty = {
     4: 'MEDIUM', 5: 'MEDIUM', 6: 'MEDIUM',
     7: 'HARD', 8: 'HARD', 9: 'HARD',
     10: 'EXPERT',
-    11: 'ENDING',
+    11: 'EXPERT',
     12: 'ENDING'
 };
 
