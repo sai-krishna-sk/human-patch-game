@@ -446,11 +446,11 @@ const CyberDefenseLab = () => {
     return (
         <div 
             ref={containerRef}
-            className="relative w-screen h-screen overflow-x-hidden overflow-y-auto flex flex-col items-center justify-center font-sans selection:bg-cyan-100 selection:text-cyan-900"
+            className="relative w-full h-full overflow-x-hidden overflow-y-auto flex flex-col items-center justify-center font-sans selection:bg-cyan-100 selection:text-cyan-900"
         >
             {renderBackground()}
 
-            <div className="relative z-10 w-full min-h-screen flex flex-col items-center justify-center">
+            <div className="relative z-10 w-full min-h-full flex flex-col items-center justify-center">
                 {view === 'hub' && renderHub()}
                 {view === 'minigames' && renderGameGrid(MINIGAME_CARDS, 'minigames')}
                 {view === 'arcade' && renderGameGrid(ARCADE_CARDS, 'arcade')}

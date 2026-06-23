@@ -901,7 +901,7 @@ const Level1 = () => {
                             );
                             return null;
                         })}
-                        <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
+                        <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }} />
                     </div>
 
                     {/* Footer Actions */}
@@ -1236,7 +1236,7 @@ const Level1 = () => {
                                     Continue <span className="group-hover:translate-x-1 transition-transform">→</span>
                                 </button>
                             )}
-                            <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth' }) }} />
+                            <div ref={(el) => { if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }} />
                         </div>
                         {isSmsVisible && !isSmsExpanded && (
                             <div className="absolute top-28 left-4 right-4 bg-slate-100 text-slate-900 rounded-2xl p-4 shadow-2xl border border-slate-300 cursor-pointer animate-dropdown z-50 transition-all hover:bg-white" onClick={() => setIsSmsExpanded(true)}>

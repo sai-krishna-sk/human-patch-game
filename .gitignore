@@ -35,3 +35,7 @@ dist_electron/
 # Electron entry
 electron/
 Gamethon.zip
+
+# Android artifacts
+app-debug.apk
+*.apk

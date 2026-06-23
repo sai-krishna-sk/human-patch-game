@@ -681,6 +681,7 @@ export default function BotnetSurvivors({ onBack }) {
             if (e.key.toLowerCase() === 'e') cycleWeapon(1);
             if (e.key === 'Shift') cycleWeapon(1);
             if (e.key === 'Escape' && (gameState === 'playing' || gameState === 'paused')) {
+                e.preventDefault();
                 setGameState(prev => prev === 'playing' ? 'paused' : 'playing');
                 if (gameState === 'paused') lastTimeRef.current = performance.now(); // Reset lastTime to avoid jump
             }

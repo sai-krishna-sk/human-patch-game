@@ -518,7 +518,7 @@ const BrowserSentry = ({ onBack }) => {
     };
 
     const renderPlaying = () => (
-        <div className="w-screen h-screen flex flex-col animate-fade-in font-sans bg-slate-50 overflow-hidden">
+        <div className="w-full h-full flex flex-col animate-fade-in font-sans bg-slate-50 overflow-hidden">
             {/* Top Navigation Bar (Status) */}
             <div className="shrink-0 w-full bg-white border-b border-slate-200 px-8 py-3 flex items-center justify-between z-50">
                 <div className="flex items-center gap-8">

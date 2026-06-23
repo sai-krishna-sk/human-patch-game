@@ -800,7 +800,7 @@ const Level9 = () => {
                                     </div>
                                 </div>
                             )}
-                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} />
                         </div>
 
 
@@ -1519,7 +1519,7 @@ const Level9 = () => {
                                     </div>
                                 ))}
                                 
-                                <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                                <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} />
                             </div>
 
                             <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/90 to-transparent z-20 pb-10 flex flex-col items-center">
@@ -1687,7 +1687,7 @@ const Level9 = () => {
                                     </div>
                                 )}
                             </div>
-                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} />
                         </div>
 
                         <div className="p-4 bg-black border-t border-neutral-800 flex-shrink-0">

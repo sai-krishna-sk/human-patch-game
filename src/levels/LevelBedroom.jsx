@@ -193,7 +193,7 @@ const LevelBedroom = () => {
 
     // ═══ RENDER ═══
     return (
-        <div className="w-screen h-screen bg-black flex items-center justify-center relative overflow-hidden font-mono">
+        <div className="w-full h-full bg-black flex items-center justify-center relative overflow-hidden font-mono">
             {/* Background Image */}
             <div
                 className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 ${phase === 'dialogue' ? 'scale-110 blur-sm opacity-50' : 'scale-100 opacity-100'}`}

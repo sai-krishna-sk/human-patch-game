@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Human Patch Game</string>
+    <string name="title_activity_main">Human Patch Game</string>
+    <string name="package_name">com.gamethon.humanpatchgame</string>
+    <string name="custom_url_scheme">com.gamethon.humanpatchgame</string>
+</resources>

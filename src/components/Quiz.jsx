@@ -5,7 +5,7 @@ const Quiz = () => {
     const { enterLevel } = useGameState();
 
     return (
-        <div className="relative w-screen h-screen overflow-hidden bg-slate-950 flex flex-col items-center justify-center font-mono text-slate-300">
+        <div className="relative w-full h-full overflow-hidden bg-slate-950 flex flex-col items-center justify-center font-mono text-slate-300">
             {/* Atmospheric Background */}
             <div className="absolute inset-0 z-0 opacity-20 pointer-events-none">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,211,238,0.1)_0%,transparent_70%)]" />

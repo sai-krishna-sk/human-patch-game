@@ -23,54 +23,64 @@ import CyberDefenseLab from './components/CyberDefenseLab';
 import Conclusion from './levels/Conclusion';
 import { GameStateProvider, useGameState } from './context/GameStateContext';
 import ColorBlindFilters from './components/ColorBlindFilters';
+import MobileViewportScaler from './components/MobileViewportScaler';
+import MobileControls from './components/MobileControls';
 
 function GameRunner() {
     const { currentLevel, assets, rank, safetyScore, lives, isPaused, setIsPaused, colorBlindFilter, visualProfile } = useGameState();
 
     React.useEffect(() => {
         const handleKeyDown = (e) => {
-            const isStoryLevel = (typeof currentLevel === 'number' && (currentLevel > 0 || currentLevel === -3)) || 
-                                ['living-room', 'bedroom'].includes(currentLevel);
-            if (e.key === 'Escape' && isStoryLevel) {
+            if (e.key === 'Escape' && !e.defaultPrevented) {
                 setIsPaused(prev => !prev);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentLevel, setIsPaused]);
+    }, [setIsPaused]);
+
+    const renderScreen = () => {
+        switch (currentLevel) {
+            case -3: return <Prologue />;
+            case -2: return <MainMenu />;
+            case -4: return <CyberDefenseLab />;
+            case 0: return <WorldMap />;
+            case -1: return <LevelSelector />;
+            case 1: return <Level1 />;
+            case 2: return <Level2 />;
+            case 3: return <Level3 />;
+            case 4: return <Level4 />;
+            case 5: return <Level5 />;
+            case 6: return <Level6 />;
+            case 7: return <Level7 />;
+            case 8: return <Level8 />;
+            case 9: return <Level9 />;
+            case 10: return <Level10 />;
+            case 11: return <Conclusion />;
+            case 12: return <Level12 />;
+            case 13: return <Level13 />;
+            case 'living-room': return <LevelLivingRoom />;
+            case 'bedroom': return <LevelBedroom />;
+            default: return null;
+        }
+    };
 
     return (
         <div 
-            className={`w-screen h-screen bg-slate-900 overflow-hidden font-sans relative ${visualProfile && visualProfile !== 'none' ? `profile-${visualProfile}` : ''}`}
+            className={`w-full h-full bg-black overflow-hidden font-sans relative ${visualProfile && visualProfile !== 'none' ? `profile-${visualProfile}` : ''}`}
             style={{ filter: colorBlindFilter && colorBlindFilter !== 'normal' ? `url(#${colorBlindFilter})` : 'none' }}
         >
             <ColorBlindFilters />
 
+            <MobileViewportScaler active={true}>
+                {renderScreen()}
+                
+                {/* Mobile virtual gamepad controller */}
+                <MobileControls />
 
-
-            {currentLevel === -3 && <Prologue />}
-            {currentLevel === -2 && <MainMenu />}
-            {currentLevel === -4 && <CyberDefenseLab />}
-            {currentLevel === 0 && <WorldMap />}
-            {currentLevel === -1 && <LevelSelector />}
-            {currentLevel === 1 && <Level1 />}
-            {currentLevel === 2 && <Level2 />}
-            {currentLevel === 3 && <Level3 />}
-            {currentLevel === 4 && <Level4 />}
-            {currentLevel === 5 && <Level5 />}
-            {currentLevel === 6 && <Level6 />}
-            {currentLevel === 7 && <Level7 />}
-            {currentLevel === 8 && <Level8 />}
-            {currentLevel === 9 && <Level9 />}
-            {currentLevel === 10 && <Level10 />}
-            {currentLevel === 11 && <Conclusion />}
-            {currentLevel === 12 && <Level12 />}
-            {currentLevel === 13 && <Level13 />}
-            {currentLevel === 'living-room' && <LevelLivingRoom />}
-            {currentLevel === 'bedroom' && <LevelBedroom />}
-
-            {/* Pause Menu Overlay */}
-            {isPaused && <PauseMenu />}
+                {/* Pause Menu Overlay */}
+                {isPaused && <PauseMenu />}
+            </MobileViewportScaler>
 
         </div>
     );

@@ -476,7 +476,7 @@ const Prologue = () => {
 
     if (phase === 'video') {
         return (
-            <div className="w-screen h-screen bg-black flex items-center justify-center relative overflow-hidden">
+            <div className="w-full h-full bg-black flex items-center justify-center relative overflow-hidden">
                 <video ref={videoRef} autoPlay className="w-full h-full object-cover" onEnded={handleVideoEnd}>
                     <source src="/assets/zoom_in.mp4" type="video/mp4" />
                 </video>
@@ -489,7 +489,7 @@ const Prologue = () => {
 
     if (phase === 'office') {
         return (
-            <div className="w-screen h-screen bg-slate-900 flex items-center justify-center relative overflow-hidden animate-fade-in text-white/90">
+            <div className="w-full h-full bg-slate-900 flex items-center justify-center relative overflow-hidden animate-fade-in text-white/90">
                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/assets/office_inside.jpeg")' }} />
                 <Player x="49%" y="63%" />
                 <div className="absolute top-[52%] left-[40%] animate-phone-vibrate pointer-events-none z-40" style={{ filter: 'drop-shadow(0 0 5px rgba(255,255,255,0.4))' }}>
@@ -507,7 +507,7 @@ const Prologue = () => {
     if (phase === 'dialogue') {
         const currentDialogue = dialogues[dialogueIndex];
         return (
-            <div className="w-screen h-screen bg-black flex flex-col items-center justify-end p-8 pb-12 relative overflow-hidden cursor-pointer" onClick={handleDialogueInteraction}>
+            <div className="w-full h-full bg-black flex flex-col items-center justify-end p-8 pb-12 relative overflow-hidden cursor-pointer" onClick={handleDialogueInteraction}>
                 <div className="absolute inset-0 bg-cover bg-center blur-md opacity-30 scale-110 grayscale-[0.3]" style={{ backgroundImage: 'url("/assets/office_inside.jpeg")' }} />
                 <div className="absolute inset-x-0 top-0 bottom-48 flex items-end justify-between px-24 pointer-events-none">
                     <div className={`transition-all duration-500 transform ${currentDialogue.speaker === 'PLAYER' ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 scale-95'}`}>
@@ -537,7 +537,7 @@ const Prologue = () => {
 
     if (phase === 'outside') {
         return (
-            <div className="w-screen h-screen bg-black relative overflow-hidden animate-fade-in">
+            <div className="w-full h-full bg-black relative overflow-hidden animate-fade-in">
                 <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/assets/Office_down.jpeg")' }} />
                 <div className={`absolute inset-0 bg-black transition-opacity duration-1000 z-50 pointer-events-none ${isEnteringCar ? 'opacity-100' : 'opacity-0'}`} />
                 <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
@@ -563,7 +563,7 @@ const Prologue = () => {
 
     if (phase === 'travel') {
         return (
-            <div className="w-screen h-screen bg-black flex items-center justify-center relative overflow-hidden">
+            <div className="w-full h-full bg-black flex items-center justify-center relative overflow-hidden">
                 <div className="absolute inset-0 bg-cover bg-center animate-zoom-slow" style={{ backgroundImage: 'url("/assets/on the way.png")' }} />
                 <div className="absolute inset-0 bg-gradient-to-b from-indigo-950/20 via-transparent to-black/60" />
                 <div className="absolute inset-0 bg-indigo-500/5 mix-blend-overlay animate-pulse-slow" />
@@ -590,7 +590,7 @@ const Prologue = () => {
 
     if (phase === 'estate_exterior') {
         return (
-            <div className="w-screen h-screen bg-black relative overflow-hidden animate-fade-in">
+            <div className="w-full h-full bg-black relative overflow-hidden animate-fade-in">
                 {/* Screen Transition Overlay */}
                 <div 
                     className="absolute inset-0 bg-black z-[9999] pointer-events-none transition-opacity duration-[800ms] ease-in-out"

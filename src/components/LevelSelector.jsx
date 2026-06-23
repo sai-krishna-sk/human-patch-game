@@ -38,7 +38,7 @@ const LevelSelector = () => {
     const { enterLevel } = useGameState();
 
     return (
-        <div className="absolute inset-0 z-[1000] bg-slate-950 flex flex-col items-center justify-center">
+        <div className="absolute inset-0 z-[1000] bg-black flex flex-col items-center justify-center">
 
             {/* Background grid */}
             <div className="absolute inset-0 z-0 opacity-10" style={{

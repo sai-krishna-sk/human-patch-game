@@ -32,5 +32,5 @@ def fix_dist_paths(dist_directory):
                     print(f"Error processing {path}: {e}")
 
 if __name__ == "__main__":
-    project_root = r"c:\Users\terli\Documents\Gamethon\human-patch-game"
-    fix_dist_paths(os.path.join(project_root, "dist"))
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    fix_dist_paths(os.path.join(script_dir, "dist"))

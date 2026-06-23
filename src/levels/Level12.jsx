@@ -1210,6 +1210,7 @@ const Level12 = () => {
     useEffect(() => {
         const handleEscapeKey = (e) => {
             if (e.key === 'Escape' && showLockGame) {
+                e.preventDefault();
                 setShowLockGame(false);
             }
         };
@@ -1888,7 +1889,7 @@ const Level12 = () => {
     };
 
     return (
-        <div className="w-screen h-screen bg-slate-950 flex items-center justify-center relative overflow-hidden">
+        <div className="w-full h-full bg-slate-950 flex items-center justify-center relative overflow-hidden">
             {/* Blurred background image */}
             <div
                 className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm"

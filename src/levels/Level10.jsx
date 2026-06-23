@@ -189,7 +189,7 @@ const Level10 = () => {
   // Scroll to bottom of DMs
   useEffect(() => {
     if (dmEndRef.current) {
-      dmEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      dmEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [dmHistory, isTyping]);
 
@@ -1330,7 +1330,7 @@ const Level10 = () => {
     // Helper to auto-scroll to bottom of chat
     const chatEndRef = useRef(null);
     useEffect(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, [waHistory, waUnknownHistory, phoneApp]);
 
     useEffect(() => {

@@ -30,6 +30,18 @@ export const GameStateProvider = ({ children }) => {
     });
     const [currentLevel, setCurrentLevel] = useState(-2); // -2 = Main Menu
     const [isPaused, setIsPaused] = useState(false);
+    const [showTouchControls, setShowTouchControls] = useState(false);
+    const [touchControlsScale, setTouchControlsScale] = useState(() => {
+        const saved = localStorage.getItem('hpg_touchControlsScale');
+        return saved !== null ? Number(saved) : 1.0;
+    });
+
+    useEffect(() => {
+        const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        if (isTouch) {
+            setShowTouchControls(true);
+        }
+    }, []);
 
     useEffect(() => { localStorage.setItem('hpg_assets', assets); }, [assets]);
     useEffect(() => { localStorage.setItem('hpg_safetyScore', safetyScore); }, [safetyScore]);
@@ -37,6 +49,7 @@ export const GameStateProvider = ({ children }) => {
     useEffect(() => { localStorage.setItem('hpg_lives', lives); }, [lives]);
     useEffect(() => { localStorage.setItem('hpg_colorBlindFilter', colorBlindFilter); }, [colorBlindFilter]);
     useEffect(() => { localStorage.setItem('hpg_visualProfile', visualProfile); }, [visualProfile]);
+    useEffect(() => { localStorage.setItem('hpg_touchControlsScale', touchControlsScale); }, [touchControlsScale]);
 
     const resetProgress = () => {
         localStorage.removeItem('hpg_assets');
@@ -45,12 +58,14 @@ export const GameStateProvider = ({ children }) => {
         localStorage.removeItem('hpg_lives');
         localStorage.removeItem('hpg_colorBlindFilter');
         localStorage.removeItem('hpg_visualProfile');
+        localStorage.removeItem('hpg_touchControlsScale');
         setAssets(4200000);
         setSafetyScore(0);
         setRank('Rookie');
         setLives(3);
         setColorBlindFilter('normal');
         setVisualProfile('none');
+        setTouchControlsScale(1.0);
         setCurrentLevel(-2);
     };
 
@@ -169,6 +184,10 @@ export const GameStateProvider = ({ children }) => {
             playTitleCardSound,
             isPaused,
             setIsPaused,
+            showTouchControls,
+            setShowTouchControls,
+            touchControlsScale,
+            setTouchControlsScale,
             colorBlindFilter,
             setColorBlindFilter,
             visualProfile,

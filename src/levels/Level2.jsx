@@ -1774,7 +1774,7 @@ const Level2 = () => {
     } : {};
 
     return (
-        <div className="w-screen h-screen bg-zinc-950 overflow-hidden relative">
+        <div className="w-full h-full bg-zinc-950 overflow-hidden relative">
             {/* AUDIO ASSETS - DOM-bound for maximum reliability */}
             <audio ref={footstepAudioRef} src="/audio/foot.m4a" loop preload="auto" style={{ display: 'none' }} />
             <audio ref={doorAudioRef} src="/audio/home door.mp3" preload="auto" style={{ display: 'none' }} />
